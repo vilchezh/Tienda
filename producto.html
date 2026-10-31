@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLCKSCLE // Acero y Escamas — Herrería</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-carbon: #141a1a;
+      --bg-petrol: #1d4347;
+      --bg-panel: #1b2424;
+      --sage-main: #75927e;
+      --sage-muted: #526959;
+      --cream-light: #f5f3eb;
+      --text-muted: #9cb0a2;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Space Grotesk', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: var(--bg-carbon); color: var(--cream-light); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+    header {
+      background: var(--bg-petrol);
+      border-bottom: 2px solid var(--sage-main);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: var(--cream-light);
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 2px;
+      border: 1px solid var(--sage-main);
+      object-fit: cover;
+      background: var(--cream-light);
+    }
+
+    .brand-titles { display: flex; flex-direction: column; }
+    .brand-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.2em; color: var(--sage-main); font-weight: 700; }
+    .brand-main { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.1; }
+
+    .back-link {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--cream-light);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid var(--sage-main);
+      background: rgba(20, 26, 26, 0.4);
+      border-radius: 2px;
+    }
+    .back-link:hover { background: var(--sage-main); color: var(--bg-carbon); }
+
+    .hazard-divider {
+      height: 8px;
+      background: repeating-linear-gradient(
+        -55deg,
+        var(--bg-petrol),
+        var(--bg-petrol) 24px,
+        var(--sage-main) 24px,
+        var(--sage-main) 27px
+      );
+      border-bottom: 1px solid var(--sage-muted);
+    }
+
+    .shop-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      min-height: calc(100vh - 80px);
+    }
+
+    @media (min-width: 992px) {
+      .shop-layout { grid-template-columns: 1.15fr 0.85fr; }
+    }
+
+    /* CONTENEDOR DE VISOR 3D + GALERÍA DE FOTOS REALES */
+    .viewport-container {
+      position: relative;
+      background: radial-gradient(circle at center, #222d2d 0%, #101515 100%);
+      border-bottom: 1px solid var(--sage-muted);
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (min-width: 992px) {
+      .viewport-container {
+        border-bottom: none;
+        border-right: 1px solid var(--sage-muted);
+        position: sticky;
+        top: 0;
+        height: calc(100vh - 80px);
+      }
+    }
+
+    .scale-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(30deg, rgba(117, 146, 126, 0.07) 1px, transparent 1px),
+        linear-gradient(150deg, rgba(117, 146, 126, 0.07) 1px, transparent 1px);
+      background-size: 32px 18px;
+      pointer-events: none;
+    }
+
+    /* PESTAÑAS SUPERIORES: 3D vs FOTOS REALES */
+    .media-tabs {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 7px 12px;
+      background: rgba(20, 26, 26, 0.9);
+      border: 1px solid var(--sage-muted);
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-petrol);
+      color: var(--cream-light);
+      border-color: var(--sage-main);
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 460px;
+      flex-grow: 1;
+      --poster-color: transparent;
+      outline: none;
+    }
+
+    @media (min-width: 992px) { model-viewer { height: 100%; } }
+
+    /* GALERÍA DE FOTOS REALES */
+    .photo-gallery-view {
+      display: none;
+      width: 100%;
+      height: 100%;
+      min-height: 460px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 24px 24px;
+      position: relative;
+      z-index: 2;
+      gap: 14px;
+    }
+
+    .main-real-photo {
+      max-width: 100%;
+      max-height: 68vh;
+      object-fit: contain;
+      border: 1px solid var(--sage-muted);
+      background: #0d1212;
+      border-radius: 2px;
+    }
+
+    .thumbs-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      max-width: 100%;
+      padding-bottom: 4px;
+    }
+
+    .thumb-item {
+      width: 64px;
+      height: 48px;
+      object-fit: cover;
+      border: 1px solid var(--sage-muted);
+      cursor: pointer;
+      opacity: 0.6;
+      border-radius: 2px;
+    }
+
+    .thumb-item.active {
+      opacity: 1;
+      border-color: var(--sage-main);
+      box-shadow: 0 0 0 1px var(--sage-main);
+    }
+
+    .viewport-hud {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .hud-tag {
+      background: rgba(20, 26, 26, 0.88);
+      border: 1px solid var(--sage-muted);
+      color: var(--cream-light);
+      padding: 6px 10px;
+      border-radius: 2px;
+    }
+
+    .config-panel {
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow-y: auto;
+    }
+
+    @media (min-width: 992px) { .config-panel { padding: 36px 32px; } }
+
+    .item-sku { font-family: var(--font-mono); font-size: 11px; color: var(--sage-main); letter-spacing: 0.08em; }
+    .item-header h1 { font-size: 26px; font-weight: 700; text-transform: uppercase; margin: 4px 0 6px; letter-spacing: 0.02em; }
+
+    .pricing-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--sage-muted);
+      border-left: 4px solid var(--sage-main);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .price-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+    .price-value { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--cream-light); font-variant-numeric: tabular-nums; }
+
+    .section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--sage-main);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(117, 146, 126, 0.25);
+      padding-bottom: 4px;
+    }
+
+    .section-val { color: var(--cream-light); }
+
+    .option-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .option-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+    .btn-opt {
+      background: var(--bg-panel);
+      border: 1px solid var(--sage-muted);
+      padding: 9px 11px;
+      text-align: left;
+      cursor: pointer;
+      color: var(--cream-light);
+      border-radius: 2px;
+      transition: all 120ms ease;
+    }
+
+    .btn-opt:hover { border-color: var(--cream-light); }
+    .btn-opt.active {
+      background: var(--bg-petrol);
+      border-color: var(--sage-main);
+      box-shadow: inset 0 0 0 1px var(--sage-main);
+    }
+
+    .btn-opt-wood { display: flex; align-items: center; gap: 10px; }
+    .wood-thumb {
+      width: 38px;
+      height: 38px;
+      border-radius: 2px;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+    }
+
+    .opt-name { font-size: 13px; font-weight: 700; display: block; }
+    .opt-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px; }
+
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 8px;
+    }
+
+    .swatch-btn {
+      background: var(--bg-panel);
+      border: 1px solid var(--sage-muted);
+      padding: 6px;
+      border-radius: 2px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      color: var(--cream-light);
+    }
+
+    .swatch-btn.active {
+      border-color: var(--cream-light);
+      background: var(--bg-petrol);
+    }
+
+    .swatch-color {
+      width: 100%;
+      height: 22px;
+      border-radius: 1px;
+      border: 1px solid rgba(0,0,0,0.4);
+    }
+
+    .swatch-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .btn-whatsapp {
+      background: var(--sage-main);
+      color: var(--bg-carbon);
+      border: 1px solid var(--cream-light);
+      padding: 15px 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      text-align: center;
+      border-radius: 2px;
+      margin-top: 6px;
+      transition: background 120ms ease;
+    }
+
+    .btn-whatsapp:hover { background: var(--cream-light); }
+    #errorPanel { display: none; padding: 40px; text-align: center; font-family: var(--font-mono); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="brand-wrap">
+      <img src="assets/img/logo.jpg" alt="Acero y Escamas" class="brand-logo" onerror="this.style.display='none'">
+      <div class="brand-titles">
+        <span class="brand-sub">BLCKSCLE // HERRERÍA</span>
+        <span class="brand-main">Acero y Escamas</span>
+      </div>
+    </a>
+    <a href="index.html" class="back-link">← Catálogo</a>
+  </header>
+  <div class="hazard-divider"></div>
+
+  <div id="errorPanel">
+    <h2 style="color: var(--sage-main);">Pieza no encontrada en el catálogo</h2>
+    <p style="color: var(--text-muted); margin-top: 8px;">Verificá el enlace o volvé al catálogo principal.</p>
+  </div>
+
+  <div class="shop-layout" id="mainShopLayout" style="display: none;">
+    
+    <!-- VISOR 3D + GALERÍA DE FOTOS REALES -->
+    <div class="viewport-container">
+      <div class="scale-grid"></div>
+
+      <div class="media-tabs">
+        <button type="button" class="tab-btn active" id="tabBtn3d">⚙️ Visor 3D</button>
+        <button type="button" class="tab-btn" id="tabBtnPhotos" style="display: none;">📷 Fotos Reales</button>
+      </div>
+
+      <model-viewer 
+        id="muebleViewer"
+        src="" 
+        camera-controls
+        touch-action="pan-y"
+        exposure="0.58"
+        tone-mapping="aces"
+        shadow-intensity="1.6"
+        shadow-softness="0.7"
+        ar>
+      </model-viewer>
+
+      <div class="photo-gallery-view" id="photoGalleryView">
+        <img id="mainRealPhoto" class="main-real-photo" src="" alt="Foto real de taller">
+        <div class="thumbs-strip" id="thumbsStrip"></div>
+      </div>
+
+      <div class="viewport-hud">
+        <div class="hud-tag" id="hudTagMode">VISOR INTERACTIVO 3D</div>
+      </div>
+    </div>
+
+    <!-- PANEL DINÁMICO CONECTADO AL ADMIN -->
+    <div class="config-panel">
+      
+      <div class="item-header">
+        <div class="item-sku" id="prodSku">BLCKSCLE // REF</div>
+        <h1 id="prodTitle">Cargando...</h1>
+        <p id="prodDesc" style="color: var(--text-muted); font-size: 13px;"></p>
+      </div>
+
+      <div class="pricing-box">
+        <div>
+          <div class="price-label">Valor según configuración</div>
+          <div style="font-size: 11px; color: var(--sage-main); font-family: var(--font-mono);">Fabricación a medida</div>
+        </div>
+        <div class="price-value">$<span id="priceDisplay">0</span></div>
+      </div>
+
+      <!-- 1. TIPOS DE MADERA -->
+      <div id="blockWoods">
+        <div class="section-title">
+          <span>1. Tipo de Madera</span>
+          <span class="section-val" id="labelWoodType">-</span>
+        </div>
+        <div class="option-grid-2" id="gridWoodType"></div>
+      </div>
+
+      <!-- 2. TONO DE MADERA -->
+      <div id="blockStains">
+        <div class="section-title">
+          <span>2. Tono de Madera</span>
+          <span class="section-val" id="labelWoodStain">-</span>
+        </div>
+        <div class="swatch-grid" id="gridWoodStain"></div>
+      </div>
+
+      <!-- 3. COLOR DE METAL Y BRILLO -->
+      <div>
+        <div class="section-title">
+          <span>3. Color de Metal y Brillo</span>
+          <span class="section-val" id="labelMetal">-</span>
+        </div>
+        <div class="option-grid-3" id="gridMetalColor" style="margin-bottom: 8px;"></div>
+        <div class="option-grid-3" id="gridFinish"></div>
+      </div>
+
+      <!-- 4. OPCIONES EXTRAS Y A MEDIDA -->
+      <div id="blockExtras">
+        <div class="section-title">
+          <span>4. Opciones Extras</span>
+          <span class="section-val" id="labelExtras">Ninguno</span>
+        </div>
+        <div id="listExtrasContainer" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;"></div>
+
+        <div id="wrapCustomNotes">
+          <div class="section-title" style="border-bottom: none; margin-bottom: 6px;">
+            <span>Notas o Modificaciones a Medida</span>
+          </div>
+          <textarea id="customNotes" placeholder="Ej: Quiero que la mesa tenga 10cm más de largo, o agregar un cajón de punta a punta..." style="width: 100%; background: var(--bg-panel); border: 1px solid var(--sage-muted); color: var(--cream-light); padding: 12px; font-family: var(--font-sans); font-size: 13px; border-radius: 2px; resize: vertical; min-height: 80px;"></textarea>
+        </div>
+      </div>
+
+      <a id="btnWhatsapp" href="#" target="_blank" class="btn-whatsapp">
+        📲 Realizar Pedido por WhatsApp
+      </a>
+
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get('id');
+    const viewer = document.getElementById('muebleViewer');
+
+    let BASE_PRICE = 0;
+    let woodDelta = 0;
+    let state = {
+      woodType: "Pino con Nudos",
+      woodTex: "assets/texturas/pino-con-nudos.jpg",
+      woodStain: "Transparente",
+      woodRgb: [0.88, 0.78, 0.64],
+      metalColor: "Negro",
+      metalRgb: [0.10, 0.11, 0.12],
+      finish: "Mate",
+      roughness: 0.75
+    };
+    let productData = null;
+    const textureCache = {};
+
+    async function sync3DMaterials() {
+      if (!viewer.model || !viewer.model.materials) return;
+      for (const mat of viewer.model.materials) {
+        const name = mat.name.toLowerCase();
+        if (name.includes('madera')) {
+          mat.pbrMetallicRoughness.setBaseColorFactor([...state.woodRgb, 1]);
+          mat.pbrMetallicRoughness.setRoughnessFactor(state.roughness);
+          if (state.woodTex && mat.pbrMetallicRoughness.baseColorTexture) {
+            if (!textureCache[state.woodTex]) {
+              textureCache[state.woodTex] = await viewer.createTexture(state.woodTex);
+            }
+            mat.pbrMetallicRoughness.baseColorTexture.setTexture(textureCache[state.woodTex]);
+          }
+        } else if (name.includes('hierro')) {
+          mat.pbrMetallicRoughness.setBaseColorFactor([...state.metalRgb, 1]);
+          mat.pbrMetallicRoughness.setRoughnessFactor(Math.max(0.2, state.roughness - 0.15));
+        }
+      }
+    }
+
+    viewer.addEventListener('load', sync3DMaterials);
+
+    function updateUI() {
+      if (!productData) return;
+      let total = BASE_PRICE + woodDelta;
+      let extrasSeleccionados = [];
+
+      document.querySelectorAll('.extra-checkbox:checked').forEach(cb => {
+        total += parseInt(cb.dataset.price, 10) || 0;
+        extrasSeleccionados.push(cb.dataset.name);
+      });
+
+      document.getElementById('priceDisplay').textContent = total.toLocaleString("es-AR");
+      document.getElementById('labelWoodType').textContent = state.woodType;
+      document.getElementById('labelWoodStain').textContent = state.woodStain;
+      document.getElementById('labelMetal').textContent = `${state.metalColor} · ${state.finish}`;
+      document.getElementById('labelExtras').textContent = extrasSeleccionados.length > 0 ? extrasSeleccionados.join(" + ") : "Ninguno";
+
+      const phone = "5491100000000";
+      let text = `Hola *Acero y Escamas*, quiero realizar un pedido:
+` +
+                 `• Mueble: *${productData.nombre} (${productData.sku})*
+` +
+                 `• Madera: ${state.woodType} — Tono ${state.woodStain}
+` +
+                 `• Estructura: Metal ${state.metalColor} (${state.finish})
+`;
+      if (extrasSeleccionados.length > 0) {
+        text += `• Extras: ${extrasSeleccionados.join(", ")}
+`;
+      }
+      const notas = document.getElementById('customNotes').value.trim();
+      if (notas) {
+        text += `
+*Modificación a medida solicitada:*
+"${notas}"
+`;
+      }
+      text += `
+• Total estimado: $${total.toLocaleString("es-AR")} ARS`;
+
+      document.getElementById('btnWhatsapp').href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+      sync3DMaterials();
+    }
+
+    function buildDynamicOptions(prod) {
+      // 1. Maderas
+      const maderas = (prod.maderas || [
+        { nombre: "Pino con Nudos", meta: "Veta marcada · Nudos moderados", delta: 0, tex: "assets/texturas/pino-con-nudos.jpg", activo: true },
+        { nombre: "Pino Alistonado (Sin Nudos)", meta: "Alistonado limpio", delta: 12000, tex: "assets/texturas/pino-sin-nudos.jpg", activo: true },
+        { nombre: "Eucalipto Macizo", meta: "Veta recta · Semidura", delta: 24000, tex: "assets/texturas/eucalipto.jpg", activo: true },
+        { nombre: "Eucalipto Alistonado", meta: "Listón seleccionado", delta: 32000, tex: "assets/texturas/eucalipto-alistonado.jpg", activo: true }
+      ]).filter(m => m.activo !== false);
+
+      const gridWood = document.getElementById('gridWoodType');
+      gridWood.innerHTML = '';
+      maderas.forEach((m, idx) => {
+        if (idx === 0) {
+          state.woodType = m.nombre;
+          state.woodTex = m.tex;
+          woodDelta = Number(m.delta) || 0;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-opt btn-opt-wood' + (idx === 0 ? ' active' : '');
+        const deltaTxt = m.delta > 0 ? `+$${Number(m.delta).toLocaleString('es-AR')}` : (m.delta < 0 ? `-$${Math.abs(m.delta).toLocaleString('es-AR')}` : 'Base');
+        btn.innerHTML = `
+          <span class="wood-thumb" style="background-image: url('${m.tex || ''}');"></span>
+          <div>
+            <span class="opt-name">${m.nombre}</span>
+            <span class="opt-meta">${m.meta || deltaTxt}</span>
+          </div>
+        `;
+        btn.addEventListener('click', () => {
+          gridWood.querySelectorAll('.btn-opt').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.woodType = m.nombre;
+          state.woodTex = m.tex;
+          woodDelta = Number(m.delta) || 0;
+          updateUI();
+        });
+        gridWood.appendChild(btn);
+      });
+
+      // 2. Tonos de madera
+      const tonos = (prod.tonosMadera || [
+        { nombre: "Transparente", etiqueta: "Natural", hex: "#d1b58c", rgb: [0.88, 0.78, 0.64], activo: true },
+        { nombre: "Roble Claro", etiqueta: "R. Claro", hex: "#b88547", rgb: [0.72, 0.52, 0.28], activo: true },
+        { nombre: "Caoba", etiqueta: "Caoba", hex: "#944f2e", rgb: [0.58, 0.31, 0.18], activo: true },
+        { nombre: "Roble Oscuro", etiqueta: "R. Oscuro", hex: "#734729", rgb: [0.45, 0.28, 0.16], activo: true },
+        { nombre: "Nogal", etiqueta: "Nogal", hex: "#523321", rgb: [0.32, 0.20, 0.13], activo: true },
+        { nombre: "Wengue", etiqueta: "Wengue", hex: "#2e211c", rgb: [0.18, 0.13, 0.11], activo: true }
+      ]).filter(t => t.activo !== false);
+
+      const gridStain = document.getElementById('gridWoodStain');
+      gridStain.innerHTML = '';
+      tonos.forEach((t, idx) => {
+        if (idx === 0) {
+          state.woodStain = t.nombre;
+          state.woodRgb = t.rgb;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'swatch-btn' + (idx === 0 ? ' active' : '');
+        btn.innerHTML = `
+          <span class="swatch-color" style="background: ${t.hex};"></span>
+          <span class="swatch-label">${t.etiqueta || t.nombre}</span>
+        `;
+        btn.addEventListener('click', () => {
+          gridStain.querySelectorAll('.swatch-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.woodStain = t.nombre;
+          state.woodRgb = t.rgb;
+          updateUI();
+        });
+        gridStain.appendChild(btn);
+      });
+
+      // 3. Colores de Metal y Acabados
+      const metales = (prod.coloresMetal || [
+        { nombre: "Negro", meta: "Clásico industrial", rgb: [0.10, 0.11, 0.12], activo: true },
+        { nombre: "Blanco", meta: "Línea luminosa", rgb: [0.88, 0.89, 0.88], activo: true },
+        { nombre: "Marrón Oscuro", meta: "Óxido / Bronce", rgb: [0.22, 0.15, 0.12], activo: true }
+      ]).filter(mt => mt.activo !== false);
+
+      const gridMetal = document.getElementById('gridMetalColor');
+      gridMetal.innerHTML = '';
+      metales.forEach((mt, idx) => {
+        if (idx === 0) {
+          state.metalColor = mt.nombre;
+          state.metalRgb = mt.rgb;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-opt' + (idx === 0 ? ' active' : '');
+        btn.innerHTML = `<span class="opt-name">${mt.nombre}</span><span class="opt-meta">${mt.meta || ''}</span>`;
+        btn.addEventListener('click', () => {
+          gridMetal.querySelectorAll('.btn-opt').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.metalColor = mt.nombre;
+          state.metalRgb = mt.rgb;
+          updateUI();
+        });
+        gridMetal.appendChild(btn);
+      });
+
+      const acabados = (prod.acabados || [
+        { nombre: "Mate", meta: "Sin reflejo", rough: 0.75, activo: true },
+        { nombre: "Satinado", meta: "Brillo suave", rough: 0.42, activo: true },
+        { nombre: "Brillante", meta: "Alta reflexión", rough: 0.15, activo: true }
+      ]).filter(a => a.activo !== false);
+
+      const gridFin = document.getElementById('gridFinish');
+      gridFin.innerHTML = '';
+      acabados.forEach((ac, idx) => {
+        if (idx === 0) {
+          state.finish = ac.nombre;
+          state.roughness = Number(ac.rough);
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-opt' + (idx === 0 ? ' active' : '');
+        btn.innerHTML = `<span class="opt-name">${ac.nombre}</span><span class="opt-meta">${ac.meta || ''}</span>`;
+        btn.addEventListener('click', () => {
+          gridFin.querySelectorAll('.btn-opt').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.finish = ac.nombre;
+          state.roughness = Number(ac.rough);
+          updateUI();
+        });
+        gridFin.appendChild(btn);
+      });
+
+      // 4. Opciones Extras y Campo a Medida
+      const extras = (prod.extras || []).filter(ex => ex.activo !== false);
+      const extContainer = document.getElementById('listExtrasContainer');
+      extContainer.innerHTML = '';
+      extras.forEach(ex => {
+        const lbl = document.createElement('label');
+        lbl.className = 'btn-opt';
+        lbl.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;';
+        lbl.innerHTML = `
+          <div>
+            <span class="opt-name">${ex.nombre} (+$${Number(ex.precio).toLocaleString('es-AR')})</span>
+            <span class="opt-meta">${ex.meta || ''}</span>
+          </div>
+          <input type="checkbox" class="extra-checkbox" data-name="${ex.nombre}" data-price="${ex.precio}" style="accent-color: var(--sage-main); width: 18px; height: 18px;">
+        `;
+        lbl.querySelector('input').addEventListener('change', updateUI);
+        extContainer.appendChild(lbl);
+      });
+
+      document.getElementById('wrapCustomNotes').style.display = prod.permitirNotaMedida === false ? 'none' : 'block';
+
+      // 5. Galería de Fotos Reales vs Visor 3D
+      const fotosReales = Array.isArray(prod.fotos) ? prod.fotos.filter(Boolean) : [];
+      const tabBtnPhotos = document.getElementById('tabBtnPhotos');
+      const tabBtn3d = document.getElementById('tabBtn3d');
+      const photoGalleryView = document.getElementById('photoGalleryView');
+      const mainRealPhoto = document.getElementById('mainRealPhoto');
+      const thumbsStrip = document.getElementById('thumbsStrip');
+
+      if (fotosReales.length > 0) {
+        tabBtnPhotos.style.display = 'inline-block';
+        tabBtnPhotos.textContent = `📷 Fotos Reales (${fotosReales.length})`;
+        mainRealPhoto.src = fotosReales[0];
+        thumbsStrip.innerHTML = '';
+
+        fotosReales.forEach((fUrl, i) => {
+          const img = document.createElement('img');
+          img.src = fUrl;
+          img.className = 'thumb-item' + (i === 0 ? ' active' : '');
+          img.addEventListener('click', () => {
+            thumbsStrip.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+            img.classList.add('active');
+            mainRealPhoto.src = fUrl;
+          });
+          thumbsStrip.appendChild(img);
+        });
+
+        tabBtn3d.onclick = () => {
+          tabBtn3d.classList.add('active');
+          tabBtnPhotos.classList.remove('active');
+          viewer.style.display = 'block';
+          photoGalleryView.style.display = 'none';
+          document.getElementById('hudTagMode').textContent = 'VISOR INTERACTIVO 3D';
+        };
+
+        tabBtnPhotos.onclick = () => {
+          tabBtnPhotos.classList.add('active');
+          tabBtn3d.classList.remove('active');
+          viewer.style.display = 'none';
+          photoGalleryView.style.display = 'flex';
+          document.getElementById('hudTagMode').textContent = 'FOTOS REALES DE TALLER';
+        };
+      }
+    }
+
+    document.getElementById('customNotes').addEventListener('input', updateUI);
+
+    if (!productId) {
+      document.getElementById('errorPanel').style.display = 'block';
+    } else {
+      fetch('productos.json')
+        .then(r => r.json())
+        .then(items => {
+          productData = items.find(p => p.id === productId);
+          if (!productData) {
+            document.getElementById('errorPanel').style.display = 'block';
+            return;
+          }
+          document.title = `${productData.nombre} | Acero y Escamas`;
+          document.getElementById('prodTitle').textContent = productData.nombre;
+          document.getElementById('prodSku').textContent = `BLCKSCLE // REF: ${productData.sku}`;
+          document.getElementById('prodDesc').textContent = productData.resumen;
+          viewer.src = productData.glb;
+          BASE_PRICE = productData.precioBase;
+          buildDynamicOptions(productData);
+          document.getElementById('mainShopLayout').style.display = 'grid';
+          updateUI();
+        });
+    }
+  </script>
+</body>
+</html>

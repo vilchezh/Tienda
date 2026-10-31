@@ -1,0 +1,554 @@
+[
+  {
+    "id": "mesa-ratona-01",
+    "nombre": "Mesa Ratona Industrial",
+    "sku": "MR-9050",
+    "categoria": "Hogar",
+    "subcategoria": "Living/Comedor",
+    "precioBase": 185000,
+    "resumen": "Estructura de perfil 20x20. Tapa maciza 20mm y bandeja inferior de chapa.",
+    "imagen": "assets/img/mesa-ratona-thumb.jpg",
+    "fotos": [
+      "assets/img/mesa-ratona-1.jpg",
+      "assets/img/mesa-ratona-2.jpg"
+    ],
+    "glb": "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
+    "mpLink": "",
+    "permitirNotaMedida": true,
+    "maderas": [
+      {
+        "nombre": "Pino con Nudos",
+        "meta": "Veta marcada · Nudos moderados",
+        "delta": 0,
+        "tex": "assets/texturas/pino-con-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Pino Alistonado (Sin Nudos)",
+        "meta": "Alistonado limpio",
+        "delta": 12000,
+        "tex": "assets/texturas/pino-sin-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Macizo",
+        "meta": "Veta recta · Semidura",
+        "delta": 24000,
+        "tex": "assets/texturas/eucalipto.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Alistonado",
+        "meta": "Listón seleccionado",
+        "delta": 32000,
+        "tex": "assets/texturas/eucalipto-alistonado.jpg",
+        "activo": true
+      }
+    ],
+    "tonosMadera": [
+      {
+        "nombre": "Transparente",
+        "etiqueta": "Natural",
+        "hex": "#d1b58c",
+        "rgb": [
+          0.88,
+          0.78,
+          0.64
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Claro",
+        "etiqueta": "R. Claro",
+        "hex": "#b88547",
+        "rgb": [
+          0.72,
+          0.52,
+          0.28
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Caoba",
+        "etiqueta": "Caoba",
+        "hex": "#944f2e",
+        "rgb": [
+          0.58,
+          0.31,
+          0.18
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Oscuro",
+        "etiqueta": "R. Oscuro",
+        "hex": "#734729",
+        "rgb": [
+          0.45,
+          0.28,
+          0.16
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Nogal",
+        "etiqueta": "Nogal",
+        "hex": "#523321",
+        "rgb": [
+          0.32,
+          0.2,
+          0.13
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Wengue",
+        "etiqueta": "Wengue",
+        "hex": "#2e211c",
+        "rgb": [
+          0.18,
+          0.13,
+          0.11
+        ],
+        "activo": true
+      }
+    ],
+    "coloresMetal": [
+      {
+        "nombre": "Negro",
+        "meta": "Clásico industrial",
+        "hex": "#1a1c1f",
+        "rgb": [
+          0.1,
+          0.11,
+          0.12
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Blanco",
+        "meta": "Línea luminosa",
+        "hex": "#e0e3e0",
+        "rgb": [
+          0.88,
+          0.89,
+          0.88
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Marrón Oscuro",
+        "meta": "Óxido / Bronce",
+        "hex": "#38261f",
+        "rgb": [
+          0.22,
+          0.15,
+          0.12
+        ],
+        "activo": true
+      }
+    ],
+    "acabados": [
+      {
+        "nombre": "Mate",
+        "meta": "Sin reflejo",
+        "rough": 0.75,
+        "activo": true
+      },
+      {
+        "nombre": "Satinado",
+        "meta": "Brillo suave",
+        "rough": 0.42,
+        "activo": true
+      },
+      {
+        "nombre": "Brillante",
+        "meta": "Alta reflexión",
+        "rough": 0.15,
+        "activo": true
+      }
+    ],
+    "extras": [
+      {
+        "nombre": "Ruedas Industriales con Freno",
+        "meta": "Carga pesada (4 unidades)",
+        "precio": 42000,
+        "activo": true
+      },
+      {
+        "nombre": "Regatones Regulables en Altura",
+        "meta": "Nivelación antideslizante",
+        "precio": 12000,
+        "activo": true
+      }
+    ]
+  },
+  {
+    "id": "escritorio-industrial-01",
+    "nombre": "Escritorio Estudio / Setup",
+    "sku": "ESC-1260",
+    "categoria": "Hogar",
+    "subcategoria": "Oficina",
+    "precioBase": 235000,
+    "resumen": "Estructura estructural reforzada con faldón de metal desplegado. Ideal estudio o producción.",
+    "imagen": "assets/img/escritorio-thumb.jpg",
+    "fotos": [],
+    "glb": "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
+    "mpLink": "",
+    "permitirNotaMedida": true,
+    "maderas": [
+      {
+        "nombre": "Pino con Nudos",
+        "meta": "Veta marcada · Nudos moderados",
+        "delta": 0,
+        "tex": "assets/texturas/pino-con-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Pino Alistonado (Sin Nudos)",
+        "meta": "Alistonado limpio",
+        "delta": 16000,
+        "tex": "assets/texturas/pino-sin-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Macizo",
+        "meta": "Veta recta · Semidura",
+        "delta": 28000,
+        "tex": "assets/texturas/eucalipto.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Alistonado",
+        "meta": "Listón seleccionado",
+        "delta": 38000,
+        "tex": "assets/texturas/eucalipto-alistonado.jpg",
+        "activo": true
+      }
+    ],
+    "tonosMadera": [
+      {
+        "nombre": "Transparente",
+        "etiqueta": "Natural",
+        "hex": "#d1b58c",
+        "rgb": [
+          0.88,
+          0.78,
+          0.64
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Claro",
+        "etiqueta": "R. Claro",
+        "hex": "#b88547",
+        "rgb": [
+          0.72,
+          0.52,
+          0.28
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Caoba",
+        "etiqueta": "Caoba",
+        "hex": "#944f2e",
+        "rgb": [
+          0.58,
+          0.31,
+          0.18
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Oscuro",
+        "etiqueta": "R. Oscuro",
+        "hex": "#734729",
+        "rgb": [
+          0.45,
+          0.28,
+          0.16
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Nogal",
+        "etiqueta": "Nogal",
+        "hex": "#523321",
+        "rgb": [
+          0.32,
+          0.2,
+          0.13
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Wengue",
+        "etiqueta": "Wengue",
+        "hex": "#2e211c",
+        "rgb": [
+          0.18,
+          0.13,
+          0.11
+        ],
+        "activo": true
+      }
+    ],
+    "coloresMetal": [
+      {
+        "nombre": "Negro",
+        "meta": "Clásico industrial",
+        "hex": "#1a1c1f",
+        "rgb": [
+          0.1,
+          0.11,
+          0.12
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Blanco",
+        "meta": "Línea luminosa",
+        "hex": "#e0e3e0",
+        "rgb": [
+          0.88,
+          0.89,
+          0.88
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Marrón Oscuro",
+        "meta": "Óxido / Bronce",
+        "hex": "#38261f",
+        "rgb": [
+          0.22,
+          0.15,
+          0.12
+        ],
+        "activo": true
+      }
+    ],
+    "acabados": [
+      {
+        "nombre": "Mate",
+        "meta": "Sin reflejo",
+        "rough": 0.75,
+        "activo": true
+      },
+      {
+        "nombre": "Satinado",
+        "meta": "Brillo suave",
+        "rough": 0.42,
+        "activo": true
+      },
+      {
+        "nombre": "Brillante",
+        "meta": "Alta reflexión",
+        "rough": 0.15,
+        "activo": true
+      }
+    ],
+    "extras": [
+      {
+        "nombre": "Pasacables Circular Embutido",
+        "meta": "Instalado en tapa",
+        "precio": 9500,
+        "activo": true
+      },
+      {
+        "nombre": "Rejilla Bandeja Porta-Cables",
+        "meta": "Metal desplegado bajo tapa",
+        "precio": 25000,
+        "activo": true
+      },
+      {
+        "nombre": "Eleva Monitor a Tono",
+        "meta": "Para 2 monitores / parlantes",
+        "precio": 34000,
+        "activo": true
+      }
+    ]
+  },
+  {
+    "id": "organizador-escamas-01",
+    "nombre": "Organizador Vertical con Puertas",
+    "sku": "ORG-180",
+    "categoria": "Hogar",
+    "subcategoria": "Living/Comedor",
+    "precioBase": 290000,
+    "resumen": "4 estantes de madera maciza + módulo inferior cerrado con puertas de metal desplegado.",
+    "imagen": "assets/img/organizador-thumb.jpg",
+    "fotos": [],
+    "glb": "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
+    "mpLink": "",
+    "permitirNotaMedida": true,
+    "maderas": [
+      {
+        "nombre": "Pino con Nudos",
+        "meta": "Veta marcada · Nudos moderados",
+        "delta": 0,
+        "tex": "assets/texturas/pino-con-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Pino Alistonado (Sin Nudos)",
+        "meta": "Alistonado limpio",
+        "delta": 18000,
+        "tex": "assets/texturas/pino-sin-nudos.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Macizo",
+        "meta": "Veta recta · Semidura",
+        "delta": 32000,
+        "tex": "assets/texturas/eucalipto.jpg",
+        "activo": true
+      },
+      {
+        "nombre": "Eucalipto Alistonado",
+        "meta": "Listón seleccionado",
+        "delta": 42000,
+        "tex": "assets/texturas/eucalipto-alistonado.jpg",
+        "activo": true
+      }
+    ],
+    "tonosMadera": [
+      {
+        "nombre": "Transparente",
+        "etiqueta": "Natural",
+        "hex": "#d1b58c",
+        "rgb": [
+          0.88,
+          0.78,
+          0.64
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Claro",
+        "etiqueta": "R. Claro",
+        "hex": "#b88547",
+        "rgb": [
+          0.72,
+          0.52,
+          0.28
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Caoba",
+        "etiqueta": "Caoba",
+        "hex": "#944f2e",
+        "rgb": [
+          0.58,
+          0.31,
+          0.18
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Roble Oscuro",
+        "etiqueta": "R. Oscuro",
+        "hex": "#734729",
+        "rgb": [
+          0.45,
+          0.28,
+          0.16
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Nogal",
+        "etiqueta": "Nogal",
+        "hex": "#523321",
+        "rgb": [
+          0.32,
+          0.2,
+          0.13
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Wengue",
+        "etiqueta": "Wengue",
+        "hex": "#2e211c",
+        "rgb": [
+          0.18,
+          0.13,
+          0.11
+        ],
+        "activo": true
+      }
+    ],
+    "coloresMetal": [
+      {
+        "nombre": "Negro",
+        "meta": "Clásico industrial",
+        "hex": "#1a1c1f",
+        "rgb": [
+          0.1,
+          0.11,
+          0.12
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Blanco",
+        "meta": "Línea luminosa",
+        "hex": "#e0e3e0",
+        "rgb": [
+          0.88,
+          0.89,
+          0.88
+        ],
+        "activo": true
+      },
+      {
+        "nombre": "Marrón Oscuro",
+        "meta": "Óxido / Bronce",
+        "hex": "#38261f",
+        "rgb": [
+          0.22,
+          0.15,
+          0.12
+        ],
+        "activo": true
+      }
+    ],
+    "acabados": [
+      {
+        "nombre": "Mate",
+        "meta": "Sin reflejo",
+        "rough": 0.75,
+        "activo": true
+      },
+      {
+        "nombre": "Satinado",
+        "meta": "Brillo suave",
+        "rough": 0.42,
+        "activo": true
+      },
+      {
+        "nombre": "Brillante",
+        "meta": "Alta reflexión",
+        "rough": 0.15,
+        "activo": true
+      }
+    ],
+    "extras": [
+      {
+        "nombre": "Estante Adicional de Madera",
+        "meta": "Nivel extra regulable",
+        "precio": 28000,
+        "activo": true
+      },
+      {
+        "nombre": "Cerradura en Puertas Inferiores",
+        "meta": "Con juego de 2 llaves",
+        "precio": 16000,
+        "activo": true
+      }
+    ]
+  }
+]
