@@ -3,20 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo | Taller General Rodríguez</title>
+  <title>Catálogo | Acero y Escamas</title>
+  
+  <!-- Tipografías -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <style>
+    /* Paleta Taller: Carbón, Petróleo y Salvia */
     :root {
-      --bg-base: #111215;
-      --bg-surface: #17191e;
-      --bg-surface-elevated: #1f232b;
-      --border-dim: #2b303c;
-      --text-main: #eceff4;
-      --text-muted: #8892b0;
-      --accent-wood: #c87a3e;
+      --bg-carbon: #141a1a;
+      --bg-petrol: #1d4347;
+      --bg-panel: #1b2424;
+      --sage-main: #75927e;
+      --sage-muted: #435749;
+      --cream-light: #f5f3eb;
+      --text-muted: #9cb0a2;
       --font-mono: 'JetBrains Mono', monospace;
       --font-sans: 'Space Grotesk', sans-serif;
     }
@@ -24,36 +30,91 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
+      background-color: var(--bg-carbon);
+      color: var(--cream-light);
       font-family: var(--font-sans);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* HEADER TÉCNICO */
-    header {
-      border-bottom: 1px solid var(--border-dim);
-      padding: 24px 32px;
-      background: var(--bg-surface);
+      min-height: 100vh;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .brand { font-family: var(--font-mono); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
-    
-    main { padding: 40px 32px; max-width: 1400px; margin: 0 auto; }
-    
-    .page-title {
-      font-size: 28px;
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-      margin-bottom: 32px;
-      padding-bottom: 12px;
-      border-bottom: 1px dashed var(--border-dim);
+      flex-direction: column;
     }
 
-    /* GRILLA DE PRODUCTOS */
-    .shop-grid {
+    /* HEADER INDUSTRIAL */
+    header {
+      background: var(--bg-petrol);
+      border-bottom: 2px solid var(--sage-main);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Franja de advertencia estilo taller */
+    .hazard-divider {
+      height: 7px;
+      background: repeating-linear-gradient(
+        -55deg,
+        var(--bg-petrol),
+        var(--bg-petrol) 24px,
+        var(--sage-main) 24px,
+        var(--sage-main) 27px
+      );
+      border-bottom: 1px solid var(--sage-muted);
+    }
+
+    /* LOGO PANGOLÍN */
+    .brand-logo img {
+      height: 42px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-text-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--sage-main);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .brand-text-main {
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* CATÁLOGO MAIN */
+    .catalog-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      flex-grow: 1;
+      width: 100%;
+    }
+
+    .catalog-header {
+      margin-bottom: 32px;
+      border-bottom: 1px dashed var(--sage-muted);
+      padding-bottom: 16px;
+    }
+
+    .catalog-title {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--cream-light);
+    }
+
+    .catalog-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 24px;
@@ -61,61 +122,60 @@
 
     /* TARJETA DE PRODUCTO */
     .product-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-dim);
+      background: var(--bg-panel);
+      border: 1px solid var(--sage-muted);
       border-radius: 2px;
+      text-decoration: none;
+      color: var(--cream-light);
       display: flex;
       flex-direction: column;
-      text-decoration: none;
-      color: inherit;
-      transition: border-color 150ms ease, transform 150ms ease;
+      transition: all 150ms ease;
       position: relative;
     }
 
     .product-card:hover {
-      border-color: var(--text-muted);
+      border-color: var(--sage-main);
       transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }
 
+    /* Textura de fondo cuadriculada (Blueprint) para miniaturas sin foto */
     .product-img-box {
-      aspect-ratio: 4/3;
-      background: #0b0c0e;
-      border-bottom: 1px solid var(--border-dim);
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background-color: #0e1313;
+      background-image: 
+        linear-gradient(rgba(117,146,126,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(117,146,126,0.07) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border-bottom: 1px solid var(--sage-muted);
       position: relative;
       overflow: hidden;
-    }
-
-    /* Patrón de plano de fondo si no hay imagen */
-    .product-img-box::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image: 
-        linear-gradient(to right, rgba(43, 48, 60, 0.4) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(43, 48, 60, 0.4) 1px, transparent 1px);
-      background-size: 20px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .product-img-box img {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      position: relative;
-      z-index: 1;
     }
 
     .badge-3d {
       position: absolute;
       top: 12px;
       right: 12px;
-      background: rgba(17, 18, 21, 0.9);
-      border: 1px solid var(--border-dim);
-      color: var(--accent-wood);
+      background: var(--bg-carbon);
+      border: 1px solid var(--sage-main);
+      color: var(--cream-light);
       font-family: var(--font-mono);
-      font-size: 10px;
+      font-size: 9px;
+      font-weight: 700;
       padding: 4px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.05em;
       z-index: 2;
-      backdrop-filter: blur(4px);
     }
 
     .product-info {
@@ -128,21 +188,26 @@
     .product-sku {
       font-family: var(--font-mono);
       font-size: 10px;
-      color: var(--text-muted);
+      color: var(--sage-main);
       margin-bottom: 6px;
     }
 
     .product-title {
       font-size: 16px;
-      font-weight: 600;
-      line-height: 1.3;
+      font-weight: 700;
       margin-bottom: 8px;
+      line-height: 1.3;
     }
 
     .product-desc {
       font-size: 13px;
       color: var(--text-muted);
+      line-height: 1.4;
       margin-bottom: 16px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
       flex-grow: 1;
     }
 
@@ -150,83 +215,113 @@
       font-family: var(--font-mono);
       font-size: 18px;
       font-weight: 700;
-      color: var(--text-main);
+      color: var(--cream-light);
+      border-top: 1px dashed var(--sage-muted);
       padding-top: 12px;
-      border-top: 1px solid var(--border-dim);
-      display: flex;
-      align-items: baseline;
-      gap: 4px;
     }
-    
-    .price-currency { font-size: 12px; font-weight: normal; color: var(--text-muted); }
+
+    .price-currency {
+      color: var(--sage-main);
+      font-size: 14px;
+      margin-right: 4px;
+    }
+
+    /* ERROR STATE */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 13px;
+      border: 1px dashed var(--sage-muted);
+    }
   </style>
 </head>
 <body>
 
+  <!-- CABECERA PRINCIPAL (Estética de taller) -->
   <header>
-    <div class="brand">Catálogo de Taller</div>
-    <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">G. Rodríguez</div>
+    <div class="brand-wrap">
+      <div class="brand-logo">
+        <!-- Reemplaza con la ruta de tu logo del pangolín -->
+        <img src="assets/img/logo.png" alt="Pangolín" onerror="this.style.display='none'">
+      </div>
+      <div>
+        <span class="brand-text-sub">CATÁLOGO DE TALLER</span>
+        <span class="brand-text-main">Acero y Escamas</span>
+      </div>
+    </div>
   </header>
+  <div class="hazard-divider"></div>
 
-  <main>
-    <h1 class="page-title">Inventario / Fabricación a Medida</h1>
-    
-    <!-- Contenedor donde JS inyectará los productos -->
-    <div class="shop-grid" id="catalogoGrid">
-      <!-- Los productos aparecen acá -->
+  <!-- CONTENIDO: GRILLA DE PRODUCTOS -->
+  <main class="catalog-wrapper">
+    <div class="catalog-header">
+      <h1 class="catalog-title">INVENTARIO / FABRICACIÓN A MEDIDA</h1>
+    </div>
+
+    <div class="catalog-grid" id="catalogoGrid">
+      <div class="empty-state">Conectando al taller...</div>
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <script>
+    // CONEXIÓN A SUPABASE
+    const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const formatoPeso = new Intl.NumberFormat('es-AR', { style: 'decimal' });
-  const grid = document.getElementById('catalogoGrid');
+    const formatoPeso = new Intl.NumberFormat('es-AR', { style: 'decimal' });
+    const grid = document.getElementById('catalogoGrid');
 
-  async function cargarCatalogo() {
-    let productos = [];
-    try {
-      const { data, error } = await supabaseClient.from('productos').select('*').eq('activo', true);
-      if (!error && Array.isArray(data) && data.length > 0) {
-        productos = data;
-      } else {
+    async function cargarCatalogo() {
+      let productos = [];
+      try {
+        const { data, error } = await supabaseClient.from('productos').select('*').eq('activo', true);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          productos = data;
+        } else {
+          // Respaldo local
+          const res = await fetch('productos.json?v=' + Date.now());
+          const localData = await res.json();
+          productos = localData.filter(p => p.activo !== false);
+        }
+      } catch (e) {
         const res = await fetch('productos.json?v=' + Date.now());
         const localData = await res.json();
         productos = localData.filter(p => p.activo !== false);
       }
-    } catch (e) {
-      const res = await fetch('productos.json?v=' + Date.now());
-      const localData = await res.json();
-      productos = localData.filter(p => p.activo !== false);
+
+      grid.innerHTML = '';
+      
+      if (productos.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No hay muebles visibles en el catálogo.</div>';
+        return;
+      }
+
+      productos.forEach(prod => {
+        const precio = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
+        const card = document.createElement('a');
+        card.href = `producto.html?id=${prod.id}`;
+        card.className = 'product-card';
+        card.innerHTML = `
+          <div class="product-img-box">
+            <div class="badge-3d">⚙️ VISOR 3D</div>
+            ${prod.imagen ? `<img src="${prod.imagen}" alt="${prod.nombre}" loading="lazy" onerror="this.style.display='none'">` : ''}
+          </div>
+          <div class="product-info">
+            <span class="product-sku">REF: ${prod.sku}</span>
+            <h2 class="product-title">${prod.nombre}</h2>
+            <p class="product-desc">${prod.resumen || ''}</p>
+            <div class="product-price"><span class="price-currency">$</span>${formatoPeso.format(precio)}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
     }
 
-    grid.innerHTML = '';
-    productos.forEach(prod => {
-      const precio = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
-      const card = document.createElement('a');
-      card.href = `producto.html?id=${prod.id}`;
-      card.className = 'product-card';
-      card.innerHTML = `
-        <div class="product-img-box">
-          <div class="badge-3d">⚙️ VISOR 3D</div>
-          ${prod.imagen ? `<img src="${prod.imagen}" alt="${prod.nombre}" loading="lazy" onerror="this.style.display='none'">` : ''}
-        </div>
-        <div class="product-info">
-          <span class="product-sku">REF: ${prod.sku}</span>
-          <h2 class="product-title">${prod.nombre}</h2>
-          <p class="product-desc">${prod.resumen || ''}</p>
-          <div class="product-price"><span class="price-currency">$</span>${formatoPeso.format(precio)}</div>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-  }
-
-  cargarCatalogo();
-</script>
-
+    cargarCatalogo();
+  </script>
 </body>
 </html>
