@@ -177,49 +177,56 @@
     </div>
   </main>
 
-  <script>
-    // Función para formatear moneda
-    const formatoPeso = new Intl.NumberFormat('es-AR', { style: 'decimal' });
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 1. Obtener el contenedor del DOM
-    const grid = document.getElementById('catalogoGrid');
+  const formatoPeso = new Intl.NumberFormat('es-AR', { style: 'decimal' });
+  const grid = document.getElementById('catalogoGrid');
 
-    // 2. Hacer fetch del archivo JSON
-    fetch('productos.json')
-      .then(response => {
-        if (!response.ok) throw new Error("Error al cargar productos");
-        return response.json();
-      })
-      .then(productos => {
-        // 3. Iterar sobre cada producto y construir su tarjeta
-        productos.forEach(prod => {
-          const card = document.createElement('a');
-          // El enlace envía al producto individual pasando el ID por URL
-          card.href = `producto.html?id=${prod.id}`;
-          card.className = 'product-card';
+  async function cargarCatalogo() {
+    let productos = [];
+    try {
+      const { data, error } = await supabaseClient.from('productos').select('*').eq('activo', true);
+      if (!error && Array.isArray(data) && data.length > 0) {
+        productos = data;
+      } else {
+        const res = await fetch('productos.json?v=' + Date.now());
+        const localData = await res.json();
+        productos = localData.filter(p => p.activo !== false);
+      }
+    } catch (e) {
+      const res = await fetch('productos.json?v=' + Date.now());
+      const localData = await res.json();
+      productos = localData.filter(p => p.activo !== false);
+    }
 
-          card.innerHTML = `
-            <div class="product-img-box">
-              <div class="badge-3d">⚙️ VISOR 3D</div>
-              ${prod.imagen ? `<img src="${prod.imagen}" alt="${prod.nombre}" loading="lazy" onerror="this.style.display='none'">` : ''}
-            </div>
-            <div class="product-info">
-              <span class="product-sku">${prod.sku}</span>
-              <h2 class="product-title">${prod.nombre}</h2>
-              <p class="product-desc">${prod.resumen}</p>
-              <div class="product-price">
-                <span class="price-currency">$</span>
-                ${formatoPeso.format(prod.precioBase)}
-              </div>
-            </div>
-          `;
-          grid.appendChild(card);
-        });
-      })
-      .catch(error => {
-        grid.innerHTML = `<p style="font-family: var(--font-mono); color: #ff6b6b;">Fallo de conexión al inventario: ${error.message}</p>`;
-      });
-  </script>
+    grid.innerHTML = '';
+    productos.forEach(prod => {
+      const precio = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
+      const card = document.createElement('a');
+      card.href = `producto.html?id=${prod.id}`;
+      card.className = 'product-card';
+      card.innerHTML = `
+        <div class="product-img-box">
+          <div class="badge-3d">⚙️ VISOR 3D</div>
+          ${prod.imagen ? `<img src="${prod.imagen}" alt="${prod.nombre}" loading="lazy" onerror="this.style.display='none'">` : ''}
+        </div>
+        <div class="product-info">
+          <span class="product-sku">REF: ${prod.sku}</span>
+          <h2 class="product-title">${prod.nombre}</h2>
+          <p class="product-desc">${prod.resumen || ''}</p>
+          <div class="product-price"><span class="price-currency">$</span>${formatoPeso.format(precio)}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  cargarCatalogo();
+</script>
 
 </body>
 </html>

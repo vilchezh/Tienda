@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BLCKSCLE // Acero y Escamas — Herrería</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -763,25 +764,51 @@
 
     if (!productId) {
       document.getElementById('errorPanel').style.display = 'block';
-    } else {
-      fetch('productos.json')
-        .then(r => r.json())
-        .then(items => {
-          productData = items.find(p => p.id === productId);
-          if (!productData) {
-            document.getElementById('errorPanel').style.display = 'block';
-            return;
-          }
-          document.title = `${productData.nombre} | Acero y Escamas`;
-          document.getElementById('prodTitle').textContent = productData.nombre;
-          document.getElementById('prodSku').textContent = `BLCKSCLE // REF: ${productData.sku}`;
-          document.getElementById('prodDesc').textContent = productData.resumen;
-          viewer.src = productData.glb;
-          BASE_PRICE = productData.precioBase;
-          buildDynamicOptions(productData);
-          document.getElementById('mainShopLayout').style.display = 'grid';
-          updateUI();
-        });
+    } else { 
+      const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function initProductPage() {
+  let prod = null;
+  try {
+    const { data, error } = await supabaseClient.from('productos').select('*').eq('id', productId).single();
+    if (!error && data) {
+      prod = {
+        ...data,
+        precioBase: data.precio_base !== undefined ? data.precio_base : data.precioBase,
+        tonosMadera: data.tonos_madera || data.tonosMadera,
+        coloresMetal: data.colores_metal || data.coloresMetal,
+        mpLink: data.mp_link || data.mpLink,
+        permitirNotaMedida: data.permitir_nota_medida !== undefined ? data.permitir_nota_medida : data.permitirNotaMedida
+      };
+    }
+  } catch (e) {}
+
+  if (!prod) {
+    const res = await fetch('productos.json?v=' + Date.now());
+    const list = await res.json();
+    prod = list.find(item => item.id === productId);
+  }
+
+  if (!prod || prod.activo === false) {
+    document.getElementById('errorPanel').style.display = 'block';
+    return;
+  }
+
+  productData = prod;
+  document.title = `${prod.nombre} | Acero y Escamas`;
+  document.getElementById('prodTitle').textContent = prod.nombre;
+  document.getElementById('prodSku').textContent = `BLCKSCLE // REF: ${prod.sku}`;
+  document.getElementById('prodDesc').textContent = prod.resumen;
+  viewer.src = prod.glb;
+  BASE_PRICE = Number(prod.precioBase || prod.precio_base) || 0;
+  buildDynamicOptions(prod);
+  document.getElementById('mainShopLayout').style.display = 'grid';
+  updateUI();
+}
+
+initProductPage();
     }
   </script>
 </body>
