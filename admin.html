@@ -82,6 +82,7 @@
     .mini-viewer-box { background: #0e1313; border: 1px solid var(--sage-muted); height: 260px; position: relative; border-radius: 2px; }
     model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
 
+    .global-badge { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; background: rgba(117, 146, 126, 0.2); border: 1px solid var(--sage-main); color: var(--cream-light); border-radius: 2px; margin-left: 6px; }
     .status-banner { position: fixed; bottom: 20px; right: 20px; background: var(--bg-petrol); border: 2px solid var(--sage-main); color: var(--cream-light); font-family: var(--font-mono); font-size: 12px; padding: 12px 18px; border-radius: 2px; display: none; z-index: 999; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
   </style>
 </head>
@@ -185,8 +186,11 @@
         <div class="media-split">
           <div style="display: flex; flex-direction: column; gap: 14px;">
             <div class="form-group">
-              <label>Ruta Modelo 3D (.GLB)</label>
-              <input type="text" id="inpGlb" class="mono-input">
+              <label>Ruta Modelo 3D (.GLB) — Inyecta Texturas de Madera Automáticamente al Subir</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="inpGlb" class="mono-input">
+                <button type="button" class="btn btn-sm" id="btnRepairGlb" title="Inyecta coordenadas UV y textura de madera al .GLB actual">🪄 Reparar Textura 3D</button>
+              </div>
             </div>
             <div class="form-group">
               <label>Ruta Foto Portada</label>
@@ -211,7 +215,7 @@
 
       <section class="editor-card">
         <div class="card-header">
-          <span class="card-title">3. Tipos de Madera y Recargo ($)</span>
+          <span class="card-title">3. Tipos de Madera <span class="global-badge">GLOBAL + RECARGO POR MUEBLE</span></span>
           <button type="button" class="btn btn-sm" id="btnAddWood">+ Agregar Madera</button>
         </div>
         <div class="dynamic-list" id="woodsList"></div>
@@ -231,19 +235,19 @@
 
       <section class="editor-card">
         <div class="card-header">
-          <span class="card-title">5. Tonos de Lustre y Pintura Epoxi</span>
+          <span class="card-title">5. Tonos de Lustre y Pintura Epoxi <span class="global-badge">SINCRONIZADO GLOBAL EN TODOS LOS MUEBLES</span></span>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <label>Tonos de Lustre</label>
+              <label>Tonos de Lustre (Global)</label>
               <button type="button" class="btn btn-sm" id="btnAddStain">+ Tono</button>
             </div>
             <div class="dynamic-list" id="stainsList"></div>
           </div>
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <label>Colores Metal</label>
+              <label>Colores Metal (Global)</label>
               <button type="button" class="btn btn-sm" id="btnAddMetal">+ Metal</button>
             </div>
             <div class="dynamic-list" id="metalsList"></div>
@@ -271,42 +275,44 @@
     };
 
     const DEFAULT_WOODS = [
-      { nombre: "Pino con Nudos", tex: "assets/texturas/pino-con-nudos.jpg", delta: 0, meta: "Base · Veta rústica", activo: true },
-      { nombre: "Pino sin Nudos", tex: "assets/texturas/pino-sin-nudos.jpg", delta: 12000, meta: "+$12.000 · Limpio", activo: true },
-      { nombre: "Eucalipto", tex: "assets/texturas/eucalipto.jpg", delta: 24000, meta: "+$24.000 · Dura", activo: true },
-      { nombre: "Alistonado", tex: "assets/texturas/alistonado.jpg", delta: 18000, meta: "+$18.000 · Finger-joint", activo: true }
+      { nombre: "Pino con Nudos", tex: "assets/texturas/pino-con-nudos.jpg", delta: 0, meta: "Veta marcada · Nudos moderados", activo: true },
+      { nombre: "Pino Alistonado (Sin Nudos)", tex: "assets/texturas/pino-sin-nudos.jpg", delta: 12000, meta: "Alistonado limpio", activo: true },
+      { nombre: "Eucalipto Macizo", tex: "assets/texturas/eucalipto.jpg", delta: 24000, meta: "Veta recta · Semidura", activo: true },
+      { nombre: "Eucalipto Alistonado", tex: "assets/texturas/eucalipto-alistonado.jpg", delta: 32000, meta: "Listón seleccionado", activo: true }
     ];
 
     const DEFAULT_STAINS = [
-      { nombre: "Transparente", etiqueta: "Natural", hex: "#e0c7a3", rgb: [0.88, 0.78, 0.64], activo: true },
-      { nombre: "Roble Claro", etiqueta: "Roble C.", hex: "#b88449", rgb: [0.72, 0.52, 0.29], activo: true },
-      { nombre: "Roble Oscuro", etiqueta: "Roble O.", hex: "#6e4626", rgb: [0.43, 0.27, 0.15], activo: true },
-      { nombre: "Nogal", etiqueta: "Nogal", hex: "#472c18", rgb: [0.28, 0.17, 0.09], activo: true },
-      { nombre: "Caoba", etiqueta: "Caoba", hex: "#6b2918", rgb: [0.42, 0.16, 0.09], activo: true },
-      { nombre: "Wengue", etiqueta: "Wengue", hex: "#241914", rgb: [0.14, 0.10, 0.08], activo: true }
+      { nombre: "Transparente", etiqueta: "Natural", hex: "#d1b58c", rgb: [0.88, 0.78, 0.64], activo: true },
+      { nombre: "Roble Claro", etiqueta: "R. Claro", hex: "#b88547", rgb: [0.72, 0.52, 0.28], activo: true },
+      { nombre: "Caoba", etiqueta: "Caoba", hex: "#944f2e", rgb: [0.58, 0.31, 0.18], activo: true },
+      { nombre: "Roble Oscuro", etiqueta: "R. Oscuro", hex: "#734729", rgb: [0.45, 0.28, 0.16], activo: true },
+      { nombre: "Nogal", etiqueta: "Nogal", hex: "#523321", rgb: [0.32, 0.20, 0.13], activo: true },
+      { nombre: "Wengue", etiqueta: "Wengue", hex: "#2e211c", rgb: [0.18, 0.13, 0.11], activo: true }
     ];
 
     const DEFAULT_METALS = [
-      { nombre: "Negro", meta: "Epoxi clásico", hex: "#1a1c1e", rgb: [0.10, 0.11, 0.12], activo: true },
-      { nombre: "Blanco", meta: "Epoxi luminoso", hex: "#eceee9", rgb: [0.92, 0.93, 0.91], activo: true },
-      { nombre: "Gris Acero", meta: "Industrial", hex: "#5a6265", rgb: [0.35, 0.38, 0.40], activo: true }
+      { nombre: "Negro", meta: "Clásico industrial", hex: "#1a1c1f", rgb: [0.10, 0.11, 0.12], activo: true },
+      { nombre: "Blanco", meta: "Línea luminosa", hex: "#e0e3e0", rgb: [0.88, 0.89, 0.88], activo: true },
+      { nombre: "Marrón Oscuro", meta: "Óxido / Bronce", hex: "#38261f", rgb: [0.22, 0.15, 0.12], activo: true }
     ];
 
+    // Incluye Mate, Satinado y Brillante para todos los muebles
     const DEFAULT_ACABADOS = [
-      { nombre: "Mate", meta: "Satinado suave", rough: 0.75, activo: true },
-      { nombre: "Brillante", meta: "Laca pulida", rough: 0.22, activo: true }
+      { nombre: "Mate", meta: "Sin reflejo", rough: 0.75, activo: true },
+      { nombre: "Satinado", meta: "Brillo suave", rough: 0.42, activo: true },
+      { nombre: "Brillante", meta: "Alta reflexión", rough: 0.15, activo: true }
     ];
 
     const DEFAULT_EXTRAS = [
-      { nombre: "Regatones regulables", precio: 6500, meta: "Nivelación antideslizante", activo: true },
-      { nombre: "Ruedas industriales con freno", precio: 22000, meta: "4 ruedas giro 360°", activo: true }
+      { nombre: "Regatones Regulables en Altura", precio: 12000, meta: "Nivelación antideslizante", activo: true },
+      { nombre: "Ruedas Industriales con Freno", precio: 42000, meta: "Carga pesada (4 unidades)", activo: true }
     ];
 
     function showToast(msg) {
       const b = document.getElementById('statusBanner');
       b.textContent = msg; b.style.display = 'block';
       clearTimeout(window._toastTimer);
-      window._toastTimer = setTimeout(() => { b.style.display = 'none'; }, 3500);
+      window._toastTimer = setTimeout(() => { b.style.display = 'none'; }, 3800);
     }
 
     function hexToRgbArray(hex) {
@@ -315,7 +321,43 @@
       return [Number((((num >> 16) & 255)/255).toFixed(2)), Number((((num >> 8) & 255)/255).toFixed(2)), Number(((num & 255)/255).toFixed(2))];
     }
 
+    // Garantiza que los 3 acabados (Mate, Satinado y Brillante) estén presentes siempre
+    function normalizeAcabados(list) {
+      if (!Array.isArray(list) || list.length === 0) {
+        return JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
+      }
+      const hasSatinado = list.some(a => (a.nombre || '').toLowerCase().includes('satinado'));
+      if (!hasSatinado) {
+        return JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
+      }
+      return list;
+    }
+
+    // Corrige rutas viejas de texturas de madera (como alistonado.jpg -> eucalipto-alistonado.jpg)
+    function normalizeWoods(list) {
+      const woods = (Array.isArray(list) && list.length) ? JSON.parse(JSON.stringify(list)) : JSON.parse(JSON.stringify(DEFAULT_WOODS));
+      woods.forEach(w => {
+        if (!w.tex || w.tex === "assets/texturas/alistonado.jpg") {
+          const n = (w.nombre || "").toLowerCase();
+          if (n.includes("sin nudo")) w.tex = "assets/texturas/pino-sin-nudos.jpg";
+          else if (n.includes("eucalipto") && n.includes("alistonado")) w.tex = "assets/texturas/eucalipto-alistonado.jpg";
+          else if (n.includes("eucalipto")) w.tex = "assets/texturas/eucalipto.jpg";
+          else if (n.includes("alistonado")) w.tex = "assets/texturas/eucalipto-alistonado.jpg";
+          else w.tex = "assets/texturas/pino-con-nudos.jpg";
+        }
+      });
+      return woods;
+    }
+
     function normalizeProduct(p) {
+      const refProd = catalog[0];
+      const baseMetals = refProd && Array.isArray(refProd.colores_metal) && refProd.colores_metal.length
+        ? JSON.parse(JSON.stringify(refProd.colores_metal))
+        : JSON.parse(JSON.stringify(DEFAULT_METALS));
+      const baseStains = refProd && Array.isArray(refProd.tonos_madera) && refProd.tonos_madera.length
+        ? JSON.parse(JSON.stringify(refProd.tonos_madera))
+        : JSON.parse(JSON.stringify(DEFAULT_STAINS));
+
       return {
         id: String(p.id || "mueble-" + Date.now()).trim(),
         nombre: p.nombre || "Nuevo Mueble",
@@ -323,19 +365,54 @@
         activo: p.activo !== false,
         categoria: p.categoria || "Hogar",
         subcategoria: p.subcategoria || "Living/Comedor",
-        precio_base: Number(p.precio_base !== undefined ? p.precio_base : p.precioBase) || 100000,
+        precio_base: Number(p.precio_base !== undefined ? p.precio_base : p.precioBase) || 185000,
         resumen: p.resumen || "",
-        imagen: p.imagen || "assets/img/portada.jpg",
+        imagen: p.imagen || "assets/img/mesa-ratona-thumb.jpg",
         fotos: Array.isArray(p.fotos) ? p.fotos : [],
-        glb: p.glb || "assets/modelos/biblioteca.glb",
+        glb: p.glb || "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
         mp_link: p.mp_link || p.mpLink || "",
         permitir_nota_medida: p.permitir_nota_medida !== undefined ? p.permitir_nota_medida : (p.permitirNotaMedida !== false),
-        maderas: Array.isArray(p.maderas) && p.maderas.length ? p.maderas : JSON.parse(JSON.stringify(DEFAULT_WOODS)),
-        tonos_madera: Array.isArray(p.tonos_madera || p.tonosMadera) && (p.tonos_madera || p.tonosMadera).length ? (p.tonos_madera || p.tonosMadera) : JSON.parse(JSON.stringify(DEFAULT_STAINS)),
-        colores_metal: Array.isArray(p.colores_metal || p.coloresMetal) && (p.colores_metal || p.coloresMetal).length ? (p.colores_metal || p.coloresMetal) : JSON.parse(JSON.stringify(DEFAULT_METALS)),
-        acabados: Array.isArray(p.acabados) && p.acabados.length ? p.acabados : JSON.parse(JSON.stringify(DEFAULT_ACABADOS)),
+        maderas: normalizeWoods(p.maderas),
+        tonos_madera: Array.isArray(p.tonos_madera || p.tonosMadera) && (p.tonos_madera || p.tonosMadera).length ? (p.tonos_madera || p.tonosMadera) : baseStains,
+        colores_metal: Array.isArray(p.colores_metal || p.coloresMetal) && (p.colores_metal || p.coloresMetal).length ? (p.colores_metal || p.coloresMetal) : baseMetals,
+        acabados: normalizeAcabados(p.acabados),
         extras: Array.isArray(p.extras) && p.extras.length ? p.extras : JSON.parse(JSON.stringify(DEFAULT_EXTRAS))
       };
+    }
+
+    // Sincroniza Colores de Metal en TODOS los muebles del catálogo (Modo Global)
+    function syncGlobalMetalsFromCurrent() {
+      const currentMetals = JSON.parse(JSON.stringify(catalog[currentIndex].colores_metal || []));
+      catalog.forEach(item => {
+        item.colores_metal = JSON.parse(JSON.stringify(currentMetals));
+      });
+    }
+
+    // Sincroniza Tonos de Lustre en TODOS los muebles del catálogo (Modo Global)
+    function syncGlobalStainsFromCurrent() {
+      const currentStains = JSON.parse(JSON.stringify(catalog[currentIndex].tonos_madera || []));
+      catalog.forEach(item => {
+        item.tonos_madera = JSON.parse(JSON.stringify(currentStains));
+      });
+    }
+
+    // Sincroniza nombre, textura y estado activo de Maderas en todos los muebles (respetando el recargo $ de cada mueble)
+    function syncGlobalWoodStructureFromCurrent() {
+      const srcWoods = catalog[currentIndex].maderas || [];
+      catalog.forEach((item, idx) => {
+        if (idx === currentIndex) return;
+        const oldWoods = item.maderas || [];
+        item.maderas = srcWoods.map((sw, i) => {
+          const match = oldWoods[i] || oldWoods.find(ow => ow.nombre === sw.nombre);
+          return {
+            nombre: sw.nombre,
+            tex: sw.tex,
+            meta: sw.meta || "",
+            activo: sw.activo !== false,
+            delta: match && typeof match.delta === "number" ? match.delta : (sw.delta || 0)
+          };
+        });
+      });
     }
 
     function populateSubcategorias(cat, selectedSub) {
@@ -397,11 +474,15 @@
           <input type="number" value="${w.delta || 0}" step="500" placeholder="Recargo $">
           <button type="button" class="btn btn-sm btn-danger">✕</button>`;
         const inputs = row.querySelectorAll('input');
-        inputs[0].addEventListener('change', e => { w.activo = e.target.checked; });
-        inputs[1].addEventListener('input', e => { w.nombre = e.target.value; });
-        inputs[2].addEventListener('input', e => { w.tex = e.target.value; });
+        inputs[0].addEventListener('change', e => { w.activo = e.target.checked; syncGlobalWoodStructureFromCurrent(); });
+        inputs[1].addEventListener('input', e => { w.nombre = e.target.value; syncGlobalWoodStructureFromCurrent(); });
+        inputs[2].addEventListener('input', e => { w.tex = e.target.value; syncGlobalWoodStructureFromCurrent(); });
         inputs[3].addEventListener('input', e => { w.delta = Number(e.target.value) || 0; });
-        row.querySelector('button').addEventListener('click', () => { p.maderas.splice(i, 1); renderWoodsList(p); });
+        row.querySelector('button').addEventListener('click', () => {
+          p.maderas.splice(i, 1);
+          syncGlobalWoodStructureFromCurrent();
+          renderWoodsList(p);
+        });
         box.appendChild(row);
       });
     }
@@ -441,11 +522,15 @@
           <input type="text" value="${st.etiqueta || st.nombre}" placeholder="Etiqueta corta">
           <button type="button" class="btn btn-sm btn-danger">✕</button>`;
         const inputs = row.querySelectorAll('input');
-        inputs[0].addEventListener('change', e => { st.activo = e.target.checked; });
-        inputs[1].addEventListener('input', e => { st.hex = e.target.value; st.rgb = hexToRgbArray(e.target.value); });
-        inputs[2].addEventListener('input', e => { st.nombre = e.target.value; });
-        inputs[3].addEventListener('input', e => { st.etiqueta = e.target.value; });
-        row.querySelector('button').addEventListener('click', () => { p.tonos_madera.splice(i, 1); renderStainsList(p); });
+        inputs[0].addEventListener('change', e => { st.activo = e.target.checked; syncGlobalStainsFromCurrent(); });
+        inputs[1].addEventListener('input', e => { st.hex = e.target.value; st.rgb = hexToRgbArray(e.target.value); syncGlobalStainsFromCurrent(); });
+        inputs[2].addEventListener('input', e => { st.nombre = e.target.value; syncGlobalStainsFromCurrent(); });
+        inputs[3].addEventListener('input', e => { st.etiqueta = e.target.value; syncGlobalStainsFromCurrent(); });
+        row.querySelector('button').addEventListener('click', () => {
+          p.tonos_madera.splice(i, 1);
+          syncGlobalStainsFromCurrent();
+          renderStainsList(p);
+        });
         box.appendChild(row);
       });
     }
@@ -463,11 +548,15 @@
           <input type="text" value="${mt.meta || ''}" placeholder="Descripción">
           <button type="button" class="btn btn-sm btn-danger">✕</button>`;
         const inputs = row.querySelectorAll('input');
-        inputs[0].addEventListener('change', e => { mt.activo = e.target.checked; });
-        inputs[1].addEventListener('input', e => { mt.hex = e.target.value; mt.rgb = hexToRgbArray(e.target.value); });
-        inputs[2].addEventListener('input', e => { mt.nombre = e.target.value; });
-        inputs[3].addEventListener('input', e => { mt.meta = e.target.value; });
-        row.querySelector('button').addEventListener('click', () => { p.colores_metal.splice(i, 1); renderMetalsList(p); });
+        inputs[0].addEventListener('change', e => { mt.activo = e.target.checked; syncGlobalMetalsFromCurrent(); });
+        inputs[1].addEventListener('input', e => { mt.hex = e.target.value; mt.rgb = hexToRgbArray(e.target.value); syncGlobalMetalsFromCurrent(); });
+        inputs[2].addEventListener('input', e => { mt.nombre = e.target.value; syncGlobalMetalsFromCurrent(); });
+        inputs[3].addEventListener('input', e => { mt.meta = e.target.value; syncGlobalMetalsFromCurrent(); });
+        row.querySelector('button').addEventListener('click', () => {
+          p.colores_metal.splice(i, 1);
+          syncGlobalMetalsFromCurrent();
+          renderMetalsList(p);
+        });
         box.appendChild(row);
       });
     }
@@ -537,7 +626,7 @@
       if (!data || data.length === 0) {
         const imported = await importFromLocalJsonToSupabase();
         if (!imported) {
-          catalog = [normalizeProduct({ id: "biblioteca-industrial", nombre: "Biblioteca Industrial" })];
+          catalog = [normalizeProduct({ id: "mesa-ratona-01", nombre: "Mesa Ratona Industrial" })];
           renderSidebar();
           renderEditor();
         }
@@ -545,10 +634,19 @@
       }
 
       catalog = data.map(normalizeProduct);
+
+      // Unificar Colores Metal en modo global tomando como base el mueble con más colores configurados
+      const richestMetals = catalog.reduce((best, item) =>
+        (item.colores_metal && item.colores_metal.length > best.length) ? item.colores_metal : best
+      , DEFAULT_METALS);
+      catalog.forEach(item => {
+        item.colores_metal = JSON.parse(JSON.stringify(richestMetals));
+      });
+
       currentIndex = 0;
       renderSidebar();
       renderEditor();
-      showToast("✅ Catálogo cargado desde Supabase");
+      showToast("✅ Catálogo cargado (Satinado, Texturas y Metales Globales activos)");
     }
 
     document.getElementById('btnLogin').addEventListener('click', async () => {
@@ -618,7 +716,7 @@
       catalog.push(nuevo);
       currentIndex = catalog.length - 1;
       renderSidebar(); renderEditor();
-      showToast("✨ Mueble creado. Tocá 'Publicar Cambios en Vivo' para guardarlo.");
+      showToast("✨ Mueble creado con Satinado, Maderas y Metales Globales.");
     });
 
     document.getElementById('btnDuplicateProd').addEventListener('click', () => {
@@ -647,6 +745,7 @@
     });
     document.getElementById('btnAddWood').addEventListener('click', () => {
       catalog[currentIndex].maderas.push({ nombre: "Nueva Madera", tex: "assets/texturas/pino-sin-nudos.jpg", delta: 10000, activo: true });
+      syncGlobalWoodStructureFromCurrent();
       renderWoodsList(catalog[currentIndex]);
     });
     document.getElementById('btnAddExtra').addEventListener('click', () => {
@@ -655,10 +754,12 @@
     });
     document.getElementById('btnAddStain').addEventListener('click', () => {
       catalog[currentIndex].tonos_madera.push({ nombre: "Nuevo Tono", etiqueta: "Nuevo", hex: "#8c6239", rgb: [0.55, 0.38, 0.22], activo: true });
+      syncGlobalStainsFromCurrent();
       renderStainsList(catalog[currentIndex]);
     });
     document.getElementById('btnAddMetal').addEventListener('click', () => {
       catalog[currentIndex].colores_metal.push({ nombre: "Nuevo Metal", meta: "Epoxi", hex: "#333333", rgb: [0.2, 0.2, 0.2], activo: true });
+      syncGlobalMetalsFromCurrent();
       renderMetalsList(catalog[currentIndex]);
     });
 
@@ -670,88 +771,255 @@
       renderSidebar(); renderEditor();
       showToast(`⚡ Precios ajustados ${pct}%. Tocá Publicar Cambios en Vivo.`);
     });
-  </script>
-  <script>
-(function() {
-  // Función que sube el archivo a Supabase Storage y devuelve el link público
-  async function uploadToSupabase(file, folder) {
-    showToast("⏳ Subiendo " + file.name + "...");
-    const cleanName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = `${folder}/${cleanName}`;
 
-    const { error } = await supabaseClient.storage
-      .from('tienda')
-      .upload(filePath, file, { upsert: true });
+    // ================= INYECTOR AUTOMÁTICO DE TEXTURAS DE MADERA Y UVS PARA ARCHIVOS .GLB =================
+    const WHITE_PNG_4X4 = new Uint8Array([
+      137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,4,0,0,0,4,8,2,0,0,0,38,147,9,41,
+      0,0,0,20,73,68,65,84,120,156,99,252,255,255,63,3,12,48,49,32,1,220,28,0,150,110,3,5,
+      242,37,190,249,0,0,0,0,73,69,78,68,174,66,96,130,0,0,0
+    ]);
 
-    if (error) {
-      alert("Error al subir archivo: " + error.message);
-      return null;
+    function patchGlbBufferForWoodTextures(arrayBuffer) {
+      const dv = new DataView(arrayBuffer);
+      const magic = dv.getUint32(0, true);
+      const version = dv.getUint32(4, true);
+      if (magic !== 0x46546C67) return arrayBuffer;
+
+      const jsonLen = dv.getUint32(12, true);
+      const jsonStr = new TextDecoder().decode(new Uint8Array(arrayBuffer, 20, jsonLen));
+      const gltf = JSON.parse(jsonStr);
+
+      const binHeaderOffset = 20 + jsonLen;
+      const binLen = dv.getUint32(binHeaderOffset, true);
+      const oldBin = new Uint8Array(arrayBuffer, binHeaderOffset + 8, binLen);
+
+      // Asegurar nombres de materiales "madera" (0) y "hierro" (1)
+      if (Array.isArray(gltf.materials) && gltf.materials.length > 0) {
+        gltf.materials[0].name = "madera";
+        gltf.materials[0].doubleSided = true;
+        if (!gltf.materials[0].pbrMetallicRoughness) gltf.materials[0].pbrMetallicRoughness = {};
+        if (gltf.materials[1]) {
+          gltf.materials[1].name = "hierro";
+          gltf.materials[1].doubleSided = true;
+        }
+      }
+
+      const posAcc = gltf.accessors && gltf.accessors[0];
+      const normAcc = gltf.accessors && gltf.accessors[1];
+      if (!posAcc || !normAcc) return arrayBuffer;
+
+      const posBv = gltf.bufferViews[posAcc.bufferView];
+      const normBv = gltf.bufferViews[normAcc.bufferView];
+      const count = posAcc.count;
+
+      const posSlice = oldBin.slice(posBv.byteOffset || 0, (posBv.byteOffset || 0) + count * 12);
+      const normSlice = oldBin.slice(normBv.byteOffset || 0, (normBv.byteOffset || 0) + count * 12);
+      const positions = new Float32Array(posSlice.buffer, posSlice.byteOffset, count * 3);
+      const normals = new Float32Array(normSlice.buffer, normSlice.byteOffset, count * 3);
+
+      // Generar coordenadas UV (TEXCOORD_0) de proyección triplanar para la veta de madera
+      const uvs = new Float32Array(count * 2);
+      for (let i = 0; i < count; i++) {
+        const x = positions[i * 3], y = positions[i * 3 + 1], z = positions[i * 3 + 2];
+        const nx = Math.abs(normals[i * 3]), ny = Math.abs(normals[i * 3 + 1]), nz = Math.abs(normals[i * 3 + 2]);
+        if (ny >= nx && ny >= nz) {
+          uvs[i * 2] = (z + 0.25) * 1.8;
+          uvs[i * 2 + 1] = (x + 0.45) * 1.1;
+        } else if (nx >= ny && nx >= nz) {
+          uvs[i * 2] = (z + 0.25) * 1.8;
+          uvs[i * 2 + 1] = y * 1.8;
+        } else {
+          uvs[i * 2] = (x + 0.45) * 1.1;
+          uvs[i * 2 + 1] = y * 1.8;
+        }
+      }
+      const uvBytes = new Uint8Array(uvs.buffer);
+
+      const oldBinPad = (4 - (oldBin.byteLength % 4)) % 4;
+      const uvOffset = oldBin.byteLength + oldBinPad;
+      const pngOffset = uvOffset + uvBytes.byteLength;
+      const totalBinLen = pngOffset + WHITE_PNG_4X4.byteLength;
+
+      const newBin = new Uint8Array(totalBinLen);
+      newBin.set(oldBin, 0);
+      newBin.set(uvBytes, uvOffset);
+      newBin.set(WHITE_PNG_4X4, pngOffset);
+
+      const uvBvIdx = gltf.bufferViews.length;
+      gltf.bufferViews.push({
+        buffer: 0,
+        byteOffset: uvOffset,
+        byteLength: uvBytes.byteLength,
+        target: 34962
+      });
+
+      const uvAccIdx = gltf.accessors.length;
+      gltf.accessors.push({
+        bufferView: uvBvIdx,
+        componentType: 5126,
+        count: count,
+        type: "VEC2"
+      });
+
+      const pngBvIdx = gltf.bufferViews.length;
+      gltf.bufferViews.push({
+        buffer: 0,
+        byteOffset: pngOffset,
+        byteLength: WHITE_PNG_4X4.byteLength
+      });
+
+      gltf.buffers[0].byteLength = newBin.byteLength;
+
+      (gltf.meshes || []).forEach(mesh => {
+        (mesh.primitives || []).forEach(prim => {
+          if (!prim.attributes) prim.attributes = {};
+          prim.attributes.TEXCOORD_0 = uvAccIdx;
+        });
+      });
+
+      gltf.samplers = [{ magFilter: 9729, minFilter: 9987, wrapS: 10497, wrapT: 10497 }];
+      gltf.images = [{ bufferView: pngBvIdx, mimeType: "image/png" }];
+      gltf.textures = [{ sampler: 0, source: 0 }];
+      if (gltf.materials && gltf.materials[0]) {
+        gltf.materials[0].pbrMetallicRoughness.baseColorTexture = { index: 0 };
+      }
+
+      const newJsonBytes = new TextEncoder().encode(JSON.stringify(gltf));
+      const jsonPad = (4 - (newJsonBytes.byteLength % 4)) % 4;
+      const binPad = (4 - (newBin.byteLength % 4)) % 4;
+
+      const totalOutLen = 12 + 8 + newJsonBytes.byteLength + jsonPad + 8 + newBin.byteLength + binPad;
+      const outBuf = new ArrayBuffer(totalOutLen);
+      const outDv = new DataView(outBuf);
+      const outU8 = new Uint8Array(outBuf);
+
+      outDv.setUint32(0, magic, true);
+      outDv.setUint32(4, version, true);
+      outDv.setUint32(8, totalOutLen, true);
+      outDv.setUint32(12, newJsonBytes.byteLength + jsonPad, true);
+      outDv.setUint32(16, 0x4E4F534A, true);
+      outU8.set(newJsonBytes, 20);
+      for (let i = 0; i < jsonPad; i++) outU8[20 + newJsonBytes.byteLength + i] = 0x20;
+
+      const bStart = 20 + newJsonBytes.byteLength + jsonPad;
+      outDv.setUint32(bStart, newBin.byteLength + binPad, true);
+      outDv.setUint32(bStart + 4, 0x004E4942, true);
+      outU8.set(newBin, bStart + 8);
+
+      return outBuf;
     }
 
-    const { data } = supabaseClient.storage.from('tienda').getPublicUrl(filePath);
-    showToast("✅ Archivo subido. Tocá 'Publicar Cambios en Vivo' para guardar.");
-    return data.publicUrl;
-  }
+    // ================= SUBIDA DIRECTA A SUPABASE STORAGE =================
+    async function uploadToSupabase(file, folder) {
+      let uploadBlob = file;
+      if (file.name && file.name.toLowerCase().endsWith('.glb')) {
+        try {
+          showToast("🪄 Inyectando coordenadas de textura de madera al .GLB...");
+          const rawBuf = await file.arrayBuffer();
+          const patchedBuf = patchGlbBufferForWoodTextures(rawBuf);
+          uploadBlob = new Blob([patchedBuf], { type: 'model/gltf-binary' });
+        } catch (err) {
+          console.warn("No se pudo parchar el GLB, subiendo original:", err);
+        }
+      }
 
-  // Agrega un botón "📤 Subir" al lado de cualquier input de ruta
-  function attachUploadButton(inputEl, accept, folder) {
-    if (!inputEl || inputEl.dataset.hasUploader) return;
-    inputEl.dataset.hasUploader = "1";
+      showToast("⏳ Subiendo " + file.name + "...");
+      const cleanName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const filePath = `${folder}/${cleanName}`;
 
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "display:flex; gap:8px; align-items:center; width:100%;";
-    inputEl.parentNode.insertBefore(wrapper, inputEl);
-    wrapper.appendChild(inputEl);
+      const { error } = await supabaseClient.storage
+        .from('tienda')
+        .upload(filePath, uploadBlob, { upsert: true, contentType: file.name.endsWith('.glb') ? 'model/gltf-binary' : file.type });
 
-    const fileInp = document.createElement("input");
-    fileInp.type = "file";
-    fileInp.accept = accept;
-    fileInp.style.display = "none";
+      if (error) {
+        alert("Error al subir archivo: " + error.message);
+        return null;
+      }
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-sm btn-primary";
-    btn.style.whiteSpace = "nowrap";
-    btn.innerHTML = "📤 Subir";
+      const { data } = supabaseClient.storage.from('tienda').getPublicUrl(filePath);
+      showToast("✅ Archivo subido con soporte de texturas. Tocá 'Publicar Cambios en Vivo'.");
+      return data.publicUrl;
+    }
 
-    btn.addEventListener("click", () => fileInp.click());
-    fileInp.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      btn.disabled = true;
-      btn.textContent = "⏳...";
-      const url = await uploadToSupabase(file, folder);
-      btn.disabled = false;
-      btn.innerHTML = "📤 Subir";
-      if (url) {
-        inputEl.value = url;
-        inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    // Botón para reparar un .GLB ya subido en el mueble actual sin tener que buscarlo en la PC
+    document.getElementById('btnRepairGlb').addEventListener('click', async () => {
+      const currentUrl = document.getElementById('inpGlb').value.trim();
+      if (!currentUrl) { alert("No hay ningún archivo .GLB cargado en este mueble."); return; }
+      try {
+        showToast("⏳ Descargando y reparando texturas del .GLB actual...");
+        const res = await fetch(currentUrl);
+        if (!res.ok) throw new Error("No se pudo leer el archivo .GLB actual");
+        const buf = await res.arrayBuffer();
+        const patched = patchGlbBufferForWoodTextures(buf);
+        const fakeFile = new File([patched], (catalog[currentIndex].id || "modelo") + "-uv.glb", { type: "model/gltf-binary" });
+        const newUrl = await uploadToSupabase(fakeFile, "modelos");
+        if (newUrl) {
+          document.getElementById('inpGlb').value = newUrl;
+          catalog[currentIndex].glb = newUrl;
+          document.getElementById('adminViewer').src = newUrl;
+          showToast("✅ ¡Textura 3D reparada! Ahora tocá 'Publicar Cambios en Vivo'.");
+        }
+      } catch (e) {
+        alert("Error al reparar el .GLB: " + e.message);
       }
     });
 
-    wrapper.appendChild(btn);
-    wrapper.appendChild(fileInp);
-  }
+    function attachUploadButton(inputEl, accept, folder) {
+      if (!inputEl || inputEl.dataset.hasUploader) return;
+      inputEl.dataset.hasUploader = "1";
 
-  function enhanceInputs() {
-    attachUploadButton(document.getElementById("inpGlb"), ".glb,.gltf", "modelos");
-    attachUploadButton(document.getElementById("inpImagen"), "image/*", "portadas");
-    document.querySelectorAll("#photosList input.mono-input").forEach(inp => {
-      attachUploadButton(inp, "image/*", "fotos");
-    });
-    document.querySelectorAll("#woodsList input.mono-input").forEach(inp => {
-      attachUploadButton(inp, "image/*", "texturas");
-    });
-  }
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "display:flex; gap:8px; align-items:center; width:100%;";
+      inputEl.parentNode.insertBefore(wrapper, inputEl);
+      wrapper.appendChild(inputEl);
 
-  // Ejecutar al iniciar y cada vez que se agregue una fila nueva de foto o madera
-  enhanceInputs();
-  const obs = new MutationObserver(enhanceInputs);
-  ["photosList", "woodsList"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) obs.observe(el, { childList: true, subtree: true });
-  });
-})();
-</script>
+      const fileInp = document.createElement("input");
+      fileInp.type = "file";
+      fileInp.accept = accept;
+      fileInp.style.display = "none";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-sm btn-primary";
+      btn.style.whiteSpace = "nowrap";
+      btn.innerHTML = "📤 Subir";
+
+      btn.addEventListener("click", () => fileInp.click());
+      fileInp.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        btn.disabled = true;
+        btn.textContent = "⏳...";
+        const url = await uploadToSupabase(file, folder);
+        btn.disabled = false;
+        btn.innerHTML = "📤 Subir";
+        if (url) {
+          inputEl.value = url;
+          inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+
+      wrapper.appendChild(btn);
+      wrapper.appendChild(fileInp);
+    }
+
+    function enhanceInputs() {
+      attachUploadButton(document.getElementById("inpGlb"), ".glb,.gltf", "modelos");
+      attachUploadButton(document.getElementById("inpImagen"), "image/*", "portadas");
+      document.querySelectorAll("#photosList input.mono-input").forEach(inp => {
+        attachUploadButton(inp, "image/*", "fotos");
+      });
+      document.querySelectorAll("#woodsList input.mono-input").forEach(inp => {
+        attachUploadButton(inp, "image/*", "texturas");
+      });
+    }
+
+    enhanceInputs();
+    const obs = new MutationObserver(enhanceInputs);
+    ["photosList", "woodsList"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el, { childList: true, subtree: true });
+    });
+  </script>
 </body>
 </html>
