@@ -671,5 +671,87 @@
       showToast(`⚡ Precios ajustados ${pct}%. Tocá Publicar Cambios en Vivo.`);
     });
   </script>
+  <script>
+(function() {
+  // Función que sube el archivo a Supabase Storage y devuelve el link público
+  async function uploadToSupabase(file, folder) {
+    showToast("⏳ Subiendo " + file.name + "...");
+    const cleanName = Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = `${folder}/${cleanName}`;
+
+    const { error } = await supabaseClient.storage
+      .from('tienda')
+      .upload(filePath, file, { upsert: true });
+
+    if (error) {
+      alert("Error al subir archivo: " + error.message);
+      return null;
+    }
+
+    const { data } = supabaseClient.storage.from('tienda').getPublicUrl(filePath);
+    showToast("✅ Archivo subido. Tocá 'Publicar Cambios en Vivo' para guardar.");
+    return data.publicUrl;
+  }
+
+  // Agrega un botón "📤 Subir" al lado de cualquier input de ruta
+  function attachUploadButton(inputEl, accept, folder) {
+    if (!inputEl || inputEl.dataset.hasUploader) return;
+    inputEl.dataset.hasUploader = "1";
+
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "display:flex; gap:8px; align-items:center; width:100%;";
+    inputEl.parentNode.insertBefore(wrapper, inputEl);
+    wrapper.appendChild(inputEl);
+
+    const fileInp = document.createElement("input");
+    fileInp.type = "file";
+    fileInp.accept = accept;
+    fileInp.style.display = "none";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm btn-primary";
+    btn.style.whiteSpace = "nowrap";
+    btn.innerHTML = "📤 Subir";
+
+    btn.addEventListener("click", () => fileInp.click());
+    fileInp.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      btn.disabled = true;
+      btn.textContent = "⏳...";
+      const url = await uploadToSupabase(file, folder);
+      btn.disabled = false;
+      btn.innerHTML = "📤 Subir";
+      if (url) {
+        inputEl.value = url;
+        inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
+    wrapper.appendChild(btn);
+    wrapper.appendChild(fileInp);
+  }
+
+  function enhanceInputs() {
+    attachUploadButton(document.getElementById("inpGlb"), ".glb,.gltf", "modelos");
+    attachUploadButton(document.getElementById("inpImagen"), "image/*", "portadas");
+    document.querySelectorAll("#photosList input.mono-input").forEach(inp => {
+      attachUploadButton(inp, "image/*", "fotos");
+    });
+    document.querySelectorAll("#woodsList input.mono-input").forEach(inp => {
+      attachUploadButton(inp, "image/*", "texturas");
+    });
+  }
+
+  // Ejecutar al iniciar y cada vez que se agregue una fila nueva de foto o madera
+  enhanceInputs();
+  const obs = new MutationObserver(enhanceInputs);
+  ["photosList", "woodsList"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) obs.observe(el, { childList: true, subtree: true });
+  });
+})();
+</script>
 </body>
 </html>

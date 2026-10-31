@@ -287,8 +287,8 @@
 
   <script>
     // ================= CONFIGURACIÓN DE SUPABASE =================
-    const SUPABASE_URL = 'TU_URL_DE_SUPABASE'; 
-    const SUPABASE_ANON_KEY = 'TU_KEY_DE_SUPABASE';
+    const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let catalog = [];
@@ -444,7 +444,7 @@
     document.getElementById('btnToggleVisibility').addEventListener('click', () => { catalog[currentIndex].activo = !catalog[currentIndex].activo; renderSidebar(); renderEditor(); });
     document.getElementById('btnNewProd').addEventListener('click', () => {
       catalog.push(normalizeProduct({ id: `nuevo-${Date.now()}` }));
-      currentIndex = catalog.length - 1; renderSidebar(); renderEditor();
+      currentIndex = catalog.length - 1; renderSidebar(); renderEditor()
     });
   </script>
 </body>
