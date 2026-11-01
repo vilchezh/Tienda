@@ -73,6 +73,19 @@
     input[type="text"], input[type="password"], input[type="number"], select, textarea { background: var(--bg-input); border: 1px solid var(--sage-muted); color: var(--cream-light); padding: 10px 12px; font-family: var(--font-sans); font-size: 13px; border-radius: 2px; width: 100%; }
     input[type="number"], .mono-input { font-family: var(--font-mono); }
 
+    .promo-config-box {
+      grid-column: 1 / -1;
+      background: rgba(29, 67, 71, 0.35);
+      border: 1px dashed var(--sage-main);
+      padding: 12px 14px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
     .dynamic-list { display: flex; flex-direction: column; gap: 10px; }
     .dynamic-row { display: grid; grid-template-columns: auto 1.3fr 1.3fr 120px auto; gap: 10px; align-items: center; background: var(--bg-input); border: 1px solid var(--sage-muted); padding: 10px 12px; border-radius: 2px; }
     @media (max-width: 768px) { .dynamic-row { grid-template-columns: 1fr; } }
@@ -131,7 +144,7 @@
     <main class="editor-area">
       <section class="editor-card">
         <div class="card-header">
-          <span class="card-title">1. Datos Principales, Precio y Categoría</span>
+          <span class="card-title">1. Datos Principales, Precio, Categoría y Promoción</span>
           <div style="display: flex; gap: 8px;">
             <button type="button" class="btn btn-sm btn-secondary" id="btnToggleVisibility">🚫 Ocultar Mueble</button>
             <button type="button" class="btn btn-sm" id="btnDuplicateProd">📄 Duplicar</button>
@@ -161,13 +174,37 @@
               <option value="Hogar">Hogar</option>
               <option value="Gym">Gym</option>
               <option value="Trailers">Trailers</option>
-              <option value="Uso Rudo">Uso Rudo</option>
+              <option value="Variado">Variado</option>
+              <option value="Maquinas/Herramientas">Maquinas/Herramientas</option>
             </select>
           </div>
           <div class="form-group">
             <label>Subcategoría</label>
             <select id="selSubcategoria"></select>
           </div>
+
+          <!-- CATEGORÍA EXTRA COMBINABLE: PROMOCIÓN -->
+          <div class="promo-config-box">
+            <label style="display:flex; align-items:center; gap:10px; color:var(--cream-light); font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="chkEnPromo" style="width:18px; height:18px; accent-color:var(--sage-main);">
+              <span>🔥 <b>Poner en Promoción</b></span>
+            </label>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label for="selPromoSub" style="margin:0;">Tipo:</label>
+                <select id="selPromoSub" style="width:140px;">
+                  <option value="Ofertas">Ofertas</option>
+                  <option value="Combos">Combos</option>
+                  <option value="Liquidación">Liquidación</option>
+                </select>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label for="inpPrecioAnterior" style="margin:0;">Precio Anterior Tachado ($):</label>
+                <input type="number" id="inpPrecioAnterior" placeholder="Ej: 220000" step="500" style="width:130px;">
+              </div>
+            </div>
+          </div>
+
           <div class="form-group full">
             <label>Descripción / Resumen Técnico</label>
             <textarea id="inpResumen" rows="2"></textarea>
@@ -267,11 +304,13 @@
     let catalog = [];
     let currentIndex = 0;
 
+    // Mapa actualizado con Variado, Gym completo y Maquinas/Herramientas
     const CATEGORIAS_MAP = {
       "Hogar": ["Cocina", "Dormitorio", "Living/Comedor", "Baño", "Oficina", "Jardín/Exterior"],
-      "Gym": ["Máquinas de Gym"],
+      "Gym": ["Máquinas", "Racks y Jaulas", "Bancos", "Accesorios", "Barras y Mancuernas", "Poleas y Soportes", "Calistenia y Funcional"],
       "Trailers": ["Moto", "Auto"],
-      "Uso Rudo": ["Herramientas", "Máquinas Uso Rudo"]
+      "Variado": ["General"],
+      "Maquinas/Herramientas": ["Máquinas", "Herramientas"]
     };
 
     const DEFAULT_WOODS = [
@@ -296,7 +335,6 @@
       { nombre: "Marrón Oscuro", meta: "Óxido / Bronce", hex: "#38261f", rgb: [0.22, 0.15, 0.12], activo: true }
     ];
 
-    // Incluye Mate, Satinado y Brillante para todos los muebles
     const DEFAULT_ACABADOS = [
       { nombre: "Mate", meta: "Sin reflejo", rough: 0.75, activo: true },
       { nombre: "Satinado", meta: "Brillo suave", rough: 0.42, activo: true },
@@ -321,19 +359,34 @@
       return [Number((((num >> 16) & 255)/255).toFixed(2)), Number((((num >> 8) & 255)/255).toFixed(2)), Number(((num & 255)/255).toFixed(2))];
     }
 
-    // Garantiza que los 3 acabados (Mate, Satinado y Brillante) estén presentes siempre
-    function normalizeAcabados(list) {
-      if (!Array.isArray(list) || list.length === 0) {
-        return JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
+    function unpackSubAndPromo(rawSub) {
+      const str = String(rawSub || "Living/Comedor");
+      if (str.includes("||PROMO:")) {
+        const [cleanSub, rest] = str.split("||PROMO:");
+        const [promoTipo, oldPriceStr] = (rest || "").split("||OLD:");
+        return {
+          cleanSub: cleanSub || "General",
+          enPromo: true,
+          promoTipo: promoTipo || "Ofertas",
+          precioAnterior: Number(oldPriceStr) || 0
+        };
       }
-      const hasSatinado = list.some(a => (a.nombre || '').toLowerCase().includes('satinado'));
-      if (!hasSatinado) {
-        return JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
-      }
-      return list;
+      return { cleanSub: str, enPromo: false, promoTipo: "Ofertas", precioAnterior: 0 };
     }
 
-    // Corrige rutas viejas de texturas de madera (como alistonado.jpg -> eucalipto-alistonado.jpg)
+    function packSubAndPromo(cleanSub, enPromo, promoTipo, precioAnterior) {
+      const base = cleanSub || "General";
+      if (!enPromo) return base;
+      const oldPart = Number(precioAnterior) > 0 ? `||OLD:${Number(precioAnterior)}` : "";
+      return `${base}||PROMO:${promoTipo || "Ofertas"}${oldPart}`;
+    }
+
+    function normalizeAcabados(list) {
+      if (!Array.isArray(list) || list.length === 0) return JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
+      const hasSatinado = list.some(a => (a.nombre || '').toLowerCase().includes('satinado'));
+      return hasSatinado ? list : JSON.parse(JSON.stringify(DEFAULT_ACABADOS));
+    }
+
     function normalizeWoods(list) {
       const woods = (Array.isArray(list) && list.length) ? JSON.parse(JSON.stringify(list)) : JSON.parse(JSON.stringify(DEFAULT_WOODS));
       woods.forEach(w => {
@@ -358,13 +411,17 @@
         ? JSON.parse(JSON.stringify(refProd.tonos_madera))
         : JSON.parse(JSON.stringify(DEFAULT_STAINS));
 
+      let cat = p.categoria || "Hogar";
+      if (cat === "Uso Rudo") cat = "Variado";
+      if (!CATEGORIAS_MAP[cat]) cat = "Hogar";
+
       return {
         id: String(p.id || "mueble-" + Date.now()).trim(),
         nombre: p.nombre || "Nuevo Mueble",
         sku: p.sku || "AYE-001",
         activo: p.activo !== false,
-        categoria: p.categoria || "Hogar",
-        subcategoria: p.subcategoria || "Living/Comedor",
+        categoria: cat,
+        subcategoria: p.subcategoria || CATEGORIAS_MAP[cat][0],
         precio_base: Number(p.precio_base !== undefined ? p.precio_base : p.precioBase) || 185000,
         resumen: p.resumen || "",
         imagen: p.imagen || "assets/img/mesa-ratona-thumb.jpg",
@@ -380,23 +437,16 @@
       };
     }
 
-    // Sincroniza Colores de Metal en TODOS los muebles del catálogo (Modo Global)
     function syncGlobalMetalsFromCurrent() {
       const currentMetals = JSON.parse(JSON.stringify(catalog[currentIndex].colores_metal || []));
-      catalog.forEach(item => {
-        item.colores_metal = JSON.parse(JSON.stringify(currentMetals));
-      });
+      catalog.forEach(item => { item.colores_metal = JSON.parse(JSON.stringify(currentMetals)); });
     }
 
-    // Sincroniza Tonos de Lustre en TODOS los muebles del catálogo (Modo Global)
     function syncGlobalStainsFromCurrent() {
       const currentStains = JSON.parse(JSON.stringify(catalog[currentIndex].tonos_madera || []));
-      catalog.forEach(item => {
-        item.tonos_madera = JSON.parse(JSON.stringify(currentStains));
-      });
+      catalog.forEach(item => { item.tonos_madera = JSON.parse(JSON.stringify(currentStains)); });
     }
 
-    // Sincroniza nombre, textura y estado activo de Maderas en todos los muebles (respetando el recargo $ de cada mueble)
     function syncGlobalWoodStructureFromCurrent() {
       const srcWoods = catalog[currentIndex].maderas || [];
       catalog.forEach((item, idx) => {
@@ -415,15 +465,26 @@
       });
     }
 
-    function populateSubcategorias(cat, selectedSub) {
+    function populateSubcategorias(cat, selectedCleanSub) {
       const sel = document.getElementById('selSubcategoria');
       sel.innerHTML = '';
       (CATEGORIAS_MAP[cat] || ["General"]).forEach(s => {
         const opt = document.createElement('option');
         opt.value = s; opt.textContent = s;
-        if (s === selectedSub) opt.selected = true;
+        if (s === selectedCleanSub) opt.selected = true;
         sel.appendChild(opt);
       });
+    }
+
+    function updateCurrentSubAndPromo() {
+      const p = catalog[currentIndex];
+      if (!p) return;
+      const cleanSub = document.getElementById('selSubcategoria').value;
+      const enPromo = document.getElementById('chkEnPromo').checked;
+      const promoTipo = document.getElementById('selPromoSub').value;
+      const precioAnterior = document.getElementById('inpPrecioAnterior').value;
+      p.subcategoria = packSubAndPromo(cleanSub, enPromo, promoTipo, precioAnterior);
+      renderSidebar();
     }
 
     function renderSidebar() {
@@ -432,12 +493,17 @@
       list.innerHTML = '';
       catalog.forEach((p, idx) => {
         const isHidden = !p.activo;
+        const { enPromo, promoTipo } = unpackSubAndPromo(p.subcategoria);
         const div = document.createElement('div');
         div.className = 'prod-item' + (idx === currentIndex ? ' active' : '');
         div.style.cssText = isHidden ? 'opacity: 0.55; border-style: dashed;' : '';
         div.innerHTML = `
           <div>
-            <span class="prod-item-title">${p.nombre}${isHidden ? '<span style="color:var(--danger);font-size:10px;margin-left:8px">[OCULTO]</span>' : ''}</span>
+            <span class="prod-item-title">
+              ${p.nombre}
+              ${enPromo ? `<span style="color:#ffb366;font-size:10px;margin-left:4px">[🔥 ${promoTipo}]</span>` : ''}
+              ${isHidden ? '<span style="color:var(--danger);font-size:10px;margin-left:4px">[OCULTO]</span>' : ''}
+            </span>
             <span class="prod-item-meta">${p.sku} · ${p.categoria}</span>
           </div>
           <div class="prod-item-price">$${Number(p.precio_base).toLocaleString('es-AR')}</div>`;
@@ -572,12 +638,21 @@
         btnToggle.innerHTML = '🚫 Ocultar Mueble'; btnToggle.className = 'btn btn-sm btn-secondary';
       }
 
+      // Obtenemos los datos incluyendo el precio anterior
+      const { cleanSub, enPromo, promoTipo, precioAnterior } = unpackSubAndPromo(p.subcategoria);
+
       document.getElementById('inpNombre').value = p.nombre;
       document.getElementById('inpId').value = p.id;
       document.getElementById('inpSku').value = p.sku;
       document.getElementById('inpPrecio').value = p.precio_base;
       document.getElementById('selCategoria').value = CATEGORIAS_MAP[p.categoria] ? p.categoria : "Hogar";
-      populateSubcategorias(document.getElementById('selCategoria').value, p.subcategoria);
+      populateSubcategorias(document.getElementById('selCategoria').value, cleanSub);
+
+      // Cargamos el estado de promoción y el precio tachado
+      document.getElementById('chkEnPromo').checked = enPromo;
+      document.getElementById('selPromoSub').value = promoTipo;
+      document.getElementById('inpPrecioAnterior').value = precioAnterior || '';
+
       document.getElementById('inpResumen').value = p.resumen;
       document.getElementById('inpMpLink').value = p.mp_link;
       document.getElementById('inpGlb').value = p.glb;
@@ -635,7 +710,6 @@
 
       catalog = data.map(normalizeProduct);
 
-      // Unificar Colores Metal en modo global tomando como base el mueble con más colores configurados
       const richestMetals = catalog.reduce((best, item) =>
         (item.colores_metal && item.colores_metal.length > best.length) ? item.colores_metal : best
       , DEFAULT_METALS);
@@ -646,7 +720,7 @@
       currentIndex = 0;
       renderSidebar();
       renderEditor();
-      showToast("✅ Catálogo cargado (Satinado, Texturas y Metales Globales activos)");
+      showToast("✅ Catálogo cargado desde Supabase");
     }
 
     document.getElementById('btnLogin').addEventListener('click', async () => {
@@ -681,7 +755,6 @@
       if (session) loadCatalogFromSupabase();
     });
 
-    // Eventos del formulario principal
     document.getElementById('inpNombre').addEventListener('input', e => { catalog[currentIndex].nombre = e.target.value; renderSidebar(); });
     document.getElementById('inpId').addEventListener('input', e => {
       catalog[currentIndex].id = e.target.value.trim();
@@ -692,10 +765,12 @@
     document.getElementById('selCategoria').addEventListener('change', e => {
       catalog[currentIndex].categoria = e.target.value;
       populateSubcategorias(e.target.value, "");
-      catalog[currentIndex].subcategoria = document.getElementById('selSubcategoria').value;
-      renderSidebar();
+      updateCurrentSubAndPromo();
     });
-    document.getElementById('selSubcategoria').addEventListener('change', e => { catalog[currentIndex].subcategoria = e.target.value; });
+    document.getElementById('selSubcategoria').addEventListener('change', updateCurrentSubAndPromo);
+    document.getElementById('chkEnPromo').addEventListener('change', updateCurrentSubAndPromo);
+    document.getElementById('selPromoSub').addEventListener('change', updateCurrentSubAndPromo);
+    document.getElementById('inpPrecioAnterior').addEventListener('input', updateCurrentSubAndPromo);
     document.getElementById('inpResumen').addEventListener('input', e => { catalog[currentIndex].resumen = e.target.value; });
     document.getElementById('inpMpLink').addEventListener('input', e => { catalog[currentIndex].mp_link = e.target.value.trim(); });
     document.getElementById('inpGlb').addEventListener('input', e => {
@@ -716,7 +791,7 @@
       catalog.push(nuevo);
       currentIndex = catalog.length - 1;
       renderSidebar(); renderEditor();
-      showToast("✨ Mueble creado con Satinado, Maderas y Metales Globales.");
+      showToast("✨ Mueble creado.");
     });
 
     document.getElementById('btnDuplicateProd').addEventListener('click', () => {
@@ -793,7 +868,6 @@
       const binLen = dv.getUint32(binHeaderOffset, true);
       const oldBin = new Uint8Array(arrayBuffer, binHeaderOffset + 8, binLen);
 
-      // Asegurar nombres de materiales "madera" (0) y "hierro" (1)
       if (Array.isArray(gltf.materials) && gltf.materials.length > 0) {
         gltf.materials[0].name = "madera";
         gltf.materials[0].doubleSided = true;
@@ -817,7 +891,6 @@
       const positions = new Float32Array(posSlice.buffer, posSlice.byteOffset, count * 3);
       const normals = new Float32Array(normSlice.buffer, normSlice.byteOffset, count * 3);
 
-      // Generar coordenadas UV (TEXCOORD_0) de proyección triplanar para la veta de madera
       const uvs = new Float32Array(count * 2);
       for (let i = 0; i < count; i++) {
         const x = positions[i * 3], y = positions[i * 3 + 1], z = positions[i * 3 + 2];
@@ -846,27 +919,13 @@
       newBin.set(WHITE_PNG_4X4, pngOffset);
 
       const uvBvIdx = gltf.bufferViews.length;
-      gltf.bufferViews.push({
-        buffer: 0,
-        byteOffset: uvOffset,
-        byteLength: uvBytes.byteLength,
-        target: 34962
-      });
+      gltf.bufferViews.push({ buffer: 0, byteOffset: uvOffset, byteLength: uvBytes.byteLength, target: 34962 });
 
       const uvAccIdx = gltf.accessors.length;
-      gltf.accessors.push({
-        bufferView: uvBvIdx,
-        componentType: 5126,
-        count: count,
-        type: "VEC2"
-      });
+      gltf.accessors.push({ bufferView: uvBvIdx, componentType: 5126, count: count, type: "VEC2" });
 
       const pngBvIdx = gltf.bufferViews.length;
-      gltf.bufferViews.push({
-        buffer: 0,
-        byteOffset: pngOffset,
-        byteLength: WHITE_PNG_4X4.byteLength
-      });
+      gltf.bufferViews.push({ buffer: 0, byteOffset: pngOffset, byteLength: WHITE_PNG_4X4.byteLength });
 
       gltf.buffers[0].byteLength = newBin.byteLength;
 
@@ -909,7 +968,6 @@
       return outBuf;
     }
 
-    // ================= SUBIDA DIRECTA A SUPABASE STORAGE =================
     async function uploadToSupabase(file, folder) {
       let uploadBlob = file;
       if (file.name && file.name.toLowerCase().endsWith('.glb')) {
@@ -937,11 +995,10 @@
       }
 
       const { data } = supabaseClient.storage.from('tienda').getPublicUrl(filePath);
-      showToast("✅ Archivo subido con soporte de texturas. Tocá 'Publicar Cambios en Vivo'.");
+      showToast("✅ Archivo subido. Tocá 'Publicar Cambios en Vivo'.");
       return data.publicUrl;
     }
 
-    // Botón para reparar un .GLB ya subido en el mueble actual sin tener que buscarlo en la PC
     document.getElementById('btnRepairGlb').addEventListener('click', async () => {
       const currentUrl = document.getElementById('inpGlb').value.trim();
       if (!currentUrl) { alert("No hay ningún archivo .GLB cargado en este mueble."); return; }
