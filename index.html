@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acero y Escamas | BLCKSCLE</title>
+
+  <!-- Tipografías industriales -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Oswald:wght@600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Cliente Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg-carbon: #141a1a;
+      --bg-petrol: #113a36;
+      --bg-panel: #182020;
+      --sage-header: #728e78;
+      --sage-main: #75927e;
+      --sage-muted: #3d5245;
+      --cream-light: #f5f3eb;
+      --text-muted: #8ea394;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Space Grotesk', sans-serif;
+      --font-display: 'Oswald', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-carbon);
+      color: var(--cream-light);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ================= CABEZAL VERDE SALVIA (DISEÑO CANVA) ================= */
+    header {
+      background-color: var(--sage-header);
+      padding: 10px 36px 12px;
+      display: grid;
+      grid-template-columns: 90px 1fr 90px;
+      align-items: center;
+    }
+
+    .header-logo {
+      width: 78px;
+      height: 78px;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+    }
+
+    .header-center {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: clamp(30px, 4.5vw, 52px);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: var(--bg-petrol);
+      text-transform: uppercase;
+      line-height: 0.95;
+    }
+
+    /* BLCKSCLE escalonado como en tu imagen */
+    .brand-sub-stagger {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(18px, 2.2vw, 26px);
+      color: var(--bg-petrol);
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: flex-start;
+      margin-top: 2px;
+    }
+
+    .brand-sub-stagger .scle {
+      transform: translateY(7px);
+      display: inline-block;
+    }
+
+    /* Franja divisoria con líneas diagonales */
+    .hazard-divider {
+      height: 6px;
+      background: repeating-linear-gradient(
+        -55deg,
+        #183536,
+        #183536 22px,
+        #9cb0a2 22px,
+        #9cb0a2 24px
+      );
+      border-top: 1px solid #183536;
+      border-bottom: 1px solid #263830;
+    }
+
+    /* ================= BARRA DE CATEGORÍAS ================= */
+    .nav-container {
+      max-width: 1180px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 18px 24px 8px;
+    }
+
+    .categories-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .cat-label {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+
+    .cat-pills {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      flex-grow: 1;
+      justify-content: space-around;
+    }
+
+    .cat-pill {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      background-color: var(--sage-header);
+      color: var(--bg-petrol);
+      border: 2px solid transparent;
+      border-radius: 999px;
+      padding: 4px 28px 5px;
+      cursor: pointer;
+      transition: all 140ms ease;
+      letter-spacing: 0.02em;
+    }
+
+    .cat-pill:hover,
+    .cat-pill.active {
+      background-color: var(--cream-light);
+      color: var(--bg-carbon);
+      border-color: var(--sage-main);
+      transform: translateY(-1px);
+    }
+
+    .section-heading {
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin: 14px 0 18px;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .section-heading:hover {
+      color: var(--cream-light);
+    }
+
+    /* ================= GRILLA DE PRODUCTOS (3 COLUMNAS) ================= */
+    .catalog-wrapper {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px 48px;
+      flex-grow: 1;
+      width: 100%;
+    }
+
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    @media (max-width: 980px) {
+      .catalog-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      header { grid-template-columns: 64px 1fr; padding: 10px 16px; }
+      .header-spacer { display: none; }
+      .header-logo { width: 58px; height: 58px; }
+      .catalog-grid { grid-template-columns: 1fr; }
+    }
+
+    /* TARJETA DE PRODUCTO */
+    .product-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--sage-muted);
+      border-radius: 2px;
+      text-decoration: none;
+      color: var(--cream-light);
+      display: flex;
+      flex-direction: column;
+      transition: all 150ms ease;
+      position: relative;
+    }
+
+    .product-card:hover {
+      border-color: var(--sage-main);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+    }
+
+    /* Cuadrícula técnica de taller + miniaturas abajo a la derecha */
+    .product-img-box {
+      width: 100%;
+      aspect-ratio: 1 / 0.92;
+      background-color: #101515;
+      background-image:
+        linear-gradient(rgba(117,146,126,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(117,146,126,0.08) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border-bottom: 1px solid var(--sage-muted);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .product-main-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 150ms ease;
+    }
+
+    .badge-3d {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(20, 26, 26, 0.9);
+      border: 1px solid var(--sage-main);
+      color: var(--cream-light);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.05em;
+      z-index: 3;
+    }
+
+    /* Tira de 3 miniaturas en la esquina inferior derecha */
+    .card-thumbs {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      z-index: 3;
+    }
+
+    .card-thumb-item {
+      width: 54px;
+      height: 46px;
+      border: 1px solid rgba(245, 243, 235, 0.35);
+      background: #182020;
+      overflow: hidden;
+      border-radius: 1px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    .card-thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .product-info {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .product-sku {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--sage-main);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .product-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.3;
+      color: var(--cream-light);
+    }
+
+    .product-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.42;
+      margin-bottom: 16px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex-grow: 1;
+    }
+
+    .product-price {
+      font-family: var(--font-mono);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--cream-light);
+      border-top: 1px solid rgba(117, 146, 126, 0.25);
+      padding-top: 10px;
+    }
+
+    .price-currency {
+      color: var(--sage-main);
+      font-size: 13px;
+      margin-right: 4px;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 13px;
+      border: 1px dashed var(--sage-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CABEZAL PRINCIPAL CON PANGOLÍN Y BLCKSCLE ESCALONADO -->
+  <header>
+    <a href="index.html" title="Inicio">
+      <img
+        id="pangolinLogo"
+        class="header-logo"
+        src="assets/img/logo.png"
+        alt="Logo Acero y Escamas"
+      >
+    </a>
+    <div class="header-center">
+      <h1 class="brand-title">ACERO Y ESCAMAS</h1>
+      <div class="brand-sub-stagger">
+        <span>BLCK</span><span class="scle">SCLE</span>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+  </header>
+
+  <div class="hazard-divider"></div>
+
+  <!-- BARRA DE CATEGORÍAS Y TÍTULO "INICIO" -->
+  <section class="nav-container">
+    <div class="categories-bar">
+      <span class="cat-label" id="btnResetCats" title="Ver todos los muebles">Categorias</span>
+      <div class="cat-pills" id="catPills">
+        <button type="button" class="cat-pill" data-cat="Hogar">Hogar</button>
+        <button type="button" class="cat-pill" data-cat="Gym">Gym</button>
+        <button type="button" class="cat-pill" data-cat="Trailers">Trailers</button>
+        <button type="button" class="cat-pill" data-cat="Variado">Variado</button>
+        <button type="button" class="cat-pill" data-cat="Maquinas/Herramientas">Maquinas/Herramientas</button>
+      </div>
+    </div>
+
+    <h2 class="section-heading" id="sectionTitle" title="Mostrar todo el catálogo">Inicio</h2>
+  </section>
+
+  <!-- GRILLA DE MUEBLES -->
+  <main class="catalog-wrapper">
+    <div class="catalog-grid" id="catalogoGrid">
+      <div class="empty-state">Cargando catálogo del taller...</div>
+    </div>
+  </main>
+
+  <script>
+    // Tu logo del pangolín sin fondo embebido automáticamente por si assets/img/logo.png no existe
+    const PANGOLIN_DATA_URI = "data:image/webp;base64,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";
+
+    const logoEl = document.getElementById('pangolinLogo');
+    logoEl.onerror = function() {
+      this.onerror = null;
+      this.src = PANGOLIN_DATA_URI;
+    };
+
+    // CONEXIÓN A SUPABASE
+    const SUPABASE_URL = 'https://ivyagavbhsyzvikzhmhe.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2eWFnYXZiaHN5enZpa3pobWhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MDMzMDIsImV4cCI6MjEwODk3OTMwMn0.c0beXPjYqt3X8PSs7xbKEmOuEhiAFvoQqNm4HC8iyPo';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const formatoPeso = new Intl.NumberFormat('es-AR', { style: 'decimal' });
+    const grid = document.getElementById('catalogoGrid');
+    const sectionTitle = document.getElementById('sectionTitle');
+
+    let allProducts = [];
+    let selectedCategory = null;
+
+    function matchCategory(prodCat, filterCat) {
+      if (!filterCat) return true;
+      const pc = (prodCat || '').toLowerCase();
+      const fc = filterCat.toLowerCase();
+      if (fc === 'maquinas/herramientas') {
+        return pc.includes('maquina') || pc.includes('máquina') || pc.includes('herramienta') || pc.includes('uso rudo');
+      }
+      return pc === fc;
+    }
+
+    function renderGrid() {
+      grid.innerHTML = '';
+      const filtered = allProducts.filter(p => matchCategory(p.categoria, selectedCategory));
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="empty-state">No hay muebles cargados en "${selectedCategory || 'Inicio'}".</div>`;
+        return;
+      }
+
+      filtered.forEach(prod => {
+        const precio = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
+        const fotosArr = Array.isArray(prod.fotos) ? prod.fotos.filter(Boolean) : [];
+        const miniThumbs = fotosArr.slice(0, 3);
+
+        const card = document.createElement('a');
+        card.href = `producto.html?id=${prod.id}`;
+        card.className = 'product-card';
+
+        const thumbsHtml = miniThumbs.length
+          ? `<div class="card-thumbs">
+              ${miniThumbs.map(f => `
+                <div class="card-thumb-item">
+                  <img src="${f}" alt="${prod.nombre}" loading="lazy" onerror="this.parentElement.style.display='none'">
+                </div>
+              `).join('')}
+            </div>`
+          : '';
+
+        card.innerHTML = `
+          <div class="product-img-box">
+            <div class="badge-3d">⚙️ VISOR 3D</div>
+            ${prod.imagen ? `<img class="product-main-img" src="${prod.imagen}" alt="${prod.nombre}" loading="lazy" onerror="this.style.display='none'">` : ''}
+            ${thumbsHtml}
+          </div>
+          <div class="product-info">
+            <span class="product-sku">REF: ${prod.sku}</span>
+            <h2 class="product-title">${prod.nombre}</h2>
+            <p class="product-desc">${prod.resumen || ''}</p>
+            <div class="product-price"><span class="price-currency">$</span>${formatoPeso.format(precio)}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Filtro por botones de categoría
+    document.querySelectorAll('.cat-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cat = btn.dataset.cat;
+        if (selectedCategory === cat) {
+          selectedCategory = null;
+          document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+          sectionTitle.textContent = 'Inicio';
+        } else {
+          selectedCategory = cat;
+          document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          sectionTitle.textContent = cat;
+        }
+        renderGrid();
+      });
+    });
+
+    function resetFilter() {
+      selectedCategory = null;
+      document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+      sectionTitle.textContent = 'Inicio';
+      renderGrid();
+    }
+
+    document.getElementById('btnResetCats').addEventListener('click', resetFilter);
+    sectionTitle.addEventListener('click', resetFilter);
+
+    async function cargarCatalogo() {
+      try {
+        const { data, error } = await supabaseClient.from('productos').select('*').eq('activo', true);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          allProducts = data;
+        } else {
+          const res = await fetch('productos.json?v=' + Date.now());
+          const localData = await res.json();
+          allProducts = localData.filter(p => p.activo !== false);
+        }
+      } catch (e) {
+        const res = await fetch('productos.json?v=' + Date.now());
+        const localData = await res.json();
+        allProducts = localData.filter(p => p.activo !== false);
+      }
+
+      renderGrid();
+    }
+
+    cargarCatalogo();
+  </script>
+</body>
+</html>
