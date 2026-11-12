@@ -3,6 +3,7 @@ const { existsSync } = require('node:fs');
 module.exports = defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.cjs',
+  testIgnore: '**/deployment.spec.cjs',
   timeout: 30000,
   workers: 2,
   use: {

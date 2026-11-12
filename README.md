@@ -1,6 +1,6 @@
 # Acero y Escamas · Tienda
 
-Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenticación y archivos, y model-viewer 3.5.0 para el visor existente. Sin framework ni compilación obligatoria.
+Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenticación y archivos, y model-viewer 3.5.0 para el visor existente. Sin framework; el build solo reúne los archivos públicos en `dist/` para Cloudflare Workers.
 
 ## Estructura
 
@@ -14,6 +14,9 @@ Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenti
 - `assets/modelos/`, `assets/texturas/`, `assets/img/`: recursos existentes sin cambios.
 - `assets/fonts/`: Space Grotesk, distribución @fontsource 5.2.10, licencia OFL incluida.
 - `productos.json`: respaldo histórico para importación **manual**. Nunca alimenta la tienda pública.
+- `scripts/build.cjs`: genera `dist/` desde una lista explícita de HTML, assets y respaldo público.
+- `wrangler.jsonc`: configura el Worker `tienda`, Static Assets, rutas HTML limpias y Previews.
+- `dist/`: salida generada por `npm run build`; no se versiona.
 - `tests/`: regresiones en Chromium con los SDK reales y respuestas de Supabase interceptadas.
 
 ## Configurar WhatsApp
@@ -35,6 +38,7 @@ Requiere Node.js 22 o superior, Python 3, curl y Chromium.
 ```sh
 npm ci
 npx playwright install --with-deps chromium
+npm run build
 npm run serve
 ```
 
@@ -43,12 +47,20 @@ Abrir `http://127.0.0.1:4173/`, `producto.html?id=ID` o `admin.html`. La navegac
 ```sh
 npm run test:unit
 npm test
+npm run check:deploy
 ```
 
-El comando previo a las pruebas descarga a `.test-assets/` las versiones fijadas del SDK de Supabase y model-viewer desde jsDelivr. Se usa Chromium de Playwright o `/usr/bin/chromium`; `CHROMIUM_PATH` permite indicar otra ruta. Las capturas quedan en `test-results/`. GitHub Actions ejecuta estas comprobaciones en los PR y en main; este workflow **solo prueba**, no despliega.
+El comando previo a las pruebas descarga a `.test-assets/` las versiones fijadas del SDK de Supabase y model-viewer desde jsDelivr. Se usa Chromium de Playwright o `/usr/bin/chromium`; `CHROMIUM_PATH` permite indicar otra ruta. Las capturas quedan en `test-results/`. La batería incluye una instancia local de Wrangler que comprueba `/`, `/admin`, `/producto`, imágenes y el GLB real. `check:deploy` valida el paquete con `wrangler deploy --dry-run`: no sube ni publica nada. GitHub Actions ejecuta estas comprobaciones en los PR y en main; este workflow **solo prueba**, no despliega.
 
-## Publicación y próxima etapa
+## Cloudflare Workers
 
-No se cambió el mecanismo de despliegue. Ver [inspección y límites de verificación](docs/REVISION.md) y [preparación de Checkout Pro](docs/CHECKOUT-PRO.md).
+Wrangler está fijado en 4.160.1. Los comandos manuales disponibles son:
 
-Para publicar los archivos estáticos, incluir los tres HTML, `assets/` y `productos.json` si se desea conservar la importación manual. Los archivos de pruebas, `.test-assets/`, `node_modules/` y la documentación no son necesarios en el despliegue.
+```sh
+npm run preview  # build + wrangler preview para una rama
+npm run deploy   # build + wrangler deploy para producción
+```
+
+En Workers Builds, usar el directorio raíz `/`, la rama de producción `main`, `npm run build` como Build command, `npx wrangler deploy` como Deploy command y `npx wrangler preview` como Preview command. Mantener habilitados los Preview Builds para ramas que no sean `main`. Wrangler toma los archivos exclusivamente de `dist/`; `html_handling: "drop-trailing-slash"` sirve `admin.html` como `/admin` y `producto.html` como `/producto`.
+
+Ver [inspección y límites de verificación](docs/REVISION.md) y [preparación de Checkout Pro](docs/CHECKOUT-PRO.md).
