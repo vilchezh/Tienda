@@ -1,0 +1,97 @@
+const {test,expect}=require('@playwright/test');
+const {setup,product}=require('./helpers.cjs');
+test('login failure, successful login and sign out use existing Supabase Auth',async({page})=>{
+ const state=await setup(page);
+ await page.goto('/admin.html');
+ await expect(page.locator('#loginScreen')).toBeVisible();
+ await page.locator('#loginEmail').fill('test@example.invalid');
+ await page.locator('#loginPassword').fill('synthetic-test-password');
+ await page.locator('#btnLogin').click();
+ await expect(page.locator('#mainAdmin')).toBeVisible();
+ await expect(page.locator('#inpNombre')).toHaveValue(product.nombre);
+ await page.locator('#btnLogout').click();
+ await expect(page.locator('#loginScreen')).toBeVisible();
+ expect(state.errors).toEqual([]);
+});
+test('invalid login stays on login screen',async({page})=>{
+ await setup(page,{loginFailure:true});
+ await page.goto('/admin.html');
+ await page.locator('#loginEmail').fill('test@example.invalid');
+ await page.locator('#loginPassword').fill('wrong-test-password');
+ await page.locator('#btnLogin').click();
+ await expect(page.locator('#loginError')).toBeVisible();
+ await expect(page.locator('#mainAdmin')).not.toBeVisible();
+});
+test('empty admin catalog does not import or write automatically',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#mainAdmin')).toBeVisible();
+ await expect(page.locator('.editor-area')).not.toBeVisible();
+ expect(state.backups).toBe(0); expect(state.writes).toEqual([]);
+ await page.locator('#btnNewProd').click();
+ await expect(page.locator('.editor-area')).toBeVisible();
+ expect(state.writes).toEqual([]);
+ expect(state.errors).toEqual([]);
+});
+test('manual import skips existing IDs and inserts new rows hidden after typed confirmation',async({page})=>{
+ const state=await setup(page,{authenticated:true,backup:[{...product,nombre:'DO NOT OVERWRITE'}, {...product,id:'new-from-backup',nombre:'Nueva'}]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#mainAdmin')).toBeVisible();
+ page.once('dialog',d=>d.accept('IMPORTAR'));
+ await page.locator('#btnImportJson').click();
+ await expect.poll(()=>state.writes.length).toBe(1);
+ expect(state.writes[0].data).toHaveLength(1);
+ expect(state.writes[0].data[0]).toMatchObject({id:'new-from-backup',activo:false});
+ expect(state.writes[0].headers.prefer || '').not.toContain('merge-duplicates');
+ expect(state.rows.find(p=>p.id===product.id).nombre).toBe(product.nombre);
+ await expect(page.locator('#countProds')).toHaveText('2');
+ expect(state.errors).toEqual([]);
+});
+for(const action of ['cancel','conflict','invalid']) test(`import ${action} leaves catalog unchanged`,async({page})=>{
+ const state=await setup(page,{authenticated:true,writeFailure:action==='conflict',backup:action==='invalid'?[product,product]:[{...product,id:'new'}]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#mainAdmin')).toBeVisible();
+ page.on('dialog',d=>d.type()==='prompt'?(action==='cancel'?d.dismiss():d.accept('IMPORTAR')):d.accept());
+ await page.locator('#btnImportJson').click();
+ await expect(page.locator('#btnImportJson')).toBeEnabled();
+ expect(state.writes.length).toBe(action==='conflict'?1:0);
+ expect(state.rows).toHaveLength(1);
+});
+test('admin text/attribute injection is escaped while editing and publishing remain functional',async({page})=>{
+ const payload='\"><img src=x onerror="window.XSS=1">';
+ const malicious={...product,nombre:payload,fotos:[payload],maderas:[{nombre:payload,tex:payload,delta:0}],extras:[{nombre:payload,meta:payload,precio:100}],tonos_madera:[{nombre:payload,etiqueta:payload,hex:payload,rgb:[1,1,1]}],colores_metal:[{nombre:payload,meta:payload,hex:payload,rgb:[0,0,0]}]};
+ const state=await setup(page,{authenticated:true,rows:[malicious]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#inpNombre')).toHaveValue(payload);
+ expect(await page.locator('[onerror], [onload]').count()).toBe(0);
+ expect(await page.evaluate(()=>window.XSS)).toBeUndefined();
+ await page.locator('#inpNombre').fill('Nombre editado');
+ await page.locator('#btnToggleVisibility').click();
+ await page.locator('#btnSaveSupabase').click();
+ await expect.poll(()=>state.writes.length).toBe(1);
+ expect(state.writes[0].data[0]).toMatchObject({nombre:'Nombre editado',activo:false});
+ expect(state.errors).toEqual([]);
+});
+test('failed delete keeps the product in the editor',async({page})=>{
+ const state=await setup(page,{authenticated:true,writeFailure:true,rows:[product,{...product,id:'second'}]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#countProds')).toHaveText('2');
+ page.on('dialog',d=>d.accept());
+ await page.locator('#btnDeleteProd').click();
+ await expect.poll(()=>state.writes.length).toBe(1);
+ await expect(page.locator('#countProds')).toHaveText('2');
+});
+test('upload control uses existing Storage flow and stores the returned public URL',async({page})=>{
+ const state=await setup(page,{authenticated:true});
+ await page.goto('/admin.html');
+ await expect(page.locator('#inpImagen')).toHaveValue(product.imagen);
+ await page.locator('#inpImagen').locator('..').locator('input[type=file]').setInputFiles('assets/img/logo.jpg/Code_Generated_Image.png');
+ await expect.poll(()=>state.uploads.length).toBe(1);
+ expect(state.uploads[0]).toMatchObject({method:'POST'});
+ expect(state.uploads[0].bytes).toBeGreaterThan(100);
+ await expect(page.locator('#inpImagen')).toHaveValue(/\/storage\/v1\/object\/public\/tienda\/portadas\//);
+ await page.locator('#btnSaveSupabase').click();
+ await expect.poll(()=>state.writes.length).toBe(1);
+ expect(state.writes[0].data[0].imagen).toContain('/storage/v1/object/public/tienda/portadas/');
+ expect(state.errors).toEqual([]);
+});
