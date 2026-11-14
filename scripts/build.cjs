@@ -2,7 +2,7 @@ const { cpSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
 const projectRoot = resolve(__dirname, '..');
-const preview = process.env.STORE_BUILD_TARGET === 'preview';
+const preview = process.argv.includes('--preview');
 const outputDirectory = resolve(projectRoot, preview ? 'dist-preview' : 'dist');
 
 if (![resolve(projectRoot, 'dist'), resolve(projectRoot, 'dist-preview')].includes(outputDirectory)) {
@@ -16,17 +16,19 @@ if (preview) {
   const rawSite = process.env.STORE_PREVIEW_SITE_URL || '';
   const url = new URL(rawUrl);
   const site = new URL(rawSite);
-  if (!/^[a-z0-9]{20}\.supabase\.co$/.test(url.hostname) ||
-      url.hostname === 'ivyagavbhsyzvikzhmhe.supabase.co' || url.protocol !== 'https:' ||
-      url.pathname !== '/' || site.protocol !== 'https:' || !rawKey || rawKey.length < 40) {
-    throw new Error('La vista previa exige un proyecto Supabase NUEVO, una clave pública y una URL HTTPS de preview.');
+  if (url.origin !== 'https://pacyytbscnlklyrhsshp.supabase.co' ||
+      url.pathname !== '/' || url.search || url.hash ||
+      site.origin !== 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev' ||
+      site.pathname !== '/' || site.search || site.hash ||
+      !rawKey || rawKey.length < 40) {
+    throw new Error('La vista previa exige pacyytbscnlklyrhsshp, su clave anon JWT y un Worker sandbox HTTPS.');
   }
   // Claves anon JWT tradicionales incluyen el ref del proyecto; detectar mezclas.
   if (rawKey.split('.').length !== 3) throw new Error('La vista previa requiere la clave anon JWT verificable del proyecto de pruebas.');
   let claims;
   try { claims = JSON.parse(Buffer.from(rawKey.split('.')[1], 'base64url').toString('utf8')); }
   catch { throw new Error('Clave anon JWT inválida.'); }
-  if (claims.ref !== url.hostname.split('.')[0] || claims.role !== 'anon') throw new Error('La clave anon no coincide con el proyecto de pruebas.');
+  if (claims.ref !== 'pacyytbscnlklyrhsshp' || claims.role !== 'anon') throw new Error('La clave anon no coincide con el proyecto de pruebas.');
   previewConfig = { siteUrl: site.origin, whatsappNumber: '', supabaseUrl: url.origin, supabaseAnonKey: rawKey };
 }
 

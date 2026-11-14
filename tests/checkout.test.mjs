@@ -26,9 +26,9 @@ const selection = {
   wood_type: 'Pino', wood_stain: 'Natural', metal_color: 'Negro', finish: 'Mate', extras: ['Ruedas'],
 };
 const env = {
-  STORE_BASE_URL: 'https://tienda.acero-y-escamas.workers.dev',
+  STORE_BASE_URL: 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev',
   STORE_ALLOWED_ORIGINS: '',
-  SUPABASE_URL: 'https://project.supabase.co',
+  SUPABASE_URL: 'https://pacyytbscnlklyrhsshp.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'test-service-role',
   MP_ACCESS_TOKEN_TEST: 'TEST-token-not-real',
   MP_WEBHOOK_SECRET_TEST: 'test-webhook-secret',
@@ -109,7 +109,7 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
     }
     throw new Error(`Unexpected URL ${value}`);
   };
-  const request = new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+  const request = new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST',
     headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
     body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection, total: 1 }),
@@ -127,7 +127,11 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
   assert.equal(mpCall.body.config.online.success_url, `${env.STORE_BASE_URL}/pago?pedido=${localOrderId}&resultado=exito`);
   assert.equal(mpCall.body.config.online.failure_url, `${env.STORE_BASE_URL}/pago?pedido=${localOrderId}&resultado=fallo`);
   assert.equal(mpCall.body.config.online.pending_url, `${env.STORE_BASE_URL}/pago?pedido=${localOrderId}&resultado=pendiente`);
-  assert.match(mpCall.body.config.online.callback_url, /mp-order-webhook$/);
+  assert.equal(mpCall.body.config.online.callback_url, 'https://pacyytbscnlklyrhsshp.supabase.co/functions/v1/mp-order-webhook');
+  for (const key of ['success_url', 'failure_url', 'pending_url']) {
+    assert.match(mpCall.body.config.online[key], /^https:\/\/tienda-checkout-sandbox\.acero-y-escamas\.workers\.dev\/pago\?/);
+    assert.doesNotMatch(mpCall.body.config.online[key], /^https:\/\/tienda\.acero-y-escamas\.workers\.dev\//);
+  }
   assert.equal(JSON.stringify(mpCall.body).includes('total":1'), false);
 });
 
@@ -138,7 +142,7 @@ test('oversized and malformed requests are rejected before any provider call', a
     providerCalls += 1;
     throw new Error('unexpected');
   };
-  const endpoint = 'https://project.supabase.co/functions/v1/create-mp-order';
+  const endpoint = `${env.SUPABASE_URL}/functions/v1/create-mp-order`;
   const headers = { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' };
   const tooLarge = await createOrderHandler(env, fetchMock)(new Request(endpoint, { method: 'POST', headers, body: 'x'.repeat(4097) }));
   assert.equal(tooLarge.status, 413);
@@ -162,7 +166,7 @@ test('an interrupted creation retries with the stored amount and original idempo
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
     throw new Error(value);
   };
-  const request = new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+  const request = new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
     body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId }),
   });
@@ -183,7 +187,7 @@ test('global switch blocks both new checkout and recovery without touching confi
     throw new Error(`unexpected request: ${value}`);
   };
   for (const requestId of [clientRequestId, '33333333-3333-4333-8333-333333333333']) {
-    const response = await createOrderHandler(env, fetchMock)(new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+    const response = await createOrderHandler(env, fetchMock)(new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
       method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
       body: JSON.stringify({ product_id: product.id, client_request_id: requestId, ...selection }),
     }));
@@ -210,7 +214,7 @@ test('simultaneous creation attempts with one idempotency key do not both call M
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
     throw new Error(value);
   };
-  const makeRequest = () => new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+  const makeRequest = () => new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
     body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection }),
   });
@@ -237,7 +241,7 @@ test('signed Order webhook fetches real state from Mercado Pago before updating 
     if (value.endsWith('/rpc/checkout_record_verified_order')) return Response.json(true);
     throw new Error(`Unexpected URL ${value}`);
   };
-  const request = new Request(`https://project.supabase.co/functions/v1/mp-order-webhook?data.id=${dataId}`, {
+  const request = new Request(`${env.SUPABASE_URL}/functions/v1/mp-order-webhook?data.id=${dataId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-request-id': requestId, 'x-signature': `ts=${timestamp},v1=${hash}` },
     body: JSON.stringify({ type: 'order', action: 'order.updated', data: { id: dataId } }),
@@ -253,7 +257,7 @@ test('signed Order webhook fetches real state from Mercado Pago before updating 
 
 test('forged webhook is rejected before any provider or database request', async () => {
   let calls = 0;
-  const request = new Request('https://project.supabase.co/functions/v1/mp-order-webhook?data.id=mp-order-1', {
+  const request = new Request(`${env.SUPABASE_URL}/functions/v1/mp-order-webhook?data.id=mp-order-1`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-request-id': 'request', 'x-signature': 'ts=1800000000,v1=deadbeef' },
     body: JSON.stringify({ type: 'order', data: { id: 'mp-order-1' } }),

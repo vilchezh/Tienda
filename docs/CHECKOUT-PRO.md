@@ -56,20 +56,20 @@ En **Supabase → Edge Functions → Secrets**, crear:
 
 - `MP_ACCESS_TOKEN_TEST`: Access Token de prueba.
 - `MP_WEBHOOK_SECRET_TEST`: firma secreta generada por Mercado Pago para el webhook de prueba.
-- `STORE_BASE_URL`: `https://tienda.acero-y-escamas.workers.dev`.
+- `STORE_BASE_URL`: `https://tienda-checkout-sandbox.acero-y-escamas.workers.dev` para el proyecto de prueba.
 - `STORE_ALLOWED_ORIGINS`: opcional; previews adicionales separadas por coma.
 
 No enviar ni guardar esos valores en GitHub. El archivo `.env.example` solo enumera los nombres.
 
 En Mercado Pago, registrar la URL:
 
-`https://ivyagavbhsyzvikzhmhe.supabase.co/functions/v1/mp-order-webhook`
+`https://pacyytbscnlklyrhsshp.supabase.co/functions/v1/mp-order-webhook`
 
 y seleccionar eventos **Order**. La firma secreta mostrada por Mercado Pago debe guardarse como `MP_WEBHOOK_SECRET_TEST`.
 
 Al cambiar a un dominio propio hay que actualizar dos lugares configurables:
 
-- `siteUrl` en `assets/js/config.js` para la interfaz pública.
+- `STORE_PREVIEW_SITE_URL` para el build de vista previa (sin editar `assets/js/config.js` de producción).
 - `STORE_BASE_URL` en Edge Function Secrets para los retornos de Mercado Pago y CORS.
 
 ## Orden de activación recomendado

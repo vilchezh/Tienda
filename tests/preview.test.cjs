@@ -13,15 +13,15 @@ const publicKey = ref => {
 const build = (ref, key = publicKey(ref)) => spawnSync('npm', ['run', 'build:preview'], {
   cwd: root, encoding: 'utf8',
   env: { ...process.env, STORE_PREVIEW_SUPABASE_URL: `https://${ref}.supabase.co`,
-    STORE_PREVIEW_SUPABASE_ANON_KEY: key, STORE_PREVIEW_SITE_URL: 'https://preview.example.test' },
+    STORE_PREVIEW_SUPABASE_ANON_KEY: key, STORE_PREVIEW_SITE_URL: 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev' },
 });
 
 test('preview build uses only a separate Supabase project and fictitious catalog', () => {
   const original = productionConfig();
-  const result = build('abcdefghijklmnopqrst');
+  const result = build('pacyytbscnlklyrhsshp');
   assert.equal(result.status, 0, result.stderr);
   const config = readFileSync(resolve(root, 'dist-preview/assets/js/config.js'), 'utf8');
-  assert.match(config, /abcdefghijklmnopqrst\.supabase\.co/);
+  assert.match(config, /pacyytbscnlklyrhsshp\.supabase\.co/);
   assert.doesNotMatch(config, /ivyagavbhsyzvikzhmhe/);
   assert.match(config, /"whatsappNumber":""/);
   const products = JSON.parse(readFileSync(resolve(root, 'dist-preview/productos.json'), 'utf8'));
@@ -32,5 +32,5 @@ test('preview build uses only a separate Supabase project and fictitious catalog
 
 test('preview build refuses published Supabase and mismatched public keys', () => {
   assert.notEqual(build('ivyagavbhsyzvikzhmhe').status, 0);
-  assert.notEqual(build('abcdefghijklmnopqrst', publicKey('differentproject1234')).status, 0);
+  assert.notEqual(build('pacyytbscnlklyrhsshp', publicKey('differentproject1234')).status, 0);
 });

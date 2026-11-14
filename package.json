@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.cjs",
-    "build:preview": "STORE_BUILD_TARGET=preview node scripts/build.cjs",
+    "build:preview": "node scripts/build.cjs --preview",
     "preview:checkout": "npm run build:preview && wrangler preview --config wrangler.checkout-preview.jsonc",
     "preview": "npm run build && wrangler preview",
     "deploy": "npm run build && wrangler deploy",
