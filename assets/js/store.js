@@ -45,6 +45,46 @@ window.Store = (() => {
     return data.filter(product => product.activo === true);
   }
 
+  async function checkoutSettings(client) {
+    const { data, error } = await client
+      .from('checkout_settings')
+      .select('commission_percent,payments_enabled')
+      .eq('id', 'default')
+      .maybeSingle()
+      .abortSignal(AbortSignal.timeout(8000));
+    if (error || !data) throw new Error('Checkout no disponible.');
+    return {
+      commissionPercent: Number(data.commission_percent),
+      paymentsEnabled: data.payments_enabled === true,
+    };
+  }
+
+  function checkoutTotal(subtotal, commissionPercent) {
+    const amount = Number(subtotal);
+    const percent = Number(commissionPercent);
+    if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isFinite(percent) || percent < 0 || percent > 50) return 0;
+    const basisPoints = Math.round(percent * 100);
+    const withCommission = Math.ceil((amount * (10000 + basisPoints)) / 10000);
+    return Math.ceil(withCommission / 1000) * 1000;
+  }
+
+  function checkoutURL(value) {
+    try {
+      const url = new URL(value);
+      const validHost = /(^|\.)mercadopago\.com(\.[a-z]{2})?$/i.test(url.hostname);
+      return url.protocol === 'https:' && validHost && !url.username && !url.password ? url.href : '';
+    } catch { return ''; }
+  }
+
+  function edgeFunctionURL(name) {
+    if (!/^[a-z0-9-]+$/.test(name)) return '';
+    try {
+      const url = new URL(window.STORE_CONFIG.supabaseUrl);
+      if (url.protocol !== 'https:') return '';
+      return `${url.origin}/functions/v1/${name}`;
+    } catch { return ''; }
+  }
+
   function showStatus(container, message, retry) {
     const panel = document.createElement('div');
     panel.className = 'empty-state';
@@ -63,5 +103,8 @@ window.Store = (() => {
     container.replaceChildren(panel);
   }
 
-  return Object.freeze({ escapeHTML, assetURL, whatsappURL, setContactLink, createClient, activeProducts, showStatus });
+  return Object.freeze({
+    escapeHTML, assetURL, whatsappURL, setContactLink, createClient, activeProducts,
+    checkoutSettings, checkoutTotal, checkoutURL, edgeFunctionURL, showStatus
+  });
 })();

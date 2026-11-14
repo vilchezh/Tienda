@@ -54,6 +54,30 @@
     </aside>
 
     <main class="editor-area">
+      <section class="editor-card" aria-labelledby="checkoutConfigTitle">
+        <div class="card-header">
+          <span class="card-title" id="checkoutConfigTitle">Checkout Pro · entorno de prueba</span>
+          <span class="global-badge">ORDERS API</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="inpCheckoutCommission">Comisión sobre el subtotal (%)</label>
+            <input type="number" id="inpCheckoutCommission" min="0" max="50" step="0.01" disabled>
+          </div>
+          <div class="form-group">
+            <label for="outCheckoutRounding">Regla de redondeo</label>
+            <output id="outCheckoutRounding" class="mono-input">Hacia arriba a múltiplos de $1.000</output>
+          </div>
+          <div class="promo-config-box">
+            <label style="display:flex; align-items:center; gap:10px; color:var(--cream-light); font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="chkCheckoutEnabled" style="width:18px; height:18px; accent-color:var(--sage-main);" disabled>
+              <span><b>Habilitar Checkout Pro de prueba</b> para productos autorizados</span>
+            </label>
+            <span id="checkoutAdminStatus" class="action-note" role="status">La migración de checkout todavía no fue verificada.</span>
+          </div>
+        </div>
+      </section>
+
       <section class="editor-card">
         <div class="card-header">
           <span class="card-title">1. Datos Principales, Precio, Categoría y Promoción</span>
@@ -122,8 +146,15 @@
             <textarea id="inpResumen" rows="2"></textarea>
           </div>
           <div class="form-group full">
-            <label>Link de Pago Mercado Pago (Opcional)</label>
+            <label>Link de Pago histórico (compatibilidad; no inicia Checkout Pro)</label>
             <input type="text" id="inpMpLink" class="mono-input">
+          </div>
+          <div class="promo-config-box">
+            <label style="display:flex; align-items:center; gap:10px; color:var(--cream-light); font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="chkProductCheckout" style="width:18px; height:18px; accent-color:var(--sage-main);">
+              <span><b>Permitir compra directa</b> de esta pieza mediante Checkout Pro de prueba</span>
+            </label>
+            <span class="action-note">Las configuraciones con notas a medida seguirán por WhatsApp.</span>
           </div>
         </div>
       </section>

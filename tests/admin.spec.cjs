@@ -95,3 +95,17 @@ test('upload control uses existing Storage flow and stores the returned public U
  expect(state.writes[0].data[0].imagen).toContain('/storage/v1/object/public/tienda/portadas/');
  expect(state.errors).toEqual([]);
 });
+test('admin keeps commission editable, test-only checkout global switch and per-product authorization',async({page})=>{
+ const state=await setup(page,{authenticated:true,checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
+ await page.goto('/admin.html');
+ await expect(page.locator('#inpCheckoutCommission')).toHaveValue('7.5');
+ await expect(page.locator('#chkCheckoutEnabled')).not.toBeChecked();
+ await page.locator('#inpCheckoutCommission').fill('8.25');
+ await page.locator('#chkCheckoutEnabled').check();
+ await page.locator('#chkProductCheckout').check();
+ await page.locator('#btnSaveSupabase').click();
+ await expect.poll(()=>state.settingsWrites.length).toBe(1);
+ expect(state.settingsWrites[0].data).toMatchObject({commission_percent:8.25,payments_enabled:true});
+ expect(state.writes[0].data[0].checkout_habilitado).toBe(true);
+ expect(state.errors).toEqual([]);
+});

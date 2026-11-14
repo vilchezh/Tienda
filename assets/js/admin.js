@@ -11,6 +11,8 @@ const h = Store.escapeHTML;
 
     let catalog = [];
     let currentIndex = 0;
+    let checkoutSettings = { id: 'default', commission_percent: 0, payments_enabled: false };
+    let checkoutSettingsAvailable = false;
 
     // Mapa actualizado con Variado, Gym completo y Maquinas/Herramientas
     const CATEGORIAS_MAP = {
@@ -136,6 +138,7 @@ const h = Store.escapeHTML;
         fotos: Array.isArray(p.fotos) ? p.fotos : [],
         glb: p.glb || "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
         mp_link: p.mp_link || p.mpLink || "",
+        checkout_habilitado: p.checkout_habilitado === true,
         permitir_nota_medida: p.permitir_nota_medida !== undefined ? p.permitir_nota_medida : (p.permitirNotaMedida !== false),
         maderas: normalizeWoods(p.maderas),
         tonos_madera: Array.isArray(p.tonos_madera || p.tonosMadera) && (p.tonos_madera || p.tonosMadera).length ? (p.tonos_madera || p.tonosMadera) : baseStains,
@@ -366,6 +369,7 @@ const h = Store.escapeHTML;
 
       document.getElementById('inpResumen').value = p.resumen;
       document.getElementById('inpMpLink').value = p.mp_link;
+      document.getElementById('chkProductCheckout').checked = p.checkout_habilitado;
       document.getElementById('inpGlb').value = p.glb;
       document.getElementById('inpImagen').value = p.imagen;
       document.getElementById('chkPermitirNota').checked = p.permitir_nota_medida;
@@ -377,6 +381,37 @@ const h = Store.escapeHTML;
       renderExtrasList(p);
       renderStainsList(p);
       renderMetalsList(p);
+    }
+
+    function renderCheckoutSettings() {
+      const commission = document.getElementById('inpCheckoutCommission');
+      const enabled = document.getElementById('chkCheckoutEnabled');
+      const status = document.getElementById('checkoutAdminStatus');
+      commission.disabled = !checkoutSettingsAvailable;
+      enabled.disabled = !checkoutSettingsAvailable;
+      commission.value = checkoutSettings.commission_percent;
+      enabled.checked = checkoutSettings.payments_enabled;
+      status.textContent = checkoutSettingsAvailable
+        ? 'Configuración lista. Solo usa MP_ACCESS_TOKEN_TEST; no habilita credenciales reales.'
+        : 'Checkout permanece deshabilitado hasta aplicar la migración en un entorno autorizado.';
+    }
+
+    async function loadCheckoutSettings() {
+      const { data, error } = await supabaseClient
+        .from('checkout_settings')
+        .select('id,commission_percent,payments_enabled')
+        .eq('id', 'default')
+        .maybeSingle()
+        .abortSignal(AbortSignal.timeout(8000));
+      checkoutSettingsAvailable = !error && Boolean(data);
+      if (checkoutSettingsAvailable) {
+        checkoutSettings = {
+          id: 'default',
+          commission_percent: Number(data.commission_percent) || 0,
+          payments_enabled: data.payments_enabled === true,
+        };
+      }
+      renderCheckoutSettings();
     }
 
     let importInProgress = false;
@@ -423,6 +458,7 @@ const h = Store.escapeHTML;
 
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainAdmin').style.visibility = 'visible';
+      await loadCheckoutSettings();
 
       if (!data || data.length === 0) {
         catalog = [];
@@ -472,8 +508,19 @@ const h = Store.escapeHTML;
       if (new Set(catalog.map(p => p.id)).size !== catalog.length) { alert('Hay IDs duplicados. Corregilos antes de publicar.'); return; }
       showToast("Publicando en Supabase...");
       const { error } = await supabaseClient.from('productos').upsert(catalog);
-      if (error) alert("Error al guardar en Supabase: " + error.message);
-      else showToast("✅ ¡Cambios publicados en vivo en la tienda!");
+      if (error) { alert("Error al guardar en Supabase: " + error.message); return; }
+      if (checkoutSettingsAvailable) {
+        const { error: settingsError } = await supabaseClient
+          .from('checkout_settings')
+          .update({
+            commission_percent: checkoutSettings.commission_percent,
+            payments_enabled: checkoutSettings.payments_enabled,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', 'default');
+        if (settingsError) { alert('Los productos se guardaron, pero no la configuración de checkout: ' + settingsError.message); return; }
+      }
+      showToast("✅ ¡Cambios publicados en vivo en la tienda!");
     });
 
     if (supabaseClient) supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -498,6 +545,12 @@ const h = Store.escapeHTML;
     document.getElementById('inpPrecioAnterior').addEventListener('input', updateCurrentSubAndPromo);
     document.getElementById('inpResumen').addEventListener('input', e => { catalog[currentIndex].resumen = e.target.value; });
     document.getElementById('inpMpLink').addEventListener('input', e => { catalog[currentIndex].mp_link = e.target.value.trim(); });
+    document.getElementById('chkProductCheckout').addEventListener('change', e => { catalog[currentIndex].checkout_habilitado = e.target.checked; });
+    document.getElementById('inpCheckoutCommission').addEventListener('input', e => {
+      const value = Number(e.target.value);
+      checkoutSettings.commission_percent = Number.isFinite(value) ? Math.min(50, Math.max(0, value)) : 0;
+    });
+    document.getElementById('chkCheckoutEnabled').addEventListener('change', e => { checkoutSettings.payments_enabled = e.target.checked; });
     document.getElementById('inpGlb').addEventListener('input', e => {
       catalog[currentIndex].glb = e.target.value.trim();
       document.getElementById('adminViewer').src = Store.assetURL(catalog[currentIndex].glb);

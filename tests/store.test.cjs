@@ -28,3 +28,14 @@ test('activeProducts fails closed on server errors, empty and hidden rows', asyn
   assert.deepEqual(eqCalls, [['activo',true],['id','visible']]);
   await assert.rejects(store().activeProducts({from:()=>({select:()=>({eq:()=>({abortSignal:()=>Promise.resolve({data:null,error:{message:'offline'}})})})})}));
 });
+test('Checkout Pro totals preserve commission and round upward to $1,000', () => {
+  assert.equal(store().checkoutTotal(239000, 7.5), 257000);
+  assert.equal(store().checkoutTotal(200000, 0), 200000);
+  assert.equal(store().checkoutTotal(1, 0), 1000);
+  assert.equal(store().checkoutTotal(100000, 99), 0);
+});
+test('Checkout redirects accept Mercado Pago HTTPS only', () => {
+  assert.match(store().checkoutURL('https://www.mercadopago.com.ar/checkout/v1/redirect?id=test'), /^https:/);
+  assert.equal(store().checkoutURL('https://mercadopago.com.ar.evil.test/checkout'), '');
+  assert.equal(store().checkoutURL('javascript:alert(1)'), '');
+});

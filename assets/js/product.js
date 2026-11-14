@@ -16,6 +16,9 @@ const urlParams = new URLSearchParams(window.location.search);
       roughness: 0.75
     };
     let productData = null;
+    let checkoutConfig = { loaded: false, paymentsEnabled: false, commissionPercent: 0 };
+    let checkoutRequestId = null;
+    let checkoutBusy = false;
     const textureCache = {};
 
     async function sync3DMaterials() {
@@ -84,10 +87,86 @@ const urlParams = new URLSearchParams(window.location.search);
 
       Store.setContactLink(document.getElementById('btnWhatsapp'), text);
       document.getElementById('contactStatus').hidden = Boolean(Store.whatsappURL(text));
+      updateCheckoutAction(total);
       document.querySelectorAll('.btn-opt, .swatch-btn').forEach(button => {
         if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.classList.contains('active')));
       });
       sync3DMaterials().catch(reportTextureError);
+    }
+
+    function updateCheckoutAction(subtotal) {
+      const button = document.getElementById('btnComprar');
+      const status = document.getElementById('checkoutStatus');
+      button.disabled = true;
+      if (checkoutBusy) return;
+      if (!productData?.checkoutHabilitado) {
+        status.textContent = 'Esta pieza se encarga por consulta. Checkout Pro no está habilitado para este producto.';
+        return;
+      }
+      if (!checkoutConfig.loaded) {
+        status.textContent = 'Checkout Pro de prueba no está disponible en este momento.';
+        return;
+      }
+      if (!checkoutConfig.paymentsEnabled) {
+        status.textContent = 'Checkout Pro de prueba está deshabilitado desde el administrador.';
+        return;
+      }
+      if (document.getElementById('customNotes').value.trim()) {
+        status.textContent = 'Las modificaciones a medida se coordinan por WhatsApp antes de pagar.';
+        return;
+      }
+      const total = Store.checkoutTotal(subtotal, checkoutConfig.commissionPercent);
+      if (!total) {
+        status.textContent = 'No pudimos calcular el importe de Checkout Pro.';
+        return;
+      }
+      button.disabled = false;
+      const commission = checkoutConfig.commissionPercent.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+      status.textContent = `Total en Checkout Pro de prueba: $${total.toLocaleString('es-AR')} ARS · comisión ${commission}% · redondeado al próximo múltiplo de $1.000.`;
+    }
+
+    function currentSelection() {
+      return {
+        product_id: productData.id,
+        wood_type: state.woodType,
+        wood_stain: state.woodStain,
+        metal_color: state.metalColor,
+        finish: state.finish,
+        extras: Array.from(document.querySelectorAll('.extra-checkbox:checked'), input => input.dataset.name),
+        custom_notes: document.getElementById('customNotes').value.trim(),
+      };
+    }
+
+    async function startCheckout() {
+      if (checkoutBusy || document.getElementById('btnComprar').disabled) return;
+      checkoutBusy = true;
+      const button = document.getElementById('btnComprar');
+      const status = document.getElementById('checkoutStatus');
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      status.textContent = 'Preparando una orden segura en Mercado Pago…';
+      checkoutRequestId ||= crypto.randomUUID();
+      try {
+        const response = await fetch(Store.edgeFunctionURL('create-mp-order'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: window.STORE_CONFIG.supabaseAnonKey,
+          },
+          body: JSON.stringify({ ...currentSelection(), client_request_id: checkoutRequestId }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || 'No pudimos iniciar el checkout.');
+        const checkoutUrl = Store.checkoutURL(result.checkout_url);
+        if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace válido.');
+        status.textContent = 'Redirigiendo al entorno de prueba de Mercado Pago…';
+        window.location.assign(checkoutUrl);
+      } catch (error) {
+        status.textContent = error.message || 'No pudimos iniciar el checkout. Intentá nuevamente.';
+        checkoutBusy = false;
+        button.removeAttribute('aria-busy');
+        updateUI();
+      }
     }
 
     function buildDynamicOptions(prod) {
@@ -291,6 +370,7 @@ const urlParams = new URLSearchParams(window.location.search);
     }
 
     document.getElementById('customNotes').addEventListener('input', updateUI);
+    document.getElementById('btnComprar').addEventListener('click', startCheckout);
 
     async function initProductPage() {
       const errorPanel = document.getElementById('errorPanel');
@@ -317,7 +397,8 @@ const urlParams = new URLSearchParams(window.location.search);
         precioBase: data.precio_base !== undefined ? data.precio_base : data.precioBase,
         tonosMadera: data.tonos_madera || data.tonosMadera,
         coloresMetal: data.colores_metal || data.coloresMetal,
-        permitirNotaMedida: data.permitir_nota_medida !== undefined ? data.permitir_nota_medida : data.permitirNotaMedida
+        permitirNotaMedida: data.permitir_nota_medida !== undefined ? data.permitir_nota_medida : data.permitirNotaMedida,
+        checkoutHabilitado: data.checkout_habilitado === true
       };
       productData = prod;
       document.title = `${prod.nombre} | Acero y Escamas`;
@@ -328,6 +409,12 @@ const urlParams = new URLSearchParams(window.location.search);
       viewer.alt = `Vista 3D de ${prod.nombre}. Arrastrá para girar.`;
       if (!viewer.src) document.getElementById('mediaStatus').textContent = 'Esta pieza aún no tiene un modelo 3D disponible.';
       BASE_PRICE = Number(prod.precioBase || prod.precio_base) || 0;
+      try {
+        const settings = await Store.checkoutSettings(Store.createClient());
+        checkoutConfig = { loaded: true, ...settings };
+      } catch {
+        checkoutConfig = { loaded: false, paymentsEnabled: false, commissionPercent: 0 };
+      }
       buildDynamicOptions(prod);
       document.getElementById('mainShopLayout').style.display = 'grid';
       updateUI();

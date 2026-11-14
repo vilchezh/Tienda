@@ -36,7 +36,7 @@ test('configurator preserves prices, 3D material changes, extras, gallery and co
   await page.goto('/producto.html?id='+product.id);
   await expect(page.locator('#priceDisplay')).toHaveText('185.000');
   await expect(page.locator('#btnComprar')).toBeDisabled();
-  await expect(page.locator('#btnWhatsapp')).not.toHaveAttribute('href');
+  await expect(page.locator('#btnWhatsapp')).toHaveAttribute('href',/^https:\/\/wa\.me\//);
   await expect.poll(()=>page.locator('model-viewer').evaluate(v=>Boolean(v.loaded && v.model?.materials?.length)),{timeout:20000}).toBe(true);
   await page.getByRole('button',{name:'Pino Alistonado (Sin Nudos)',exact:false}).click();
   await page.locator('.extra-checkbox').first().check();
@@ -60,6 +60,48 @@ test('configurator preserves prices, 3D material changes, extras, gallery and co
   const href=await page.locator('#btnWhatsapp').getAttribute('href');
   expect(new URL(href).searchParams.get('text')).toContain('239.000');
   expect(new URL(href).searchParams.get('text')).toContain('Quiero 10cm más & un cajón');
+  expect(state.errors).toEqual([]);
+});
+test('Checkout Pro test mode sends selections without trusting a client total and redirects only to Mercado Pago',async({page})=>{
+  const directProduct={...product,checkout_habilitado:true};
+  const state=await setup(page,{rows:[directProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:true}});
+  await page.goto('/producto.html?id='+product.id);
+  await expect(page.locator('#btnComprar')).toBeEnabled();
+  await expect(page.locator('#checkoutStatus')).toContainText('$199.000');
+  await expect(page.locator('#checkoutStatus')).toContainText('7,5%');
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(1);
+  expect(state.checkoutRequests[0].data).toMatchObject({
+    product_id:product.id,
+    wood_type:'Pino con Nudos',
+    wood_stain:'Transparente',
+    metal_color:'Negro',
+    finish:'Mate',
+    extras:[],
+    custom_notes:''
+  });
+  expect(state.checkoutRequests[0].data.total).toBeUndefined();
+  expect(state.checkoutRequests[0].data.client_request_id).toMatch(/^[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/mercadopago\.com\.ar\/checkout\/v1\/redirect/);
+  expect(state.errors).toEqual([]);
+});
+test('custom work keeps WhatsApp available and blocks direct checkout',async({page})=>{
+  const state=await setup(page,{rows:[{...product,checkout_habilitado:true}],checkoutSettings:{id:'default',commission_percent:5,payments_enabled:true}});
+  await page.goto('/producto.html?id='+product.id);
+  await expect(page.locator('#btnComprar')).toBeEnabled();
+  await page.locator('#customNotes').fill('Necesito 10 cm adicionales');
+  await expect(page.locator('#btnComprar')).toBeDisabled();
+  await expect(page.locator('#checkoutStatus')).toContainText('WhatsApp');
+  await expect(page.locator('#btnWhatsapp')).toHaveAttribute('href',/^https:\/\/wa\.me\//);
+  expect(state.checkoutRequests).toHaveLength(0);
+});
+test('return page reports only the server-verified payment state',async({page})=>{
+  const state=await setup(page);
+  await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111&resultado=exito');
+  await expect(page.locator('#resultTitle')).toHaveText('Pago aprobado');
+  await expect(page.locator('#resultAmount')).toHaveText('$199.000 ARS');
+  await expect(page.locator('#resultStatus')).toHaveText('approved');
+  expect(state.statusRequests).toHaveLength(1);
   expect(state.errors).toEqual([]);
 });
 test('editable catalog and product data cannot inject HTML, attributes or scripts',async({page})=>{

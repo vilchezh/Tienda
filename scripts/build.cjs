@@ -11,7 +11,7 @@ if (outputDirectory !== resolve(projectRoot, 'dist')) {
 rmSync(outputDirectory, { recursive: true, force: true });
 mkdirSync(outputDirectory, { recursive: true });
 
-for (const file of ['index.html', 'admin.html', 'producto.html', 'productos.json']) {
+for (const file of ['index.html', 'admin.html', 'producto.html', 'pago.html', 'productos.json']) {
   cpSync(resolve(projectRoot, file), resolve(outputDirectory, file));
 }
 

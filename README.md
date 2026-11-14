@@ -2,10 +2,13 @@
 
 Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenticación y archivos, y model-viewer 3.5.0 para el visor existente. Sin framework; el build solo reúne los archivos públicos en `dist/` para Cloudflare Workers.
 
+Sitio principal: `https://tienda.acero-y-escamas.workers.dev/`. Administrador: `/admin`.
+
 ## Estructura
 
 - `index.html`: portada, categorías, catálogo y promociones.
 - `producto.html`: visor 3D, fotos, opciones y consulta de la configuración.
+- `pago.html`: retorno de Checkout Pro y lectura del estado verificado.
 - `admin.html`: acceso existente de Supabase y edición del catálogo.
 - `assets/js/config.js`: configuración **pública** centralizada.
 - `assets/js/store.js`: escape de texto/atributos, validación de URLs, consulta de productos activos y contacto.
@@ -18,6 +21,8 @@ Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenti
 - `wrangler.jsonc`: configura el Worker `tienda`, Static Assets, rutas HTML limpias y Previews.
 - `dist/`: salida generada por `npm run build`; no se versiona.
 - `tests/`: regresiones en Chromium con los SDK reales y respuestas de Supabase interceptadas.
+- `supabase/functions/`: creación de órdenes, webhook firmado y consulta de estado.
+- `supabase/migrations/`: esquema versionado para configuración y pedidos; no se aplica durante el build.
 
 ## Configurar WhatsApp
 
@@ -64,3 +69,11 @@ npm run deploy   # build + wrangler deploy para producción
 En Workers Builds, usar el directorio raíz `/`, la rama de producción `main`, `npm run build` como Build command, `npx wrangler deploy` como Deploy command y `npx wrangler preview` como Preview command. Mantener habilitados los Preview Builds para ramas que no sean `main`. Wrangler toma los archivos exclusivamente de `dist/`; `html_handling: "drop-trailing-slash"` sirve `admin.html` como `/admin` y `producto.html` como `/producto`.
 
 Ver [inspección y límites de verificación](docs/REVISION.md) y [preparación de Checkout Pro](docs/CHECKOUT-PRO.md).
+
+## Checkout Pro de prueba
+
+La integración usa Mercado Pago Orders API (`POST /v1/orders`), no Preferences API. El servidor recalcula catálogo y opciones, aplica la comisión editable y redondea hacia arriba a múltiplos de $1.000. Las notas personalizadas mantienen el circuito de WhatsApp.
+
+Todo nace deshabilitado: tanto el interruptor global como la autorización individual de cada producto. El backend solo reconoce `MP_ACCESS_TOKEN_TEST`. La firma del webhook Order usa un segundo secreto, `MP_WEBHOOK_SECRET_TEST`, y luego consulta el estado real de la orden en Mercado Pago.
+
+La URL pública está centralizada en `assets/js/config.js`; las Edge Functions usan `STORE_BASE_URL`. Consultar [la guía de Checkout Pro](docs/CHECKOUT-PRO.md) antes de aplicar la migración o desplegar funciones.
