@@ -17,6 +17,8 @@ Cada línea es una operación separada: copiar, pegar y ejecutar antes de pasar 
 
 ## 2. Build y Worker sandbox
 
+Para publicar sin instalar herramientas en Windows, seguir [la guía de GitHub Actions](GITHUB-SANDBOX-DEPLOY.md). El procedimiento local siguiente queda como alternativa de diagnóstico.
+
 El Worker separado se llama `tienda-checkout-sandbox` y usa [wrangler.checkout-preview.jsonc](../wrangler.checkout-preview.jsonc) y `dist-preview/`. Confirmar en Cloudflare que el subdominio Workers de la cuenta es `acero-y-escamas`; la URL prevista es `https://tienda-checkout-sandbox.acero-y-escamas.workers.dev`. Si difiere, corregir la URL antes de cualquier deploy.
 
 En **Supabase → Project Settings → API Keys → Legacy API Keys** del proyecto nuevo, obtener la clave pública **anon JWT**. En PowerShell:

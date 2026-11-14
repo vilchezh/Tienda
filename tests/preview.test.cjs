@@ -28,6 +28,10 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   assert.equal(products.length, 1);
   assert.equal(products[0].id, 'pieza-sandbox-001');
   assert.equal(productionConfig(), original);
+  const verified = spawnSync('node', ['scripts/verify-preview.cjs'], {
+    cwd: root, encoding: 'utf8', env: { ...process.env, STORE_PREVIEW_SUPABASE_ANON_KEY: publicKey('pacyytbscnlklyrhsshp') },
+  });
+  assert.equal(verified.status, 0, verified.stderr);
 });
 
 test('preview build refuses published Supabase and mismatched public keys', () => {
