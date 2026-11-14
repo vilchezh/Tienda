@@ -7,10 +7,11 @@ La integración está implementada para usar exclusivamente la API de Orders de 
 1. La ficha envía únicamente el ID del producto y los nombres de las opciones elegidas a `create-mp-order`.
 2. La Edge Function vuelve a leer el producto activo y la configuración de checkout desde Supabase. Nunca acepta el total calculado por el navegador.
 3. El servidor suma precio base, recargo de madera y extras; aplica la comisión editable y redondea hacia arriba al siguiente múltiplo de $1.000.
-4. Se registra un pedido local y se crea la orden con `POST https://api.mercadopago.com/v1/orders`, `X-Idempotency-Key`, moneda `ARS` y el secreto `MP_ACCESS_TOKEN_TEST`.
+4. Se valida contacto/entrega en servidor y se registra junto con el pedido en una transacción; después se crea la orden con `POST https://api.mercadopago.com/v1/orders`, `X-Idempotency-Key`, moneda `ARS` y el secreto `MP_ACCESS_TOKEN_TEST`. Los datos del comprador no se envían a Mercado Pago desde este flujo.
 5. Las rutas de retorno se envían en `config.online.success_url`, `failure_url` y `pending_url`. También se envía `config.online.callback_url` al webhook.
 6. El webhook valida HMAC-SHA256 con `x-signature`, `x-request-id`, `data.id` y una tolerancia de cinco minutos. Después consulta `GET /v1/orders/{id}`: el payload del webhook y la URL de retorno nunca se toman como prueba de pago.
 7. `/pago` muestra solamente el estado persistido después de esa verificación del servidor.
+8. La primera transición verificada a `processed` crea una outbox idempotente. El webhook intenta enviar confirmaciones mediante Resend y una función programable reintenta entregas fallidas sin duplicarlas.
 
 La firma admite `ts` de 10 dígitos (segundos) y 13 dígitos (milisegundos), manteniendo el valor original en el HMAC y rechazando desvíos superiores a cinco minutos. Los estados `refunded`, `partially_refunded` y `charged_back` prevalecen sobre cualquier pago anterior; `processed` solo se muestra como acreditado si el importe de `total_paid_amount` cubre el total esperado. Si Mercado Pago no informa un importe verificable, se exige revisión manual.
 
@@ -37,6 +38,9 @@ Referencias oficiales usadas:
 - La URL recibida para redirigir se acepta únicamente si es HTTPS y pertenece a Mercado Pago.
 - Los pedidos y eventos no tienen acceso anónimo; RLS usa `tienda_security.is_admin()` para administración.
 - No se almacenan tarjetas, documentos ni el Access Token en tablas o frontend.
+- Contacto y entrega viven en una tabla privada con RLS; el administrador sólo puede editar fabricación/notas, no el pago.
+
+La ampliación del Issue #4, su orden de activación y los secretos de correo están documentados en [ISSUE-4-ORDERS.md](ISSUE-4-ORDERS.md).
 
 ## Archivos de Supabase preparados
 

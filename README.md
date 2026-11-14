@@ -7,9 +7,10 @@ Sitio principal: `https://tienda.acero-y-escamas.workers.dev/`. Administrador: `
 ## Estructura
 
 - `index.html`: portada, categorías, catálogo y promociones.
-- `producto.html`: visor 3D, fotos, opciones y consulta de la configuración.
+- `producto.html`: visor 3D, fotos, opciones, contacto/entrega y consulta de la configuración.
+- `privacidad.html`: aviso sobre datos usados durante la compra.
 - `pago.html`: retorno de Checkout Pro y lectura del estado verificado.
-- `admin.html`: acceso existente de Supabase y edición del catálogo.
+- `admin.html`: acceso de Supabase, edición del catálogo y administración privada de pedidos.
 - `assets/js/config.js`: configuración **pública** centralizada.
 - `assets/js/store.js`: escape de texto/atributos, validación de URLs, consulta de productos activos y contacto.
 - `assets/js/{catalog,product,admin}.js`: comportamiento de cada página.
@@ -21,7 +22,7 @@ Sitio principal: `https://tienda.acero-y-escamas.workers.dev/`. Administrador: `
 - `wrangler.jsonc`: configura el Worker `tienda`, Static Assets, rutas HTML limpias y Previews.
 - `dist/`: salida generada por `npm run build`; no se versiona.
 - `tests/`: regresiones en Chromium con los SDK reales y respuestas de Supabase interceptadas.
-- `supabase/functions/`: creación de órdenes, webhook firmado y consulta de estado.
+- `supabase/functions/`: creación de órdenes, webhook firmado, consulta de estado y reintentos de correo.
 - `supabase/migrations/`: esquema versionado para configuración y pedidos; no se aplica durante el build.
 
 ## Configurar WhatsApp
@@ -77,3 +78,5 @@ La integración usa Mercado Pago Orders API (`POST /v1/orders`), no Preferences 
 Todo nace deshabilitado: tanto el interruptor global como la autorización individual de cada producto. El backend solo reconoce `MP_ACCESS_TOKEN_TEST`. La firma del webhook Order usa un segundo secreto, `MP_WEBHOOK_SECRET_TEST`, y luego consulta el estado real de la orden en Mercado Pago.
 
 La URL pública está centralizada en `assets/js/config.js`; las Edge Functions usan `STORE_BASE_URL`. Consultar [la guía de Checkout Pro](docs/CHECKOUT-PRO.md) antes de aplicar la migración o desplegar funciones.
+
+El panel de pedidos, la captura privada de contacto, la auditoría y la outbox de correo están preparados en [Issue #4 · Pedidos, compradores y correos](docs/ISSUE-4-ORDERS.md). Requieren una migración y despliegues separados en el sandbox; el build no ejecuta ninguno.

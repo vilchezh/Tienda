@@ -8,6 +8,9 @@ import {
   safeCheckoutUrl,
 } from '../supabase/functions/_shared/checkout-core.mjs';
 import { createOrderHandler } from '../supabase/functions/_shared/create-order-handler.mjs';
+import { normalizeCheckoutCustomer } from '../supabase/functions/_shared/customer-data.mjs';
+import { dispatchOrderNotifications } from '../supabase/functions/_shared/email-notifications.mjs';
+import { processNotificationsHandler } from '../supabase/functions/_shared/process-notifications-handler.mjs';
 import { signatureManifest, verifyMercadoPagoSignature } from '../supabase/functions/_shared/webhook-signature.mjs';
 import { webhookHandler } from '../supabase/functions/_shared/webhook-handler.mjs';
 
@@ -24,6 +27,11 @@ const product = {
 };
 const selection = {
   wood_type: 'Pino', wood_stain: 'Natural', metal_color: 'Negro', finish: 'Mate', extras: ['Ruedas'],
+};
+const customer = {
+  full_name: 'Comprador de Prueba', email: 'buyer@example.invalid', phone: '+54 11 5555 0000',
+  delivery_method: 'pickup', address_line: '', city: '', province: '', postal_code: '',
+  delivery_notes: '', privacy_accepted: true,
 };
 const env = {
   STORE_BASE_URL: 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev',
@@ -106,7 +114,7 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
     if (value.includes('checkout_orders?client_request_id=')) return Response.json([]);
     if (value.includes('productos?')) return Response.json([product]);
     if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 7.5, payments_enabled: true }]);
-    if (value.endsWith('/rest/v1/checkout_orders') && init.method === 'POST') return Response.json([{ id: localOrderId }], { status: 201 });
+    if (value.endsWith('/rpc/checkout_create_order') && init.method === 'POST') return Response.json({ id: localOrderId }, { status: 200 });
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
     if (value.includes('/rest/v1/checkout_orders?id=eq.')) return new Response(null, { status: 204 });
     if (value === 'https://api.mercadopago.com/v1/orders') {
@@ -117,7 +125,7 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
   const request = new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST',
     headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection, total: 1 }),
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection, customer, total: 1 }),
   });
   const response = await createOrderHandler(env, fetchMock)(request);
   assert.equal(response.status, 201);
@@ -138,6 +146,9 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
     assert.doesNotMatch(mpCall.body.config.online[key], /^https:\/\/tienda\.acero-y-escamas\.workers\.dev\//);
   }
   assert.equal(JSON.stringify(mpCall.body).includes('total":1'), false);
+  const databaseCall = calls.find(call => call.url.endsWith('/rpc/checkout_create_order'));
+  assert.equal(databaseCall.body.p_contact.email, customer.email);
+  assert.equal(JSON.stringify(mpCall.body).includes(customer.email), false);
 });
 
 test('oversized and malformed requests are rejected before any provider call', async () => {
@@ -173,7 +184,7 @@ test('an interrupted creation retries with the stored amount and original idempo
   };
   const request = new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId }),
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, customer }),
   });
   assert.equal((await createOrderHandler(env, fetchMock)(request)).status, 201);
   const provider = calls.find(call => call.value.endsWith('/v1/orders'));
@@ -194,7 +205,7 @@ test('global switch blocks both new checkout and recovery without touching confi
   for (const requestId of [clientRequestId, '33333333-3333-4333-8333-333333333333']) {
     const response = await createOrderHandler(env, fetchMock)(new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
       method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product_id: product.id, client_request_id: requestId, ...selection }),
+      body: JSON.stringify({ product_id: product.id, client_request_id: requestId, ...selection, customer }),
     }));
     assert.equal(response.status, 503);
     assert.equal((await response.json()).error, 'checkout_disabled');
@@ -211,9 +222,9 @@ test('simultaneous creation attempts with one idempotency key do not both call M
     if (value.includes('checkout_orders?client_request_id=')) return Response.json([]);
     if (value.includes('productos?')) return Response.json([product]);
     if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 0, payments_enabled: true }]);
-    if (value.endsWith('/rest/v1/checkout_orders') && init.method === 'POST') {
+    if (value.endsWith('/rpc/checkout_create_order') && init.method === 'POST') {
       inserts += 1;
-      return inserts === 1 ? Response.json([{ id: localOrderId }], { status: 201 }) : Response.json({ code: '23505' }, { status: 409 });
+      return inserts === 1 ? Response.json({ id: localOrderId }) : Response.json({ code: '23505' }, { status: 409 });
     }
     if (value.endsWith('/v1/orders')) { providerCalls += 1; return Response.json({ id: 'mp-1', checkout_url: 'https://www.mercadopago.com.ar/checkout/test' }); }
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
@@ -221,7 +232,7 @@ test('simultaneous creation attempts with one idempotency key do not both call M
   };
   const makeRequest = () => new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection }),
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection, customer }),
   });
   const responses = await Promise.all([createOrderHandler(env, fetchMock)(makeRequest()), createOrderHandler(env, fetchMock)(makeRequest())]);
   assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
@@ -272,6 +283,68 @@ test('forged webhook is rejected before any provider or database request', async
   assert.equal(calls, 0);
 });
 
+test('customer contact and delivery are minimized and validated before order creation', () => {
+  assert.deepEqual(normalizeCheckoutCustomer(customer), {
+    full_name: customer.full_name, email: customer.email, phone: customer.phone,
+    delivery_method: 'pickup', address_line: null, city: null, province: null,
+    postal_code: null, delivery_notes: null, privacy_accepted: true,
+  });
+  assert.throws(() => normalizeCheckoutCustomer({ ...customer, privacy_accepted: false }));
+  assert.throws(() => normalizeCheckoutCustomer({ ...customer, email: 'not-an-email' }));
+  assert.throws(() => normalizeCheckoutCustomer({ ...customer, delivery_method: 'delivery' }));
+  assert.equal(normalizeCheckoutCustomer({
+    ...customer, delivery_method: 'delivery', address_line: 'Calle 123', city: 'CABA',
+    province: 'Buenos Aires', postal_code: '1000',
+  }).address_line, 'Calle 123');
+});
+
+test('email outbox claims once and sends stable provider idempotency keys', async () => {
+  const sent = [];
+  let claimCount = 0;
+  const notificationEnv = {
+    ...env, RESEND_API_KEY: 're_test_not_real', ORDER_EMAIL_FROM: 'Sandbox <pedidos@example.invalid>',
+    ORDER_NOTIFICATION_TO: 'seller@example.invalid',
+  };
+  const notifications = [
+    { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', order_id: localOrderId, notification_type: 'customer_payment_confirmed', recipient_email: customer.email, attempt_count: 1 },
+    { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', order_id: localOrderId, notification_type: 'seller_payment_received', recipient_email: null, attempt_count: 1 },
+  ];
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json(claimCount++ === 0 ? notifications : []);
+    if (value.includes('/checkout_orders?')) return Response.json([{ id: localOrderId, product_id: product.id, product_snapshot: product, selection_snapshot: selection, total_amount: 257000, currency: 'ARS' }]);
+    if (value.includes('/checkout_order_customers?')) return Response.json([{ full_name: customer.full_name, email: customer.email }]);
+    if (value.includes('/checkout_email_outbox?') && init.method === 'PATCH') return new Response(null, { status: 204 });
+    if (value === 'https://api.resend.com/emails') {
+      sent.push({ headers: init.headers, body: JSON.parse(init.body) });
+      return Response.json({ id: `email-${sent.length}` });
+    }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  await dispatchOrderNotifications(notificationEnv, fetchMock, localOrderId);
+  await dispatchOrderNotifications(notificationEnv, fetchMock, localOrderId);
+  assert.equal(sent.length, 2);
+  assert.equal(new Set(sent.map(item => item.headers['Idempotency-Key'])).size, 2);
+  assert.deepEqual(sent.map(item => item.body.to[0]).sort(), [customer.email, notificationEnv.ORDER_NOTIFICATION_TO].sort());
+});
+
+test('notification retry endpoint requires its independent dispatch secret', async () => {
+  let calls = 0;
+  const retryEnv = { ...env, ORDER_NOTIFICATION_DISPATCH_SECRET: 'synthetic-dispatch-secret' };
+  const endpoint = `${env.SUPABASE_URL}/functions/v1/process-order-notifications`;
+  const unauthorized = await processNotificationsHandler(retryEnv, async () => { calls += 1; })(
+    new Request(endpoint, { method: 'POST', headers: { 'x-dispatch-secret': 'wrong' } })
+  );
+  assert.equal(unauthorized.status, 401);
+  assert.equal(calls, 0);
+  const authorizedWithoutEmailProvider = await processNotificationsHandler(retryEnv, async () => { calls += 1; })(
+    new Request(endpoint, { method: 'POST', headers: { 'x-dispatch-secret': retryEnv.ORDER_NOTIFICATION_DISPATCH_SECRET } })
+  );
+  assert.equal(authorizedWithoutEmailProvider.status, 200);
+  assert.deepEqual(await authorizedWithoutEmailProvider.json(), { ok: true, configured: false, orders: 0, processed: 0 });
+  assert.equal(calls, 0);
+});
+
 test('migration keeps test mode fail-closed and protects payment tables with RLS', () => {
   const sql = readFileSync('supabase/migrations/20261114040000_checkout_pro_orders.sql', 'utf8');
   assert.match(sql, /checkout_habilitado boolean not null default false/i);
@@ -285,4 +358,19 @@ test('migration keeps test mode fail-closed and protects payment tables with RLS
   assert.match(sql, /alter table public\.checkout_rate_windows enable row level security/i);
   assert.match(sql, /revoke all on public\.checkout_rate_windows from public, anon, authenticated/i);
   assert.match(sql, /grant execute on function public\.checkout_take_rate_slot\(\) to service_role/i);
+});
+
+test('order management migration isolates personal data and deduplicates notifications', () => {
+  const sql = readFileSync('supabase/migrations/20261114204035_order_management.sql', 'utf8');
+  assert.match(sql, /alter table public\.checkout_order_customers enable row level security/i);
+  assert.match(sql, /revoke all on table public\.checkout_order_customers from public, anon, authenticated/i);
+  assert.match(sql, /grant select on table public\.checkout_order_customers to authenticated/i);
+  assert.match(sql, /using \(\(select tienda_security\.is_admin\(\)\)\)/i);
+  assert.match(sql, /grant update \(manufacturing_status, internal_notes\)/i);
+  assert.match(sql, /unique \(order_id, notification_type\)/i);
+  assert.match(sql, /on conflict \(order_id, notification_type\) do nothing/i);
+  assert.match(sql, /for update skip locked/i);
+  assert.match(sql, /checkout_due_notification_orders/i);
+  assert.match(sql, /checkout_purge_expired_customer_data/i);
+  assert.doesNotMatch(sql, /grant (insert|update|delete|all).*checkout_order_customers.*authenticated/i);
 });

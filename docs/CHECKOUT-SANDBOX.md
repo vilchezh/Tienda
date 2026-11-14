@@ -9,6 +9,7 @@ Abrir `https://supabase.com/dashboard/project/pacyytbscnlklyrhsshp/sql/new`. Com
 ```powershell
 Get-Content -Raw .\supabase\test\00_base.sql | Set-Clipboard
 Get-Content -Raw .\supabase\migrations\20261114040000_checkout_pro_orders.sql | Set-Clipboard
+Get-Content -Raw .\supabase\migrations\20261114204035_order_management.sql | Set-Clipboard
 Get-Content -Raw .\supabase\test\02_seed.sql | Set-Clipboard
 Get-Content -Raw .\supabase\test\03_assertions.sql | Set-Clipboard
 ```
@@ -48,6 +49,7 @@ En `https://supabase.com/dashboard/project/pacyytbscnlklyrhsshp/functions`, abri
 - `MP_ACCESS_TOKEN_TEST`: Access Token de prueba de Mercado Pago.
 - `MP_WEBHOOK_SECRET_TEST`: firma secreta del webhook Order de prueba.
 - `STORE_BASE_URL`: `https://tienda-checkout-sandbox.acero-y-escamas.workers.dev` (sin barra final).
+- `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_NOTIFICATION_TO` y `ORDER_NOTIFICATION_DISPATCH_SECRET`: ver [Issue #4 · Pedidos y correos](ISSUE-4-ORDERS.md).
 
 Tras autorizar el despliegue remoto, desde PowerShell ejecutar estos comandos dirigidos **explícitamente** al proyecto nuevo:
 
@@ -55,6 +57,7 @@ Tras autorizar el despliegue remoto, desde PowerShell ejecutar estos comandos di
 npx supabase@3.1.0 functions deploy create-mp-order --project-ref pacyytbscnlklyrhsshp --no-verify-jwt
 npx supabase@3.1.0 functions deploy mp-order-webhook --project-ref pacyytbscnlklyrhsshp --no-verify-jwt
 npx supabase@3.1.0 functions deploy get-mp-order-status --project-ref pacyytbscnlklyrhsshp --no-verify-jwt
+npx supabase@3.1.0 functions deploy process-order-notifications --project-ref pacyytbscnlklyrhsshp --no-verify-jwt
 ```
 
 Confirmar las tres funciones en el panel del proyecto nuevo. El gateway permite invocación pública; cada función aplica sus propias validaciones. Nunca copiar `service_role` al frontend.

@@ -6,6 +6,9 @@ const env = Object.fromEntries([
   'SUPABASE_URL',
   'SUPABASE_SECRET_KEYS',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'RESEND_API_KEY',
+  'ORDER_EMAIL_FROM',
+  'ORDER_NOTIFICATION_TO',
 ].map(key => [key, Deno.env.get(key) || '']));
 
 Deno.serve(webhookHandler(env));

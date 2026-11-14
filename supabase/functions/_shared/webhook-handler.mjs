@@ -1,4 +1,5 @@
 import { CheckoutError, paymentStatusFromOrder } from './checkout-core.mjs';
+import { dispatchOrderNotifications } from './email-notifications.mjs';
 import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
 import { verifyMercadoPagoSignature } from './webhook-signature.mjs';
 
@@ -82,6 +83,11 @@ export function webhookHandler(env, fetchFn = fetch) {
           p_paid: Number.isFinite(paidAmount) ? paidAmount : null,
         }),
       });
+      if (effectiveStatus === 'processed') {
+        await dispatchOrderNotifications(env, fetchFn, localId).catch(error => {
+          console.error('order email dispatch deferred', error instanceof Error ? error.message : 'unknown');
+        });
+      }
       return json({ ok: true }, 200);
     } catch (error) {
       console.error('mp-order-webhook failed', error instanceof Error ? error.message : 'unknown');

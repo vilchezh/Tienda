@@ -131,6 +131,52 @@
         </div>
       </div>
 
+      <form id="checkoutCustomerForm" class="checkout-customer" novalidate>
+        <div class="section-title">
+          <span>5. Contacto y entrega</span>
+          <span class="section-val">Antes del pago</span>
+        </div>
+        <p class="action-note">Usamos estos datos para identificar tu compra, coordinar la entrega y enviarte la confirmación cuando Mercado Pago acredite el pago.</p>
+        <div class="checkout-customer-grid">
+          <label>Nombre y apellido
+            <input type="text" id="checkoutFullName" name="full_name" autocomplete="name" minlength="2" maxlength="120" required>
+          </label>
+          <label>Correo electrónico
+            <input type="email" id="checkoutEmail" name="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <label>Teléfono <span class="optional-label">opcional</span>
+            <input type="tel" id="checkoutPhone" name="phone" autocomplete="tel" minlength="7" maxlength="30">
+          </label>
+          <label>Forma de entrega
+            <select id="checkoutDeliveryMethod" name="delivery_method" required>
+              <option value="pickup">Retiro a coordinar</option>
+              <option value="delivery">Envío a domicilio</option>
+            </select>
+          </label>
+        </div>
+        <div id="checkoutDeliveryFields" class="checkout-customer-grid" hidden>
+          <label class="full-field">Domicilio
+            <input type="text" id="checkoutAddress" name="address_line" autocomplete="street-address" maxlength="180">
+          </label>
+          <label>Localidad
+            <input type="text" id="checkoutCity" name="city" autocomplete="address-level2" maxlength="100">
+          </label>
+          <label>Provincia
+            <input type="text" id="checkoutProvince" name="province" autocomplete="address-level1" maxlength="100">
+          </label>
+          <label>Código postal
+            <input type="text" id="checkoutPostalCode" name="postal_code" autocomplete="postal-code" maxlength="20">
+          </label>
+          <label class="full-field">Indicaciones de entrega <span class="optional-label">opcional</span>
+            <textarea id="checkoutDeliveryNotes" name="delivery_notes" maxlength="500" rows="2"></textarea>
+          </label>
+        </div>
+        <label class="privacy-consent">
+          <input type="checkbox" id="checkoutPrivacy" name="privacy_accepted" required>
+          <span>Acepto el uso de mis datos para procesar esta compra según el <a href="privacidad.html" target="_blank" rel="noopener noreferrer">aviso de privacidad</a>.</span>
+        </label>
+      </form>
+
       <section class="purchase-actions" aria-label="Compra y consultas">
         <button type="button" id="btnComprar" class="button button-primary" disabled aria-describedby="checkoutStatus">Comprar ahora <span class="arrow-icon" aria-hidden="true"></span></button>
         <p id="checkoutStatus" class="action-note" role="status">Comprobando disponibilidad de Checkout Pro de prueba…</p>

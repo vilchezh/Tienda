@@ -144,8 +144,36 @@ const urlParams = new URLSearchParams(window.location.search);
       };
     }
 
+    function currentCustomer() {
+      return {
+        full_name: document.getElementById('checkoutFullName').value,
+        email: document.getElementById('checkoutEmail').value,
+        phone: document.getElementById('checkoutPhone').value,
+        delivery_method: document.getElementById('checkoutDeliveryMethod').value,
+        address_line: document.getElementById('checkoutAddress').value,
+        city: document.getElementById('checkoutCity').value,
+        province: document.getElementById('checkoutProvince').value,
+        postal_code: document.getElementById('checkoutPostalCode').value,
+        delivery_notes: document.getElementById('checkoutDeliveryNotes').value,
+        privacy_accepted: document.getElementById('checkoutPrivacy').checked,
+      };
+    }
+
+    function syncDeliveryFields() {
+      const delivery = document.getElementById('checkoutDeliveryMethod').value === 'delivery';
+      document.getElementById('checkoutDeliveryFields').hidden = !delivery;
+      for (const id of ['checkoutAddress', 'checkoutCity', 'checkoutProvince', 'checkoutPostalCode']) {
+        document.getElementById(id).required = delivery;
+      }
+    }
+
     async function startCheckout() {
       if (checkoutBusy || document.getElementById('btnComprar').disabled) return;
+      const customerForm = document.getElementById('checkoutCustomerForm');
+      if (!customerForm.reportValidity()) {
+        document.getElementById('checkoutStatus').textContent = 'Completá los datos obligatorios de contacto y entrega antes de continuar.';
+        return;
+      }
       checkoutBusy = true;
       const button = document.getElementById('btnComprar');
       const status = document.getElementById('checkoutStatus');
@@ -160,7 +188,7 @@ const urlParams = new URLSearchParams(window.location.search);
             'Content-Type': 'application/json',
             apikey: window.STORE_CONFIG.supabaseAnonKey,
           },
-          body: JSON.stringify({ ...currentSelection(), client_request_id: checkoutRequestId }),
+          body: JSON.stringify({ ...currentSelection(), customer: currentCustomer(), client_request_id: checkoutRequestId }),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.message || 'No pudimos iniciar el checkout.');
@@ -377,6 +405,8 @@ const urlParams = new URLSearchParams(window.location.search);
     }
 
     document.getElementById('customNotes').addEventListener('input', updateUI);
+    document.getElementById('checkoutDeliveryMethod').addEventListener('change', syncDeliveryFields);
+    syncDeliveryFields();
     document.getElementById('btnComprar').addEventListener('click', startCheckout);
 
     async function initProductPage() {

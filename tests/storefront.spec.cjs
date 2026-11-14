@@ -94,6 +94,12 @@ test('Checkout Pro test mode sends selections without trusting a client total an
   await expect(page.locator('#checkoutStatus')).toContainText('$199.000');
   await expect(page.locator('#checkoutStatus')).toContainText('7,5%');
   await page.locator('#btnComprar').click();
+  expect(state.checkoutRequests).toHaveLength(0);
+  await expect(page.locator('#checkoutStatus')).toContainText('datos obligatorios');
+  await page.locator('#checkoutFullName').fill('Comprador de Prueba');
+  await page.locator('#checkoutEmail').fill('buyer@example.invalid');
+  await page.locator('#checkoutPrivacy').check();
+  await page.locator('#btnComprar').click();
   await expect.poll(()=>state.checkoutRequests.length).toBe(1);
   expect(state.checkoutRequests[0].data).toMatchObject({
     product_id:product.id,
@@ -102,7 +108,11 @@ test('Checkout Pro test mode sends selections without trusting a client total an
     metal_color:'Negro',
     finish:'Mate',
     extras:[],
-    custom_notes:''
+    custom_notes:'',
+    customer:{
+      full_name:'Comprador de Prueba',email:'buyer@example.invalid',phone:'',delivery_method:'pickup',
+      address_line:'',city:'',province:'',postal_code:'',delivery_notes:'',privacy_accepted:true
+    }
   });
   expect(state.checkoutRequests[0].data.total).toBeUndefined();
   expect(state.checkoutRequests[0].data.client_request_id).toMatch(/^[0-9a-f-]{36}$/);

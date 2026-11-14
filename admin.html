@@ -30,9 +30,11 @@
       <span class="brand-main">Acero y Escamas · Admin</span>
     </div>
     <div class="top-actions">
-      <button type="button" class="btn" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
-      <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn">👁️ Ver en Tienda</a>
-      <button type="button" class="btn btn-primary" id="btnSaveSupabase">💾 Publicar Cambios en Vivo</button>
+      <button type="button" class="btn btn-primary" id="btnViewCatalog" aria-pressed="true">Catálogo</button>
+      <button type="button" class="btn" id="btnViewOrders" aria-pressed="false">Pedidos</button>
+      <button type="button" class="btn catalog-action" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
+      <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn catalog-action">👁️ Ver en Tienda</a>
+      <button type="button" class="btn btn-primary catalog-action" id="btnSaveSupabase">💾 Publicar Cambios en Vivo</button>
       <button type="button" class="btn btn-danger" id="btnLogout">SALIR</button>
     </div>
   </header>
@@ -242,6 +244,56 @@
       </section>
     </main>
   </div>
+
+  <section id="ordersAdmin" class="orders-admin" aria-labelledby="ordersTitle" hidden>
+    <div class="orders-toolbar">
+      <div>
+        <span class="brand-sub">OPERACIÓN DEL TALLER</span>
+        <h1 id="ordersTitle">Pedidos</h1>
+      </div>
+      <div class="orders-filters" aria-label="Filtros de pedidos">
+        <label>Buscar
+          <input type="search" id="orderSearch" placeholder="Pedido, producto, cliente o email">
+        </label>
+        <label>Pago
+          <select id="orderPaymentFilter">
+            <option value="">Todos</option>
+            <option value="processed">Acreditado</option>
+            <option value="processing">En proceso</option>
+            <option value="action_required">Requiere acción</option>
+            <option value="manual_review">Revisión manual</option>
+            <option value="refunded">Reembolsado</option>
+            <option value="charged_back">Contracargo</option>
+            <option value="failed">Fallido</option>
+          </select>
+        </label>
+        <label>Fabricación
+          <select id="orderManufacturingFilter">
+            <option value="">Todos</option>
+            <option value="not_started">Sin iniciar</option>
+            <option value="confirmed">Confirmado</option>
+            <option value="in_production">En fabricación</option>
+            <option value="ready">Listo</option>
+            <option value="delivered">Entregado</option>
+            <option value="canceled">Cancelado</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="btnRefreshOrders">Actualizar</button>
+      </div>
+    </div>
+    <p id="ordersStatus" class="orders-status" role="status">Cargando pedidos…</p>
+    <div class="orders-workspace">
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead><tr><th>Fecha</th><th>Pedido</th><th>Producto</th><th>Importe</th><th>Pago</th><th>Fabricación</th></tr></thead>
+          <tbody id="ordersTableBody"></tbody>
+        </table>
+      </div>
+      <aside id="orderDetail" class="order-detail" aria-live="polite">
+        <p>Seleccioná un pedido para ver sus datos y gestionar la fabricación.</p>
+      </aside>
+    </div>
+  </section>
 
   <div class="status-banner" id="statusBanner" role="status"></div>
 

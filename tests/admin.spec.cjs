@@ -1,6 +1,15 @@
 const {test,expect}=require('@playwright/test');
 const {setup,product}=require('./helpers.cjs');
 const sandboxProduct={...require('../supabase/test/productos-preview.json')[0],activo:true,checkout_habilitado:true,precio_base:100000};
+const sandboxOrder={
+ id:'11111111-1111-4111-8111-111111111111',product_id:'pieza-sandbox-001',
+ product_snapshot:{nombre:'Mesa Sandbox',sku:'AYE-SBX-001'},
+ selection_snapshot:{wood_type:'Eucalipto',wood_stain:'Natural',metal_color:'Negro',finish:'Mate',extras:['Ruedas']},
+ total_amount:108000,currency:'ARS',status:'processed',payment_status:'processed',mp_order_id:'ORD-SANDBOX-1',
+ manufacturing_status:'not_started',internal_notes:'',created_at:'2026-11-14T15:00:00Z',updated_at:'2026-11-14T15:05:00Z',
+ checkout_order_customers:{full_name:'Cliente Sandbox',email:'buyer@example.invalid',phone:'+54 11 5555 0000',delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000',delivery_notes:'Timbre 2'},
+ checkout_email_outbox:[{notification_type:'customer_payment_confirmed',status:'sent',sent_at:'2026-11-14T15:06:00Z'}]
+};
 test('admin previews final selling price and breakdown while payment switch is off',async({page})=>{
  const state=await setup(page,{authenticated:true,rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
  await page.goto('/admin.html');
@@ -11,6 +20,31 @@ test('admin previews final selling price and breakdown while payment switch is o
  await expect(page.locator('#outPrecioFinal')).toHaveText('$109.000');
  await expect(page.locator('#chkCheckoutEnabled')).not.toBeChecked();
  expect(state.checkoutRequests).toHaveLength(0);
+});
+test('orders view shows private purchase details and updates only manufacturing fields',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody')).toContainText('Mesa Sandbox');
+ await expect(page.locator('#ordersTableBody')).toContainText('$108.000');
+ await expect(page.locator('#orderDetail')).toContainText('Eucalipto');
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ await expect(page.locator('#orderDetail')).toContainText('Acreditado');
+ await page.locator('#orderManufacturingStatus').selectOption('in_production');
+ await page.locator('#orderInternalNotes').fill('Corte iniciado.');
+ await page.locator('#btnSaveOrder').click();
+ await expect.poll(()=>state.orderWrites.length).toBe(1);
+ expect(state.orderWrites[0].data).toEqual({manufacturing_status:'in_production',internal_notes:'Corte iniciado.'});
+ expect(state.orderWrites[0].data.payment_status).toBeUndefined();
+ await expect(page.locator('#ordersTableBody')).toContainText('En fabricación');
+ expect(state.errors).toEqual([]);
+});
+test('orders view fails closed when the session is not an authorized administrator',async({page})=>{
+ await setup(page,{authenticated:true,rows:[sandboxProduct],ordersFailure:true});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersStatus')).toContainText('autorizar esta cuenta');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
 });
 test('login failure, successful login and sign out use existing Supabase Auth',async({page})=>{
  const state=await setup(page);

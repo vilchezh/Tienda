@@ -6,9 +6,10 @@ const user = { id: '00000000-0000-0000-0000-000000000001', aud: 'authenticated',
 const session = { access_token: `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({sub:user.id,exp:4102444800})).toString('base64url')}.test`, refresh_token: 'test-only', token_type:'bearer', expires_in:3600, expires_at:4102444800, user };
 async function setup(page, options = {}) {
   const state = {
-    rows: structuredClone(options.rows ?? [product]), writes: [], settingsWrites: [], uploads: [], reads: [],
+    rows: structuredClone(options.rows ?? [product]), writes: [], settingsWrites: [], orderWrites: [], uploads: [], reads: [],
     checkoutRequests: [], statusRequests: [], backups: 0, errors: [],
-    checkoutSettings: structuredClone(options.checkoutSettings ?? { id:'default', commission_percent:0, payments_enabled:false })
+    checkoutSettings: structuredClone(options.checkoutSettings ?? { id:'default', commission_percent:0, payments_enabled:false }),
+    orders: structuredClone(options.orders ?? [])
   };
   page.on('pageerror', e => state.errors.push(e.message));
   // All network calls are intercepted: these tests never access production data.
@@ -54,6 +55,22 @@ async function setup(page, options = {}) {
         if (options.settingsWriteFailure) return route.fulfill({status:409,json:{message:'settings conflict'}});
         Object.assign(state.checkoutSettings, req.postDataJSON());
         return route.fulfill({status:204});
+      }
+      if (url.pathname.includes('/rest/v1/checkout_orders')) {
+        if (req.method() === 'GET') {
+          if (options.ordersFailure) return route.fulfill({status:403,json:{message:'not authorized'}});
+          return route.fulfill({json:state.orders});
+        }
+        const data=req.postDataJSON();
+        state.orderWrites.push({method:req.method(),data,headers:req.headers(),url:url.href});
+        if(options.orderWriteFailure) return route.fulfill({status:403,json:{message:'not authorized'}});
+        const id=(url.searchParams.get('id')||'').replace(/^eq\./,'');
+        const order=state.orders.find(item=>item.id===id);
+        if(order) Object.assign(order,data);
+        return route.fulfill({status:204});
+      }
+      if (url.pathname.includes('/rest/v1/checkout_order_events')) {
+        return route.fulfill({json:options.orderEvents ?? []});
       }
       if (url.pathname.endsWith('/functions/v1/create-mp-order')) {
         const data = req.postDataJSON();

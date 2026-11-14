@@ -13,6 +13,18 @@ const h = Store.escapeHTML;
     let currentIndex = 0;
     let checkoutSettings = { id: 'default', commission_percent: 0, payments_enabled: false };
     let checkoutSettingsAvailable = false;
+    let orders = [];
+    let selectedOrderId = null;
+
+    const PAYMENT_LABELS = {
+      processed: 'Acreditado', processing: 'En proceso', created: 'Creado', action_required: 'Requiere acción',
+      manual_review: 'Revisión manual', refunded: 'Reembolsado', partially_refunded: 'Reembolso parcial',
+      charged_back: 'Contracargo', canceled: 'Cancelado', failed: 'Fallido',
+    };
+    const MANUFACTURING_LABELS = {
+      not_started: 'Sin iniciar', confirmed: 'Confirmado', in_production: 'En fabricación',
+      ready: 'Listo', delivered: 'Entregado', canceled: 'Cancelado',
+    };
 
     // Mapa actualizado con Variado, Gym completo y Maquinas/Herramientas
     const CATEGORIAS_MAP = {
@@ -61,6 +73,191 @@ const h = Store.escapeHTML;
       b.textContent = msg; b.style.display = 'block';
       clearTimeout(window._toastTimer);
       window._toastTimer = setTimeout(() => { b.style.display = 'none'; }, 3800);
+    }
+
+    function relatedOne(value) {
+      return Array.isArray(value) ? value[0] || null : value || null;
+    }
+
+    function formatOrderDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('es-AR', {
+        dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires',
+      }).format(date);
+    }
+
+    function paymentBadgeClass(status) {
+      if (status === 'processed') return 'good';
+      if (['failed', 'canceled', 'refunded', 'partially_refunded', 'charged_back'].includes(status)) return 'bad';
+      return 'warn';
+    }
+
+    function orderSearchText(order) {
+      const customer = relatedOne(order.checkout_order_customers);
+      const product = order.product_snapshot || {};
+      return [order.id, order.mp_order_id, order.product_id, product.nombre, product.sku, customer?.full_name, customer?.email]
+        .filter(Boolean).join(' ').toLocaleLowerCase('es');
+    }
+
+    function filteredOrders() {
+      const search = document.getElementById('orderSearch').value.trim().toLocaleLowerCase('es');
+      const payment = document.getElementById('orderPaymentFilter').value;
+      const manufacturing = document.getElementById('orderManufacturingFilter').value;
+      return orders.filter(order => (!search || orderSearchText(order).includes(search)) &&
+        (!payment || order.payment_status === payment) &&
+        (!manufacturing || order.manufacturing_status === manufacturing));
+    }
+
+    function renderOrders() {
+      const visible = filteredOrders();
+      const body = document.getElementById('ordersTableBody');
+      document.getElementById('ordersStatus').textContent = orders.length
+        ? `${visible.length} de ${orders.length} pedidos · datos visibles sólo para administradores autorizados.`
+        : 'No hay pedidos para mostrar.';
+      body.innerHTML = visible.map(order => {
+        const product = order.product_snapshot || {};
+        const payment = order.payment_status || order.status || 'created';
+        return `<tr tabindex="0" data-order-id="${h(order.id)}" class="${order.id === selectedOrderId ? 'active' : ''}">
+          <td>${h(formatOrderDate(order.created_at))}</td>
+          <td><strong>${h(String(order.id).slice(0, 8))}</strong><span class="order-ref">${h(order.mp_order_id || 'Sin ID de MP')}</span></td>
+          <td>${h(product.nombre || order.product_id)}<span class="order-ref">${h(product.sku || order.product_id)}</span></td>
+          <td><strong>$${h(Number(order.total_amount).toLocaleString('es-AR'))}</strong><span class="order-ref">${h(order.currency || 'ARS')}</span></td>
+          <td><span class="order-badge ${paymentBadgeClass(payment)}">${h(PAYMENT_LABELS[payment] || payment)}</span></td>
+          <td><span class="order-badge">${h(MANUFACTURING_LABELS[order.manufacturing_status] || order.manufacturing_status)}</span></td>
+        </tr>`;
+      }).join('');
+      body.querySelectorAll('tr[data-order-id]').forEach(row => {
+        const open = () => selectOrder(row.dataset.orderId);
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
+        });
+      });
+    }
+
+    function emailSummary(order) {
+      const items = Array.isArray(order.checkout_email_outbox) ? order.checkout_email_outbox : [];
+      if (!items.length) return 'Sin avisos en cola (se crean al acreditarse el pago).';
+      return items.map(item => `${item.notification_type === 'seller_payment_received' ? 'Vendedor' : 'Cliente'}: ${item.status}${item.sent_at ? ` · ${formatOrderDate(item.sent_at)}` : ''}`).join(' · ');
+    }
+
+    async function renderOrderAudit(orderId) {
+      const list = document.getElementById('orderAuditList');
+      if (!list) return;
+      const { data, error } = await supabaseClient.from('checkout_order_events')
+        .select('event_type,actor_id,previous_values,new_values,created_at')
+        .eq('order_id', orderId).order('created_at', { ascending: false }).limit(20)
+        .abortSignal(AbortSignal.timeout(8000));
+      if (!document.getElementById('orderAuditList') || selectedOrderId !== orderId) return;
+      if (error) { list.innerHTML = '<li>No se pudo cargar la auditoría.</li>'; return; }
+      list.innerHTML = data?.length ? data.map(event => `<li>${h(formatOrderDate(event.created_at))} · ${h(event.event_type.replaceAll('_', ' '))}</li>`).join('') : '<li>Sin cambios administrativos todavía.</li>';
+    }
+
+    function renderOrderDetail(order) {
+      const detail = document.getElementById('orderDetail');
+      const product = order.product_snapshot || {};
+      const selection = order.selection_snapshot || {};
+      const customer = relatedOne(order.checkout_order_customers);
+      const extras = Array.isArray(selection.extras) && selection.extras.length ? selection.extras.join(', ') : 'Ninguno';
+      const delivery = customer?.delivery_method === 'delivery'
+        ? [customer.address_line, customer.city, customer.province, customer.postal_code].filter(Boolean).join(', ')
+        : 'Retiro a coordinar';
+      const manufacturingOptions = Object.entries(MANUFACTURING_LABELS)
+        .map(([value, label]) => `<option value="${h(value)}" ${order.manufacturing_status === value ? 'selected' : ''}>${h(label)}</option>`).join('');
+      detail.innerHTML = `<h2>${h(product.nombre || order.product_id)}</h2>
+        <span class="order-ref">Pedido ${h(order.id)} · ${h(formatOrderDate(order.created_at))}</span>
+        <h3>Compra y pago</h3>
+        <dl class="detail-list">
+          <div><dt>Referencia</dt><dd>${h(product.sku || order.product_id)}</dd></div>
+          <div><dt>Importe</dt><dd>$${h(Number(order.total_amount).toLocaleString('es-AR'))} ${h(order.currency || 'ARS')}</dd></div>
+          <div><dt>Pago</dt><dd>${h(PAYMENT_LABELS[order.payment_status] || order.payment_status || order.status)}</dd></div>
+          <div><dt>Orden Mercado Pago</dt><dd>${h(order.mp_order_id || 'Pendiente')}</dd></div>
+        </dl>
+        <h3>Configuración</h3>
+        <dl class="detail-list">
+          <div><dt>Madera</dt><dd>${h(selection.wood_type || '—')}</dd></div>
+          <div><dt>Tono</dt><dd>${h(selection.wood_stain || '—')}</dd></div>
+          <div><dt>Metal y acabado</dt><dd>${h([selection.metal_color, selection.finish].filter(Boolean).join(' · ') || '—')}</dd></div>
+          <div><dt>Extras</dt><dd>${h(extras)}</dd></div>
+        </dl>
+        <h3>Contacto y entrega</h3>
+        <dl class="detail-list">
+          <div><dt>Cliente</dt><dd>${h(customer?.full_name || 'No capturado en pedidos anteriores')}</dd></div>
+          <div><dt>Correo</dt><dd>${h(customer?.email || '—')}</dd></div>
+          <div><dt>Teléfono</dt><dd>${h(customer?.phone || '—')}</dd></div>
+          <div><dt>Entrega</dt><dd>${h(delivery)}</dd></div>
+          ${customer?.delivery_notes ? `<div><dt>Indicaciones</dt><dd>${h(customer.delivery_notes)}</dd></div>` : ''}
+        </dl>
+        <h3>Fabricación</h3>
+        <label for="orderManufacturingStatus">Estado independiente del pago</label>
+        <select id="orderManufacturingStatus">${manufacturingOptions}</select>
+        <label for="orderInternalNotes">Notas internas</label>
+        <textarea id="orderInternalNotes" maxlength="4000" placeholder="Sólo visibles para administradores. No guardar datos sensibles adicionales.">${h(order.internal_notes || '')}</textarea>
+        <button type="button" class="btn btn-primary" id="btnSaveOrder">Guardar estado</button>
+        <h3>Correos</h3><p class="email-state">${h(emailSummary(order))}</p>
+        <h3>Auditoría</h3><ul id="orderAuditList" class="audit-list"><li>Cargando…</li></ul>`;
+      document.getElementById('btnSaveOrder').addEventListener('click', saveSelectedOrder);
+      renderOrderAudit(order.id);
+    }
+
+    function selectOrder(id) {
+      const order = orders.find(item => item.id === id);
+      if (!order) return;
+      selectedOrderId = id;
+      renderOrders();
+      renderOrderDetail(order);
+    }
+
+    async function loadOrders() {
+      const status = document.getElementById('ordersStatus');
+      status.textContent = 'Cargando pedidos…';
+      const { data, error } = await supabaseClient.from('checkout_orders').select(`
+        id,product_id,product_snapshot,selection_snapshot,total_amount,currency,status,payment_status,status_detail,
+        mp_order_id,created_at,updated_at,manufacturing_status,manufacturing_updated_at,internal_notes,
+        checkout_order_customers(full_name,email,phone,delivery_method,address_line,city,province,postal_code,delivery_notes,retention_until),
+        checkout_email_outbox(notification_type,status,attempt_count,sent_at,last_error)
+      `).order('created_at', { ascending: false }).limit(250).abortSignal(AbortSignal.timeout(10000));
+      if (error) {
+        orders = [];
+        document.getElementById('ordersTableBody').replaceChildren();
+        status.textContent = 'La sección Pedidos estará disponible al aplicar la migración del Issue #4 en el sandbox o al autorizar esta cuenta como administradora.';
+        return;
+      }
+      orders = Array.isArray(data) ? data : [];
+      renderOrders();
+      if (selectedOrderId && orders.some(order => order.id === selectedOrderId)) selectOrder(selectedOrderId);
+      else if (orders[0]) selectOrder(orders[0].id);
+      else document.getElementById('orderDetail').innerHTML = '<p>No hay pedidos para mostrar.</p>';
+    }
+
+    async function saveSelectedOrder() {
+      const order = orders.find(item => item.id === selectedOrderId);
+      if (!order) return;
+      const button = document.getElementById('btnSaveOrder');
+      button.disabled = true;
+      const changes = {
+        manufacturing_status: document.getElementById('orderManufacturingStatus').value,
+        internal_notes: document.getElementById('orderInternalNotes').value.trim(),
+      };
+      const { error } = await supabaseClient.from('checkout_orders').update(changes).eq('id', order.id);
+      button.disabled = false;
+      if (error) { showToast('No se pudo guardar el pedido. Verificá permisos de administrador.'); return; }
+      Object.assign(order, changes, { updated_at: new Date().toISOString() });
+      renderOrders();
+      renderOrderDetail(order);
+      showToast('✅ Estado de fabricación y notas guardados.');
+    }
+
+    function setAdminView(view) {
+      const catalogView = view === 'catalog';
+      document.getElementById('mainAdmin').hidden = !catalogView;
+      document.getElementById('ordersAdmin').hidden = catalogView;
+      document.querySelectorAll('.catalog-action').forEach(element => { element.hidden = !catalogView; });
+      document.getElementById('btnViewCatalog').classList.toggle('btn-primary', catalogView);
+      document.getElementById('btnViewOrders').classList.toggle('btn-primary', !catalogView);
+      document.getElementById('btnViewCatalog').setAttribute('aria-pressed', String(catalogView));
+      document.getElementById('btnViewOrders').setAttribute('aria-pressed', String(!catalogView));
+      if (!catalogView) loadOrders();
     }
 
     function hexToRgbArray(hex) {
@@ -521,6 +718,13 @@ const h = Store.escapeHTML;
       await supabaseClient.auth.signOut();
       window.location.reload();
     });
+
+    document.getElementById('btnViewCatalog').addEventListener('click', () => setAdminView('catalog'));
+    document.getElementById('btnViewOrders').addEventListener('click', () => setAdminView('orders'));
+    document.getElementById('btnRefreshOrders').addEventListener('click', loadOrders);
+    for (const id of ['orderSearch', 'orderPaymentFilter', 'orderManufacturingFilter']) {
+      document.getElementById(id).addEventListener(id === 'orderSearch' ? 'input' : 'change', renderOrders);
+    }
 
     document.getElementById('btnImportJson').addEventListener('click', async () => {
       await importFromLocalJsonToSupabase();

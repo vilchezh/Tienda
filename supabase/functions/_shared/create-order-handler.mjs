@@ -5,6 +5,7 @@ import {
   safeCheckoutUrl,
 } from './checkout-core.mjs';
 import { corsHeaders } from './cors.mjs';
+import { normalizeCheckoutCustomer } from './customer-data.mjs';
 import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
@@ -81,6 +82,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
       let body;
       try { body = JSON.parse(raw); }
       catch { throw new CheckoutError('JSON inválido.', 400, 'invalid_request'); }
+      const customer = normalizeCheckoutCustomer(body?.customer);
       const productId = typeof body?.product_id === 'string' ? body.product_id.trim() : '';
       const clientRequestId = typeof body?.client_request_id === 'string' ? body.client_request_id : '';
       if (!productId || productId.length > 120 || !UUID_PATTERN.test(clientRequestId)) {
@@ -124,19 +126,17 @@ export function createOrderHandler(env, fetchFn = fetch) {
         extras: body.extras || [],
       };
       const priced = retry ? { total: Number(existing.total_amount) } : priceSelection(product, selection, settings.commission_percent);
-      const inserted = retry ? [existing] : await supabaseRequest(env, fetchFn, 'checkout_orders', {
+      const inserted = retry ? existing : await supabaseRequest(env, fetchFn, 'rpc/checkout_create_order', {
         method: 'POST',
-        headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
-          client_request_id: clientRequestId,
-          product_id: product.id,
-          product_snapshot: { id: product.id, sku: product.sku, nombre: product.nombre },
-          selection_snapshot: priced.normalizedSelection,
-          subtotal_amount: priced.subtotal,
-          commission_percent: Number(settings.commission_percent),
-          total_amount: priced.total,
-          currency: 'ARS',
-          status: 'creating',
+          p_client_request_id: clientRequestId,
+          p_product_id: product.id,
+          p_product_snapshot: { id: product.id, sku: product.sku, nombre: product.nombre },
+          p_selection_snapshot: priced.normalizedSelection,
+          p_subtotal_amount: priced.subtotal,
+          p_commission_percent: Number(settings.commission_percent),
+          p_total_amount: priced.total,
+          p_contact: customer,
         }),
       }).catch(async error => {
         if (error.internalStatus === 409) {
@@ -148,7 +148,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
         }
         throw error;
       });
-      const localOrder = Array.isArray(inserted) ? inserted[0] : null;
+      const localOrder = inserted && typeof inserted === 'object' ? inserted : null;
       if (!localOrder?.id) throw new CheckoutError('No se pudo registrar la orden.', 503, 'database_error');
 
       const baseUrl = normalizeBaseUrl(env.STORE_BASE_URL);
