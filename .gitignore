@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-preview/
 test-results/
 playwright-report/
 .env
@@ -7,3 +8,4 @@ playwright-report/
 !.env.example
 .wrangler/
 .test-assets/
+supabase/.temp/

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado del pedido | Acero y Escamas</title>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/store.js"></script>
+  <link rel="stylesheet" href="assets/css/theme.css">
+  <link rel="stylesheet" href="assets/css/checkout.css">
+</head>
+<body class="checkout-result-page">
+  <a class="skip-link" href="#paymentResult">Saltar al estado del pedido</a>
+  <header class="result-header">
+    <a href="/" class="brand-wrap">
+      <img src="assets/img/logo.jpg/Code_Generated_Image.png" alt="Acero y Escamas" class="brand-logo">
+      <div class="brand-titles"><span class="brand-sub">BLCKSCLE // HERRERÍA</span><span class="brand-main">Acero y Escamas</span></div>
+    </a>
+  </header>
+  <div class="hazard-divider"></div>
+  <main id="paymentResult" class="result-card" aria-live="polite">
+    <span class="result-kicker">Checkout Pro · entorno de prueba</span>
+    <h1 id="resultTitle">Verificando el pedido…</h1>
+    <p id="resultMessage">La vuelta desde Mercado Pago no confirma por sí sola el pago. Estamos consultando el estado validado por el servidor.</p>
+    <dl id="resultDetails" hidden>
+      <div><dt>Pedido</dt><dd id="resultOrder">—</dd></div>
+      <div><dt>Importe</dt><dd id="resultAmount">—</dd></div>
+      <div><dt>Estado verificado</dt><dd id="resultStatus">—</dd></div>
+    </dl>
+    <div class="result-actions">
+      <button type="button" id="btnRefreshStatus" class="button button-primary">Actualizar estado</button>
+      <a href="/" class="button button-outline">Volver a la tienda</a>
+    </div>
+  </main>
+  <script defer src="assets/js/payment.js"></script>
+</body>
+</html>

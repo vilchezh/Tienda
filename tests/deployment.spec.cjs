@@ -23,6 +23,11 @@ test('Wrangler sirve las rutas públicas limpias y los assets binarios', async (
     { timeout: 20000 },
   ).toBe(true);
 
+  const paymentResult = await page.goto('/pago?pedido=11111111-1111-4111-8111-111111111111');
+  expect(paymentResult.status()).toBe(200);
+  expect(page.url()).toContain('/pago?pedido=');
+  await expect(page.locator('#paymentResult')).toBeVisible();
+
   const image = await request.get('/assets/img/logo.jpg/Code_Generated_Image.png');
   expect(image.status()).toBe(200);
   expect(image.headers()['content-type']).toContain('image/png');
@@ -36,7 +41,7 @@ test('Wrangler sirve las rutas públicas limpias y los assets binarios', async (
 });
 
 test('Wrangler redirige las rutas .html a sus URLs canónicas', async ({ request }) => {
-  for (const path of ['/admin.html', '/producto.html']) {
+  for (const path of ['/admin.html', '/producto.html', '/pago.html']) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status()).toBe(307);
     expect(response.headers().location).toBe(path.replace('.html', ''));

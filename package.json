@@ -4,17 +4,20 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.cjs",
+    "build:preview": "node scripts/build.cjs --preview",
+    "preview:checkout": "npm run build:preview && wrangler preview --config wrangler.checkout-preview.jsonc",
     "preview": "npm run build && wrangler preview",
     "deploy": "npm run build && wrangler deploy",
     "check:deploy": "npm run build && XDG_CONFIG_HOME=.wrangler/config WRANGLER_LOG_PATH=.wrangler/check-deploy.log WRANGLER_SEND_METRICS=false wrangler deploy --dry-run --outdir .wrangler/dry-run",
     "test": "playwright test && playwright test -c playwright.wrangler.config.cjs",
-    "test:unit": "node --test tests/store.test.cjs",
+    "test:unit": "node --test tests/store.test.cjs tests/checkout.test.mjs tests/preview.test.cjs",
     "serve": "python3 -m http.server 4173 --bind 127.0.0.1",
     "pretest": "node scripts/prepare-tests.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.0",
+    "supabase": "3.1.0",
     "wrangler": "4.160.1"
   }
 }

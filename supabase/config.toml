@@ -1,0 +1,10 @@
+project_id = "pacyytbscnlklyrhsshp"
+
+[functions.create-mp-order]
+verify_jwt = false
+
+[functions.mp-order-webhook]
+verify_jwt = false
+
+[functions.get-mp-order-status]
+verify_jwt = false

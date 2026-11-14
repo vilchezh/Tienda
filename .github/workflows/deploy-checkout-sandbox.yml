@@ -1,0 +1,63 @@
+name: Desplegar tienda checkout sandbox
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tienda-checkout-sandbox
+  cancel-in-progress: false
+
+jobs:
+  deploy-sandbox:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/checkout-pro-orders-test') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'deploy-checkout-sandbox' &&
+       github.event.pull_request.head.ref == 'feat/checkout-pro-orders-test' &&
+       github.event.pull_request.head.repo.full_name == 'vilchezh/Tienda' &&
+       github.event.pull_request.base.ref == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Obtener el commit exacto de la rama sandbox
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias fijadas
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias
+        run: npm run test:unit
+
+      - name: Construir frontend exclusivo de pruebas
+        env:
+          STORE_PREVIEW_SUPABASE_URL: https://pacyytbscnlklyrhsshp.supabase.co
+          STORE_PREVIEW_SITE_URL: https://tienda-checkout-sandbox.acero-y-escamas.workers.dev
+          STORE_PREVIEW_SUPABASE_ANON_KEY: ${{ secrets.STORE_PREVIEW_SUPABASE_ANON_KEY }}
+        run: npm run build:preview
+
+      - name: Verificar destino, datos y configuración antes del deploy
+        env:
+          STORE_PREVIEW_SUPABASE_ANON_KEY: ${{ secrets.STORE_PREVIEW_SUPABASE_ANON_KEY }}
+        run: node scripts/verify-preview.cjs
+
+      - name: Verificar paquete de Wrangler sin publicar
+        run: npx wrangler deploy --dry-run --config wrangler.checkout-preview.jsonc --outdir .wrangler/dry-run-preview
+
+      - name: Desplegar solo el Worker sandbox
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_SANDBOX }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID_SANDBOX }}
+        run: npx wrangler deploy --config wrangler.checkout-preview.jsonc
