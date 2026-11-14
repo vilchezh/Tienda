@@ -35,6 +35,11 @@ const env = {
 };
 
 test('commission is applied server-side and always rounded up to $1,000', () => {
+  const sandbox = { ...JSON.parse(readFileSync('supabase/test/productos-preview.json', 'utf8'))[0],
+    activo: true, checkout_habilitado: true, precio_base: 100000 };
+  sandbox.tonos_madera = sandbox.tonosMadera;
+  sandbox.colores_metal = sandbox.coloresMetal;
+  assert.equal(priceSelection(sandbox, { wood_type: 'Madera de prueba', wood_stain: 'Natural', metal_color: 'Negro', finish: 'Mate', extras: [] }, 7.5).total, 108000);
   assert.equal(calculateCheckoutTotal(239000, 7.5), 257000);
   assert.equal(calculateCheckoutTotal(200000, 0), 200000);
   const priced = priceSelection(product, selection, 7.5);

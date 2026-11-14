@@ -7,6 +7,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
   <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/pricing.js"></script>
   <script defer src="assets/js/store.js"></script>
   <link rel="stylesheet" href="assets/css/admin.css">
   <link rel="stylesheet" href="assets/css/theme.css">
@@ -104,6 +105,11 @@
             <label>Precio Base ($ ARS)</label>
             <input type="number" id="inpPrecio" step="500">
           </div>
+          <div class="form-group">
+            <label for="outPrecioFinal">Precio final de venta ($ ARS)</label>
+            <output id="outPrecioFinal" class="mono-input" aria-live="polite">—</output>
+          </div>
+          <p id="adminPriceBreakdown" class="price-breakdown form-group full" role="status"></p>
           <div class="form-group">
             <label>Categoría Principal</label>
             <select id="selCategoria">

@@ -60,6 +60,7 @@
     label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
     input[type="text"], input[type="password"], input[type="number"], select, textarea { background: var(--bg-input); border: 1px solid var(--sage-muted); color: var(--cream-light); padding: 10px 12px; font-family: var(--font-sans); font-size: 13px; border-radius: 2px; width: 100%; }
     input[type="number"], .mono-input { font-family: var(--font-mono); }
+    #outPrecioFinal { display:block; background:var(--bg-input); border:1px solid var(--sage-muted); color:var(--cream-light); padding:10px 12px; min-height:40px; font-size:14px; font-weight:700; }
 
     .promo-config-box {
       grid-column: 1 / -1;

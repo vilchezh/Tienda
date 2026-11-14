@@ -73,6 +73,8 @@ Crear usuarios vendedor y comprador de prueba según Mercado Pago y usar solo da
 
 Sin extra, el subtotal es $100.000. Con comisión 0%, la orden debe ser $100.000; con el extra ficticio, $101.000. Con 7,5% y sin extra, el total debe ser $108.000 por redondeo. Revisar en DevTools que `create-mp-order` recibe opciones, no un importe confiable; contrastar `total_amount` de Orders API con `checkout_orders`. Un campo `total` manipulado en el navegador no debe modificar el importe del servidor.
 
+Catálogo, ficha y administrador muestran ese precio final incluso con `payments_enabled=false`; «Comprar ahora» permanece deshabilitado. La fórmula compartida vive en `assets/js/pricing.js` y el servidor recalcula el total desde el catálogo y las opciones, sin aceptar ni volver a incrementar un importe enviado por el navegador. Si falla la lectura de la comisión, la interfaz indica que el precio final no está disponible.
+
 Probar aprobación, rechazo, pendiente, reembolso y webhook duplicado. Reenviar la misma notificación firmada si el panel lo permite; `mp_webhook_events.request_id` debe seguir único y el estado no debe retroceder. `/pago` nunca debe mostrar un reembolso como acreditado. No usar tarjetas reales.
 
 Para cada orden, comprobar que `config.online.success_url`, `failure_url` y `pending_url` empiezan con `https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/pago?`; ninguna debe apuntar a `https://tienda.acero-y-escamas.workers.dev/`. El `callback_url` debe apuntar a `pacyytbscnlklyrhsshp`. Al terminar, apagar `payments_enabled`: nuevas creaciones y recuperaciones deben devolver `checkout_disabled`, mientras webhooks de órdenes previas aún se registran.

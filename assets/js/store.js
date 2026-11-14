@@ -59,13 +59,18 @@ window.Store = (() => {
     };
   }
 
+  function priceBreakdown(base, wood, extras, percent) {
+    return globalThis.StorePricing.breakdown(base, wood, extras, percent);
+  }
+
+  function defaultWoodDelta(product) {
+    const wood = (Array.isArray(product.maderas) ? product.maderas : []).find(item => item && item.activo !== false);
+    return wood ? Number(wood.delta || 0) : 0;
+  }
+
   function checkoutTotal(subtotal, commissionPercent) {
-    const amount = Number(subtotal);
-    const percent = Number(commissionPercent);
-    if (!Number.isSafeInteger(amount) || amount < 0 || !Number.isFinite(percent) || percent < 0 || percent > 50) return 0;
-    const basisPoints = Math.round(percent * 100);
-    const withCommission = Math.ceil((amount * (10000 + basisPoints)) / 10000);
-    return Math.ceil(withCommission / 1000) * 1000;
+    try { return priceBreakdown(subtotal, 0, 0, commissionPercent).total; }
+    catch { return 0; }
   }
 
   function checkoutURL(value) {
@@ -105,6 +110,6 @@ window.Store = (() => {
 
   return Object.freeze({
     escapeHTML, assetURL, whatsappURL, setContactLink, createClient, activeProducts,
-    checkoutSettings, checkoutTotal, checkoutURL, edgeFunctionURL, showStatus
+    checkoutSettings, priceBreakdown, defaultWoodDelta, checkoutTotal, checkoutURL, edgeFunctionURL, showStatus
   });
 })();

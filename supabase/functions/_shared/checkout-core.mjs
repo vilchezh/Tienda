@@ -1,5 +1,4 @@
-const MAX_COMMISSION_PERCENT = 50;
-const ROUNDING_UNIT = 1000;
+import '../../../assets/js/pricing.js';
 
 export class CheckoutError extends Error {
   constructor(message, status = 400, code = 'invalid_checkout') {
@@ -20,13 +19,8 @@ function asIntegerMoney(value, field) {
 
 export function calculateCheckoutTotal(subtotal, commissionPercent) {
   const safeSubtotal = asIntegerMoney(subtotal, 'El subtotal');
-  const percent = Number(commissionPercent);
-  if (!Number.isFinite(percent) || percent < 0 || percent > MAX_COMMISSION_PERCENT) {
-    throw new CheckoutError('La comisión configurada no es válida.', 422, 'invalid_commission');
-  }
-  const basisPoints = Math.round(percent * 100);
-  const amountWithCommission = Math.ceil((safeSubtotal * (10000 + basisPoints)) / 10000);
-  return Math.ceil(amountWithCommission / ROUNDING_UNIT) * ROUNDING_UNIT;
+  try { return globalThis.StorePricing.breakdown(safeSubtotal, 0, 0, commissionPercent).total; }
+  catch { throw new CheckoutError('La comisión configurada no es válida.', 422, 'invalid_commission'); }
 }
 
 function activeByName(items, name, label, required = true) {
@@ -59,10 +53,12 @@ export function priceSelection(product, selection, commissionPercent) {
   activeByName(product.colores_metal, selection.metal_color, 'El color de metal', !selection.metal_color ? false : true);
   activeByName(product.acabados, selection.finish, 'El acabado', !selection.finish ? false : true);
 
-  const subtotal = base + woodDelta + extrasAmount;
+  let breakdown;
+  try { breakdown = globalThis.StorePricing.breakdown(base, woodDelta, extrasAmount, commissionPercent); }
+  catch { throw new CheckoutError('El total no es válido.', 422, 'invalid_catalog_price'); }
   return {
-    subtotal,
-    total: calculateCheckoutTotal(subtotal, commissionPercent),
+    subtotal: breakdown.subtotal,
+    total: breakdown.total,
     normalizedSelection: {
       wood_type: wood?.nombre || null,
       wood_stain: selection.wood_stain || null,

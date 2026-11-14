@@ -7,6 +7,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
   <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/pricing.js"></script>
   <script defer src="assets/js/store.js"></script>
   
   <link rel="stylesheet" href="assets/css/product.css">
@@ -78,11 +79,12 @@
 
       <div class="pricing-box">
         <div>
-          <div class="price-label">Precio estimado · ARS</div>
+          <div class="price-label">Precio final de venta · ARS</div>
           <div style="font-size: 11px; color: var(--sage-main); font-family: var(--font-mono);">Fabricación a medida</div>
         </div>
         <div class="price-value">$<span id="priceDisplay">0</span></div>
       </div>
+      <p id="productPriceBreakdown" class="price-breakdown" role="status"></p>
 
       <!-- 1. TIPOS DE MADERA -->
       <div id="blockWoods">

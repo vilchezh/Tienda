@@ -48,15 +48,23 @@ const urlParams = new URLSearchParams(window.location.search);
 
     function updateUI() {
       if (!productData) return;
-      let total = BASE_PRICE + woodDelta;
+      let extrasAmount = 0;
       let extrasSeleccionados = [];
 
       document.querySelectorAll('.extra-checkbox:checked').forEach(cb => {
-        total += parseInt(cb.dataset.price, 10) || 0;
+        extrasAmount += parseInt(cb.dataset.price, 10) || 0;
         extrasSeleccionados.push(cb.dataset.name);
       });
 
-      document.getElementById('priceDisplay').textContent = total.toLocaleString("es-AR");
+      let pricing = null;
+      try {
+        if (checkoutConfig.loaded) pricing = Store.priceBreakdown(BASE_PRICE, woodDelta, extrasAmount, checkoutConfig.commissionPercent);
+      } catch { /* No mostrar un importe incompleto. */ }
+      const money = value => `$${value.toLocaleString('es-AR')}`;
+      document.getElementById('priceDisplay').textContent = pricing ? pricing.total.toLocaleString('es-AR') : '—';
+      document.getElementById('productPriceBreakdown').textContent = pricing
+        ? `Base ${money(pricing.base)} · Madera ${money(pricing.wood)} · Extras ${money(pricing.extras)} · Comisión ${money(pricing.commission)} · Redondeo ${money(pricing.rounding)}`
+        : 'Precio final no disponible. Intentá nuevamente más tarde.';
       document.getElementById('labelWoodType').textContent = state.woodType;
       document.getElementById('labelWoodStain').textContent = state.woodStain;
       document.getElementById('labelMetal').textContent = `${state.metalColor} · ${state.finish}`;
@@ -82,19 +90,19 @@ const urlParams = new URLSearchParams(window.location.search);
 "${notas}"
 `;
       }
-      text += `
-• Total estimado: $${total.toLocaleString("es-AR")} ARS`;
+      text += pricing ? `
+• Precio final: ${money(pricing.total)} ARS` : '\n• Precio final: a confirmar';
 
       Store.setContactLink(document.getElementById('btnWhatsapp'), text);
       document.getElementById('contactStatus').hidden = Boolean(Store.whatsappURL(text));
-      updateCheckoutAction(total);
+      updateCheckoutAction(pricing);
       document.querySelectorAll('.btn-opt, .swatch-btn').forEach(button => {
         if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.classList.contains('active')));
       });
       sync3DMaterials().catch(reportTextureError);
     }
 
-    function updateCheckoutAction(subtotal) {
+    function updateCheckoutAction(pricing) {
       const button = document.getElementById('btnComprar');
       const status = document.getElementById('checkoutStatus');
       button.disabled = true;
@@ -115,14 +123,13 @@ const urlParams = new URLSearchParams(window.location.search);
         status.textContent = 'Las modificaciones a medida se coordinan por WhatsApp antes de pagar.';
         return;
       }
-      const total = Store.checkoutTotal(subtotal, checkoutConfig.commissionPercent);
-      if (!total) {
+      if (!pricing) {
         status.textContent = 'No pudimos calcular el importe de Checkout Pro.';
         return;
       }
       button.disabled = false;
       const commission = checkoutConfig.commissionPercent.toLocaleString('es-AR', { maximumFractionDigits: 2 });
-      status.textContent = `Total en Checkout Pro de prueba: $${total.toLocaleString('es-AR')} ARS · comisión ${commission}% · redondeado al próximo múltiplo de $1.000.`;
+      status.textContent = `Total en Checkout Pro de prueba: $${pricing.total.toLocaleString('es-AR')} ARS · comisión ${commission}% · redondeado al próximo múltiplo de $1.000.`;
     }
 
     function currentSelection() {

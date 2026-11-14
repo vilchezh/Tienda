@@ -224,6 +224,27 @@ const h = Store.escapeHTML;
       });
     }
 
+    function renderPricePreview() {
+      const product = catalog[currentIndex];
+      const output = document.getElementById('outPrecioFinal');
+      const details = document.getElementById('adminPriceBreakdown');
+      if (!product || !checkoutSettingsAvailable) {
+        output.textContent = '—';
+        details.textContent = 'Precio final no disponible hasta cargar la comisión.';
+        return;
+      }
+      try {
+        // La ficha parte de la primera madera activa, sin extras seleccionados.
+        const price = Store.priceBreakdown(product.precio_base, Store.defaultWoodDelta(product), 0, checkoutSettings.commission_percent);
+        const money = value => `$${value.toLocaleString('es-AR')}`;
+        output.textContent = money(price.total);
+        details.textContent = `Base ${money(price.base)} · Madera ${money(price.wood)} · Extras ${money(price.extras)} · Comisión ${money(price.commission)} · Redondeo ${money(price.rounding)} · Vista inicial sin extras`;
+      } catch {
+        output.textContent = '—';
+        details.textContent = 'Corregí el precio base, la madera o la comisión.';
+      }
+    }
+
     function renderPhotosList(p) {
       const box = document.getElementById('photosList');
       box.innerHTML = '';
@@ -381,6 +402,7 @@ const h = Store.escapeHTML;
       renderExtrasList(p);
       renderStainsList(p);
       renderMetalsList(p);
+      renderPricePreview();
     }
 
     function renderCheckoutSettings() {
@@ -412,6 +434,7 @@ const h = Store.escapeHTML;
         };
       }
       renderCheckoutSettings();
+      renderPricePreview();
     }
 
     let importInProgress = false;
@@ -533,7 +556,7 @@ const h = Store.escapeHTML;
       document.getElementById('btnPreviewProduct').href = `producto.html?id=${encodeURIComponent(catalog[currentIndex].id)}`;
     });
     document.getElementById('inpSku').addEventListener('input', e => { catalog[currentIndex].sku = e.target.value; renderSidebar(); });
-    document.getElementById('inpPrecio').addEventListener('input', e => { catalog[currentIndex].precio_base = Number(e.target.value) || 0; renderSidebar(); });
+    document.getElementById('inpPrecio').addEventListener('input', e => { catalog[currentIndex].precio_base = Number(e.target.value) || 0; renderSidebar(); renderPricePreview(); });
     document.getElementById('selCategoria').addEventListener('change', e => {
       catalog[currentIndex].categoria = e.target.value;
       populateSubcategorias(e.target.value, "");
@@ -549,7 +572,11 @@ const h = Store.escapeHTML;
     document.getElementById('inpCheckoutCommission').addEventListener('input', e => {
       const value = Number(e.target.value);
       checkoutSettings.commission_percent = Number.isFinite(value) ? Math.min(50, Math.max(0, value)) : 0;
+      renderPricePreview();
     });
+    document.getElementById('woodsList').addEventListener('input', renderPricePreview);
+    document.getElementById('woodsList').addEventListener('change', renderPricePreview);
+    document.getElementById('woodsList').addEventListener('click', () => queueMicrotask(renderPricePreview));
     document.getElementById('chkCheckoutEnabled').addEventListener('change', e => { checkoutSettings.payments_enabled = e.target.checked; });
     document.getElementById('inpGlb').addEventListener('input', e => {
       catalog[currentIndex].glb = e.target.value.trim();

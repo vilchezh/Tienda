@@ -1,5 +1,17 @@
 const {test,expect}=require('@playwright/test');
 const {setup,product}=require('./helpers.cjs');
+const sandboxProduct={...require('../supabase/test/productos-preview.json')[0],activo:true,checkout_habilitado:true,precio_base:100000};
+test('admin previews final selling price and breakdown while payment switch is off',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
+ await page.goto('/admin.html');
+ await expect(page.locator('#outPrecioFinal')).toHaveText('$108.000');
+ await expect(page.locator('#adminPriceBreakdown')).toContainText('Base $100.000');
+ await expect(page.locator('#adminPriceBreakdown')).toContainText('Comisión $7.500 · Redondeo $500');
+ await page.locator('#inpPrecio').fill('101000');
+ await expect(page.locator('#outPrecioFinal')).toHaveText('$109.000');
+ await expect(page.locator('#chkCheckoutEnabled')).not.toBeChecked();
+ expect(state.checkoutRequests).toHaveLength(0);
+});
 test('login failure, successful login and sign out use existing Supabase Auth',async({page})=>{
  const state=await setup(page);
  await page.goto('/admin.html');
