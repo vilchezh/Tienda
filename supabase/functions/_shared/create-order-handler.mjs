@@ -54,6 +54,49 @@ async function findExisting(env, fetchFn, clientRequestId) {
   );
 }
 
+const CUSTOMER_SNAPSHOT_FIELDS = [
+  'full_name', 'email', 'phone', 'delivery_method', 'address_line', 'city',
+  'province', 'postal_code', 'delivery_notes',
+];
+
+function sameOptionalString(left, right) {
+  return (left == null || left === '' ? null : String(left)) ===
+    (right == null || right === '' ? null : String(right));
+}
+
+function sameSelection(left, right) {
+  if (!left || typeof left !== 'object') return false;
+  for (const field of ['wood_type', 'wood_stain', 'metal_color', 'finish']) {
+    if (!sameOptionalString(left[field], right[field])) return false;
+  }
+  const leftExtras = Array.isArray(left.extras) ? left.extras.map(String).sort() : [];
+  const rightExtras = Array.isArray(right.extras) ? right.extras.map(String).sort() : [];
+  return leftExtras.length === rightExtras.length && leftExtras.every((value, index) => value === rightExtras[index]);
+}
+
+async function assertExistingMatches(env, fetchFn, existing, product, priced, customer, commissionPercent) {
+  const amountsMatch = Number(existing.subtotal_amount) === priced.subtotal &&
+    Number(existing.commission_percent) === Number(commissionPercent) &&
+    Number(existing.total_amount) === priced.total;
+  const purchaseMatches = String(existing.product_id) === String(product.id) &&
+    sameSelection(existing.selection_snapshot, priced.normalizedSelection) && amountsMatch;
+  const savedCustomer = await firstRow(
+    env,
+    fetchFn,
+    `checkout_order_customers?order_id=eq.${encodeFilter(existing.id)}&select=${CUSTOMER_SNAPSHOT_FIELDS.join(',')}&limit=1`
+  );
+  const customerMatches = savedCustomer && CUSTOMER_SNAPSHOT_FIELDS.every(field =>
+    sameOptionalString(savedCustomer[field], customer[field])
+  );
+  if (!purchaseMatches || !customerMatches) {
+    throw new CheckoutError(
+      'La clave de idempotencia ya pertenece a una compra con otros datos.',
+      409,
+      'idempotency_mismatch'
+    );
+  }
+}
+
 function returnUrls(baseUrl, orderId) {
   const query = `pedido=${encodeURIComponent(orderId)}`;
   return {
@@ -103,7 +146,20 @@ export function createOrderHandler(env, fetchFn = fetch) {
         throw new CheckoutError('Checkout Pro de prueba todavía no está habilitado.', 503, 'checkout_disabled');
       }
 
+      const selection = {
+        wood_type: body.wood_type || null,
+        wood_stain: body.wood_stain || null,
+        metal_color: body.metal_color || null,
+        finish: body.finish || null,
+        extras: body.extras || [],
+      };
       const existing = await findExisting(env, fetchFn, clientRequestId);
+      const product = await firstRow(env, fetchFn, `productos?id=eq.${encodeFilter(productId)}&activo=eq.true&select=*&limit=1`);
+      if (!product) throw new CheckoutError('La pieza no está disponible.', 404, 'product_not_found');
+      const priced = priceSelection(product, selection, settings.commission_percent);
+      if (existing) {
+        await assertExistingMatches(env, fetchFn, existing, product, priced, customer, settings.commission_percent);
+      }
       if (existing?.mp_checkout_url) {
         const checkoutUrl = safeCheckoutUrl(existing.mp_checkout_url);
         if (checkoutUrl) return json({ order_id: existing.id, checkout_url: checkoutUrl, reused: true }, 200, cors);
@@ -115,17 +171,6 @@ export function createOrderHandler(env, fetchFn = fetch) {
         throw new CheckoutError('La orden todavía se está preparando. Intentá nuevamente.', 409, 'order_in_progress');
       }
 
-      const product = retry ? null : await firstRow(env, fetchFn, `productos?id=eq.${encodeFilter(productId)}&activo=eq.true&select=*&limit=1`);
-      if (!retry && !product) throw new CheckoutError('La pieza no está disponible.', 404, 'product_not_found');
-
-      const selection = {
-        wood_type: body.wood_type || null,
-        wood_stain: body.wood_stain || null,
-        metal_color: body.metal_color || null,
-        finish: body.finish || null,
-        extras: body.extras || [],
-      };
-      const priced = retry ? { total: Number(existing.total_amount) } : priceSelection(product, selection, settings.commission_percent);
       const inserted = retry ? existing : await supabaseRequest(env, fetchFn, 'rpc/checkout_create_order', {
         method: 'POST',
         body: JSON.stringify({
@@ -141,6 +186,9 @@ export function createOrderHandler(env, fetchFn = fetch) {
       }).catch(async error => {
         if (error.internalStatus === 409) {
           const winner = await findExisting(env, fetchFn, clientRequestId);
+          if (winner) {
+            await assertExistingMatches(env, fetchFn, winner, product, priced, customer, settings.commission_percent);
+          }
           if (winner?.mp_checkout_url && safeCheckoutUrl(winner.mp_checkout_url)) {
             throw new CheckoutError('La orden ya fue creada. Reintentá para continuar.', 409, 'order_already_created');
           }
@@ -161,11 +209,11 @@ export function createOrderHandler(env, fetchFn = fetch) {
         total_amount: amount,
         currency: 'ARS',
         external_reference: localOrder.id,
-        description: `${retry ? existing.product_snapshot.nombre : product.nombre} · ${retry ? (existing.product_snapshot.sku || existing.product_id) : (product.sku || product.id)}`.slice(0, 250),
+        description: `${product.nombre} · ${product.sku || product.id}`.slice(0, 250),
         expiration_time: 'P1D',
         items: [{
-          external_code: String(retry ? (existing.product_snapshot.sku || existing.product_id) : (product.sku || product.id)).slice(0, 100),
-          title: String(retry ? existing.product_snapshot.nombre : product.nombre).slice(0, 120),
+          external_code: String(product.sku || product.id).slice(0, 100),
+          title: String(product.nombre).slice(0, 120),
           description: 'Mueble configurado en Acero y Escamas',
           quantity: 1,
           unit_price: amount,

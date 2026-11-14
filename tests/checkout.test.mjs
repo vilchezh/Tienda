@@ -9,7 +9,8 @@ import {
 } from '../supabase/functions/_shared/checkout-core.mjs';
 import { createOrderHandler } from '../supabase/functions/_shared/create-order-handler.mjs';
 import { normalizeCheckoutCustomer } from '../supabase/functions/_shared/customer-data.mjs';
-import { dispatchOrderNotifications } from '../supabase/functions/_shared/email-notifications.mjs';
+import { dispatchDueOrderNotifications, dispatchOrderNotifications } from '../supabase/functions/_shared/email-notifications.mjs';
+import { processMaintenanceHandler } from '../supabase/functions/_shared/process-maintenance-handler.mjs';
 import { processNotificationsHandler } from '../supabase/functions/_shared/process-notifications-handler.mjs';
 import { signatureManifest, verifyMercadoPagoSignature } from '../supabase/functions/_shared/webhook-signature.mjs';
 import { webhookHandler } from '../supabase/functions/_shared/webhook-handler.mjs';
@@ -69,6 +70,7 @@ test('refunded and charged back orders never appear accredited', () => {
   assert.equal(paymentStatusFromOrder({ status: 'refunded', transactions: { payments: [{ status: 'approved' }] } }), 'refunded');
   assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'charged_back' }, { status: 'approved' }] } }), 'charged_back');
   assert.equal(paymentStatusFromOrder({ status: 'partially_refunded', transactions: { payments: [{ status: 'processed' }] } }), 'partially_refunded');
+  assert.equal(paymentStatusFromOrder({ status: 'processed', status_detail: 'partially_refunded', transactions: { payments: [{ status: 'approved' }] } }), 'partially_refunded');
   assert.equal(paymentStatusFromOrder({ status: 'action_required' }), 'action_required');
   assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved', refunded_amount: '500.00' }], refunds: [{}] } }), 'partially_refunded');
   assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved' }], chargebacks: [{}] } }), 'charged_back');
@@ -167,30 +169,119 @@ test('oversized and malformed requests are rejected before any provider call', a
   assert.equal(providerCalls, 0);
 });
 
-test('an interrupted creation retries with the stored amount and original idempotency key', async () => {
+test('an interrupted creation retries only after confirming the original purchase and idempotency key', async () => {
   const calls = [];
+  const priced = priceSelection(product, selection, 7.5);
   const saved = { id: localOrderId, client_request_id: clientRequestId, product_id: product.id,
-    product_snapshot: { nombre: product.nombre, sku: product.sku }, total_amount: 257000,
+    product_snapshot: { nombre: product.nombre, sku: product.sku },
+    selection_snapshot: priced.normalizedSelection, subtotal_amount: priced.subtotal,
+    commission_percent: 7.5, total_amount: priced.total,
     status: 'creating', updated_at: new Date(Date.now() - 180000).toISOString() };
   const fetchMock = async (url, init = {}) => {
     const value = String(url);
     calls.push({ value, init });
     if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
-    if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 0, payments_enabled: true }]);
+    if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 7.5, payments_enabled: true }]);
     if (value.includes('checkout_orders?client_request_id=')) return Response.json([saved]);
+    if (value.includes('/productos?')) return Response.json([product]);
+    if (value.includes('/checkout_order_customers?')) return Response.json([normalizeCheckoutCustomer(customer)]);
     if (value.endsWith('/v1/orders')) return Response.json({ id: 'mp-order-1', checkout_url: 'https://www.mercadopago.com.ar/checkout/test' });
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
     throw new Error(value);
   };
   const request = new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
     method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, customer }),
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection, customer }),
   });
   assert.equal((await createOrderHandler(env, fetchMock)(request)).status, 201);
   const provider = calls.find(call => call.value.endsWith('/v1/orders'));
   assert.equal(provider.init.headers['X-Idempotency-Key'], clientRequestId);
   assert.equal(JSON.parse(provider.init.body).total_amount, '257000.00');
-  assert.equal(calls.some(call => call.value.includes('/rest/v1/productos?')), false);
+  assert.equal(calls.some(call => call.value.includes('/rest/v1/productos?')), true);
+});
+
+test('an idempotency key can only reuse the original options, price, contact and delivery data', async t => {
+  const catalog = {
+    ...product,
+    maderas: [...product.maderas, { nombre: 'Roble', delta: 30000, activo: true }],
+    extras: [...product.extras, { nombre: 'Cajón', precio: 18000, activo: true }],
+  };
+  const priced = priceSelection(catalog, selection, 7.5);
+  const saved = {
+    id: localOrderId,
+    client_request_id: clientRequestId,
+    product_id: catalog.id,
+    product_snapshot: { nombre: catalog.nombre, sku: catalog.sku },
+    selection_snapshot: priced.normalizedSelection,
+    subtotal_amount: priced.subtotal,
+    commission_percent: 7.5,
+    total_amount: priced.total,
+    status: 'created',
+    mp_checkout_url: 'https://www.mercadopago.com.ar/checkout/original',
+  };
+  const savedCustomer = normalizeCheckoutCustomer(customer);
+  const cases = [
+    { name: 'madera', body: { ...selection, wood_type: 'Roble' }, currentProduct: catalog },
+    { name: 'extras', body: { ...selection, extras: [] }, currentProduct: catalog },
+    { name: 'precio', body: selection, currentProduct: { ...catalog, precio_base: catalog.precio_base + 1000 } },
+    { name: 'contacto', body: selection, customer: { ...customer, email: 'otro@example.invalid' }, currentProduct: catalog },
+    {
+      name: 'entrega', body: selection, currentProduct: catalog,
+      customer: { ...customer, delivery_method: 'delivery', address_line: 'Calle 123', city: 'CABA', province: 'Buenos Aires', postal_code: '1000' },
+    },
+  ];
+
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      let providerCalls = 0;
+      const fetchMock = async (url) => {
+        const value = String(url);
+        if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+        if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 7.5, payments_enabled: true }]);
+        if (value.includes('checkout_orders?client_request_id=')) return Response.json([saved]);
+        if (value.includes('/productos?')) return Response.json([testCase.currentProduct]);
+        if (value.includes('/checkout_order_customers?')) return Response.json([savedCustomer]);
+        if (value === 'https://api.mercadopago.com/v1/orders') providerCalls += 1;
+        throw new Error(`Unexpected URL ${value}`);
+      };
+      const response = await createOrderHandler(env, fetchMock)(new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
+        method: 'POST',
+        headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: catalog.id,
+          client_request_id: clientRequestId,
+          ...testCase.body,
+          customer: testCase.customer || customer,
+        }),
+      }));
+      assert.equal(response.status, 409);
+      assert.equal((await response.json()).error, 'idempotency_mismatch');
+      assert.equal(providerCalls, 0);
+    });
+  }
+
+  await t.test('datos originales', async () => {
+    const fetchMock = async url => {
+      const value = String(url);
+      if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+      if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 7.5, payments_enabled: true }]);
+      if (value.includes('checkout_orders?client_request_id=')) return Response.json([saved]);
+      if (value.includes('/productos?')) return Response.json([catalog]);
+      if (value.includes('/checkout_order_customers?')) return Response.json([savedCustomer]);
+      throw new Error(`Unexpected URL ${value}`);
+    };
+    const response = await createOrderHandler(env, fetchMock)(new Request(`${env.SUPABASE_URL}/functions/v1/create-mp-order`, {
+      method: 'POST',
+      headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: catalog.id, client_request_id: clientRequestId, ...selection, customer }),
+    }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      order_id: localOrderId,
+      checkout_url: saved.mp_checkout_url,
+      reused: true,
+    });
+  });
 });
 
 test('global switch blocks both new checkout and recovery without touching confirmed orders', async () => {
@@ -271,6 +362,45 @@ test('signed Order webhook fetches real state from Mercado Pago before updating 
   assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved' }] } }), 'processed');
 });
 
+test('a partially_refunded status_detail is never recorded or notified as fully accredited', async () => {
+  const dataId = 'mp-order-partially-refunded';
+  const requestId = 'webhook-request-partial-refund';
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const hash = await signature(env.MP_WEBHOOK_SECRET_TEST, signatureManifest(dataId, requestId, timestamp));
+  const calls = [];
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    calls.push({ url: value, body: init.body ? JSON.parse(init.body) : null });
+    if (value === `https://api.mercadopago.com/v1/orders/${dataId}`) return Response.json({
+      id: dataId,
+      external_reference: localOrderId,
+      status: 'processed',
+      status_detail: 'partially_refunded',
+      total_amount: '257000.00',
+      total_paid_amount: '257000.00',
+      currency: 'ARS',
+      transactions: { payments: [{ status: 'approved' }] },
+    });
+    if (value.includes('checkout_orders?id=eq.')) return Response.json([{
+      id: localOrderId, total_amount: 257000, currency: 'ARS', mp_order_id: dataId,
+    }]);
+    if (value.endsWith('/rpc/checkout_record_verified_order')) return Response.json(true);
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  const response = await webhookHandler(env, fetchMock)(new Request(
+    `${env.SUPABASE_URL}/functions/v1/mp-order-webhook?data.id=${dataId}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-request-id': requestId, 'x-signature': `ts=${timestamp},v1=${hash}` },
+      body: JSON.stringify({ type: 'order', action: 'order.updated', data: { id: dataId } }),
+    }
+  ));
+  assert.equal(response.status, 200);
+  const update = calls.find(call => call.url.endsWith('/rpc/checkout_record_verified_order'));
+  assert.equal(update.body.p_payment_status, 'partially_refunded');
+  assert.equal(calls.some(call => call.url.endsWith('/rpc/checkout_claim_notifications')), false);
+});
+
 test('forged webhook is rejected before any provider or database request', async () => {
   let calls = 0;
   const request = new Request(`${env.SUPABASE_URL}/functions/v1/mp-order-webhook?data.id=mp-order-1`, {
@@ -328,6 +458,69 @@ test('email outbox claims once and sends stable provider idempotency keys', asyn
   assert.deepEqual(sent.map(item => item.body.to[0]).sort(), [customer.email, notificationEnv.ORDER_NOTIFICATION_TO].sort());
 });
 
+test('an accepted Resend email is not downgraded when persisting sent state fails', async () => {
+  const notificationEnv = {
+    ...env,
+    RESEND_API_KEY: 're_test_not_real',
+    ORDER_EMAIL_FROM: 'Sandbox <pedidos@example.invalid>',
+  };
+  const notification = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    order_id: localOrderId,
+    notification_type: 'customer_payment_confirmed',
+    recipient_email: customer.email,
+    attempt_count: 1,
+  };
+  const patches = [];
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json([notification]);
+    if (value.includes('/checkout_orders?')) return Response.json([{
+      id: localOrderId, product_id: product.id, product_snapshot: product,
+      selection_snapshot: selection, total_amount: 257000, currency: 'ARS',
+    }]);
+    if (value.includes('/checkout_order_customers?')) return Response.json([{ full_name: customer.full_name, email: customer.email }]);
+    if (value === 'https://api.resend.com/emails') return Response.json({ id: 'resend-accepted-id' });
+    if (value.includes('/checkout_email_outbox?') && init.method === 'PATCH') {
+      patches.push(JSON.parse(init.body));
+      return Response.json({ message: 'temporary database failure' }, { status: 503 });
+    }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  const previousConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const result = await dispatchOrderNotifications(notificationEnv, fetchMock, localOrderId);
+    assert.deepEqual(result, { configured: true, processed: 0 });
+  } finally {
+    console.error = previousConsoleError;
+  }
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].status, 'sent');
+  assert.equal(patches.some(patch => patch.status === 'failed'), false);
+});
+
+test('scheduled notification processing expires uncertain rows before selecting retries', async () => {
+  const calls = [];
+  const notificationEnv = {
+    ...env,
+    RESEND_API_KEY: 're_test_not_real',
+    ORDER_EMAIL_FROM: 'Sandbox <pedidos@example.invalid>',
+  };
+  const fetchMock = async url => {
+    const value = String(url);
+    calls.push(value);
+    if (value.endsWith('/rpc/checkout_expire_uncertain_notifications')) return Response.json(1);
+    if (value.endsWith('/rpc/checkout_due_notification_orders')) return Response.json([]);
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  assert.deepEqual(await dispatchDueOrderNotifications(notificationEnv, fetchMock), {
+    configured: true, orders: 0, processed: 0,
+  });
+  assert.match(calls[0], /checkout_expire_uncertain_notifications$/);
+  assert.match(calls[1], /checkout_due_notification_orders$/);
+});
+
 test('notification retry endpoint requires its independent dispatch secret', async () => {
   let calls = 0;
   const retryEnv = { ...env, ORDER_NOTIFICATION_DISPATCH_SECRET: 'synthetic-dispatch-secret' };
@@ -343,6 +536,29 @@ test('notification retry endpoint requires its independent dispatch secret', asy
   assert.equal(authorizedWithoutEmailProvider.status, 200);
   assert.deepEqual(await authorizedWithoutEmailProvider.json(), { ok: true, configured: false, orders: 0, processed: 0 });
   assert.equal(calls, 0);
+});
+
+test('personal-data maintenance requires an independent secret and calls only the purge RPC', async () => {
+  let calls = 0;
+  const maintenanceEnv = { ...env, ORDER_MAINTENANCE_SECRET: 'synthetic-maintenance-secret' };
+  const endpoint = `${env.SUPABASE_URL}/functions/v1/process-order-maintenance`;
+  const handler = processMaintenanceHandler(maintenanceEnv, async (url, init = {}) => {
+    calls += 1;
+    assert.match(String(url), /\/rest\/v1\/rpc\/checkout_purge_expired_customer_data$/);
+    assert.equal(init.method, 'POST');
+    return Response.json(3);
+  });
+  const unauthorized = await handler(new Request(endpoint, {
+    method: 'POST', headers: { 'x-maintenance-secret': 'wrong' },
+  }));
+  assert.equal(unauthorized.status, 401);
+  assert.equal(calls, 0);
+  const authorized = await handler(new Request(endpoint, {
+    method: 'POST', headers: { 'x-maintenance-secret': maintenanceEnv.ORDER_MAINTENANCE_SECRET },
+  }));
+  assert.equal(authorized.status, 200);
+  assert.deepEqual(await authorized.json(), { ok: true, purged: 3 });
+  assert.equal(calls, 1);
 });
 
 test('migration keeps test mode fail-closed and protects payment tables with RLS', () => {
@@ -371,6 +587,10 @@ test('order management migration isolates personal data and deduplicates notific
   assert.match(sql, /on conflict \(order_id, notification_type\) do nothing/i);
   assert.match(sql, /for update skip locked/i);
   assert.match(sql, /checkout_due_notification_orders/i);
+  assert.match(sql, /idempotency_expires_at/i);
+  assert.match(sql, /interval '23 hours'/i);
+  assert.match(sql, /status = 'uncertain'/i);
+  assert.match(sql, /checkout_expire_uncertain_notifications/i);
   assert.match(sql, /checkout_purge_expired_customer_data/i);
   assert.doesNotMatch(sql, /grant (insert|update|delete|all).*checkout_order_customers.*authenticated/i);
 });

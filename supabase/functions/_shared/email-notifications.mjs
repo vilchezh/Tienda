@@ -57,6 +57,15 @@ async function mark(env, fetchFn, id, body) {
   });
 }
 
+async function markDeliveryFailure(env, fetchFn, notification, errorCode) {
+  const delayMinutes = Math.min(360, 2 ** Math.min(Number(notification.attempt_count) || 1, 8));
+  await mark(env, fetchFn, notification.id, {
+    status: 'failed',
+    last_error: String(errorCode || 'delivery_failed').slice(0, 500),
+    next_attempt_at: new Date(Date.now() + delayMinutes * 60000).toISOString(),
+  }).catch(() => {});
+}
+
 export async function dispatchOrderNotifications(env, fetchFn, orderId) {
   if (!env.RESEND_API_KEY || !env.ORDER_EMAIL_FROM) return { configured: false, processed: 0 };
   const claimed = await supabaseRequest(env, fetchFn, 'rpc/checkout_claim_notifications', {
@@ -75,10 +84,15 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
     const recipient = notification.notification_type === 'seller_payment_received'
       ? String(env.ORDER_NOTIFICATION_TO || '').trim()
       : String(notification.recipient_email || customer?.email || '').trim();
+    if (!recipient) {
+      await markDeliveryFailure(env, fetchFn, notification, 'recipient_not_configured');
+      continue;
+    }
+    const content = template(notification, order, customer);
+    let response;
+    let result;
     try {
-      if (!recipient) throw new Error('recipient not configured');
-      const content = template(notification, order, customer);
-      const response = await fetchFn(RESEND_API, {
+      response = await fetchFn(RESEND_API, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${env.RESEND_API_KEY}`,
@@ -87,20 +101,33 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
         },
         body: JSON.stringify({ from: env.ORDER_EMAIL_FROM, to: [recipient], ...content }),
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.id) throw new Error(`provider_${response.status}`);
+      result = await response.json().catch(() => ({}));
+    } catch {
+      // No es posible saber si el proveedor aceptó la solicitud. Se reintenta
+      // sólo dentro de la ventana local usando exactamente la misma clave.
+      await markDeliveryFailure(env, fetchFn, notification, 'provider_outcome_uncertain');
+      continue;
+    }
+    if (!response.ok) {
+      await markDeliveryFailure(env, fetchFn, notification, `provider_${response.status}`);
+      continue;
+    }
+    if (!result?.id) {
+      await markDeliveryFailure(env, fetchFn, notification, 'provider_outcome_uncertain');
+      continue;
+    }
+    try {
       await mark(env, fetchFn, notification.id, {
         status: 'sent', provider_message_id: String(result.id).slice(0, 200),
         last_error: null, sent_at: new Date().toISOString(),
       });
       processed += 1;
     } catch (error) {
-      const delayMinutes = Math.min(360, 2 ** Math.min(Number(notification.attempt_count) || 1, 8));
-      await mark(env, fetchFn, notification.id, {
-        status: 'failed',
-        last_error: String(error instanceof Error ? error.message : 'delivery_failed').slice(0, 500),
-        next_attempt_at: new Date(Date.now() + delayMinutes * 60000).toISOString(),
-      }).catch(() => {});
+      // Resend confirmó la aceptación. Si Supabase falla, no degradamos la fila
+      // a failed: queda processing y sólo podrá reclamarse con la misma clave
+      // mientras siga vigente. Así evitamos un segundo envío sin protección.
+      console.error('notification accepted but persistence failed', notification.id,
+        error instanceof Error ? error.message : 'unknown');
     }
   }
   return { configured: true, processed };
@@ -108,6 +135,9 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
 
 export async function dispatchDueOrderNotifications(env, fetchFn, limit = 25) {
   if (!env.RESEND_API_KEY || !env.ORDER_EMAIL_FROM) return { configured: false, orders: 0, processed: 0 };
+  await supabaseRequest(env, fetchFn, 'rpc/checkout_expire_uncertain_notifications', {
+    method: 'POST', body: '{}',
+  });
   const due = await supabaseRequest(env, fetchFn, 'rpc/checkout_due_notification_orders', {
     method: 'POST', body: JSON.stringify({ p_limit: Math.min(Math.max(Number(limit) || 25, 1), 100) }),
   });

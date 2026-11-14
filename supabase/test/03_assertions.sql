@@ -19,7 +19,9 @@ do $$ begin
      has_table_privilege('authenticated', 'public.checkout_order_customers', 'insert,update,delete') or
      has_function_privilege('authenticated', 'public.checkout_create_order(uuid,text,jsonb,jsonb,bigint,numeric,bigint,jsonb)', 'execute') or
      has_function_privilege('anon', 'public.checkout_claim_notifications(uuid)', 'execute') or
-     has_function_privilege('authenticated', 'public.checkout_due_notification_orders(integer)', 'execute') then
+     has_function_privilege('authenticated', 'public.checkout_due_notification_orders(integer)', 'execute') or
+     has_function_privilege('authenticated', 'public.checkout_expire_uncertain_notifications()', 'execute') or
+     has_function_privilege('anon', 'public.checkout_purge_expired_customer_data()', 'execute') then
     raise exception 'datos personales u outbox expuestos'; end if;
   if not has_column_privilege('authenticated', 'public.checkout_orders', 'manufacturing_status', 'update') or
      has_column_privilege('authenticated', 'public.checkout_orders', 'payment_status', 'update') then
@@ -66,9 +68,29 @@ do $$ declare local_order_id uuid; first_call boolean; second_call boolean; begi
   perform public.checkout_finalize_creation(local_order_id, 'sandbox-order-1', 'https://www.mercadopago.com.ar/checkout/test');
   if (select payment_status from public.checkout_orders where id = local_order_id) <> 'processed' then
     raise exception 'creación pisó el webhook'; end if;
-  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-2', 'order.updated', 'refunded', 'refunded', null, 0);
-  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-3', 'order.updated', 'processed', 'processed', null, 100000);
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-2', 'order.updated', 'processed', 'partially_refunded', 'partially_refunded', 50000);
+  if (select payment_status from public.checkout_orders where id = local_order_id) <> 'partially_refunded' then
+    raise exception 'reembolso parcial no registrado'; end if;
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-3', 'order.updated', 'processed', 'processed', 'accredited', 100000);
+  if (select payment_status from public.checkout_orders where id = local_order_id) <> 'partially_refunded' then
+    raise exception 'notificación antigua revirtió reembolso parcial'; end if;
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-4', 'order.updated', 'refunded', 'refunded', 'refunded', 0);
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-5', 'order.updated', 'processed', 'partially_refunded', 'partially_refunded', 50000);
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-6', 'order.updated', 'manual_review', 'manual_review', 'late_event', null);
+  perform public.checkout_record_verified_order(local_order_id, 'sandbox-order-1', 'event-7', 'order.updated', 'processed', 'processed', 'accredited', 100000);
   if (select payment_status from public.checkout_orders where id = local_order_id) <> 'refunded' then
-    raise exception 'estado adverso retrocedió'; end if;
+    raise exception 'reembolso total retrocedió por webhook fuera de orden'; end if;
+
+  update public.checkout_email_outbox
+     set status = 'processing', locked_at = timezone('utc', now()) - interval '15 minutes',
+         first_attempt_at = timezone('utc', now()) - interval '24 hours',
+         idempotency_expires_at = timezone('utc', now()) - interval '1 minute'
+   where order_id = local_order_id;
+  if public.checkout_expire_uncertain_notifications() <> 2 then
+    raise exception 'no vencieron exactamente dos notificaciones inciertas'; end if;
+  if (select count(*) from public.checkout_email_outbox where order_id = local_order_id and status = 'uncertain') <> 2 then
+    raise exception 'notificaciones vencidas no quedaron uncertain'; end if;
+  if (select count(*) from public.checkout_claim_notifications(local_order_id)) <> 0 then
+    raise exception 'se reclamó una notificación con idempotencia vencida'; end if;
 end $$;
 rollback;

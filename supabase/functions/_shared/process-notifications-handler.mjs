@@ -1,18 +1,10 @@
 import { dispatchDueOrderNotifications } from './email-notifications.mjs';
+import { constantTimeEqual } from './internal-auth.mjs';
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
     status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
-}
-
-function constantTimeEqual(left, right) {
-  const a = new TextEncoder().encode(String(left || ''));
-  const b = new TextEncoder().encode(String(right || ''));
-  let difference = a.length ^ b.length;
-  const length = Math.max(a.length, b.length);
-  for (let index = 0; index < length; index += 1) difference |= (a[index] || 0) ^ (b[index] || 0);
-  return difference === 0 && a.length > 0;
 }
 
 export function processNotificationsHandler(env, fetchFn = fetch) {

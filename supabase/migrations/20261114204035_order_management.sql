@@ -133,8 +133,10 @@ create table if not exists public.checkout_email_outbox (
   order_id uuid not null references public.checkout_orders(id) on delete cascade,
   notification_type text not null check (notification_type in ('customer_payment_confirmed', 'seller_payment_received')),
   recipient_email text,
-  status text not null default 'pending' check (status in ('pending', 'processing', 'sent', 'failed')),
+  status text not null default 'pending',
   attempt_count integer not null default 0 check (attempt_count >= 0),
+  first_attempt_at timestamptz,
+  idempotency_expires_at timestamptz,
   next_attempt_at timestamptz not null default timezone('utc', now()),
   locked_at timestamptz,
   provider_message_id text,
@@ -144,6 +146,17 @@ create table if not exists public.checkout_email_outbox (
   updated_at timestamptz not null default timezone('utc', now()),
   unique (order_id, notification_type)
 );
+
+-- Permite aplicar esta revisión de forma segura si la versión inicial de esta
+-- migración ya se hubiese evaluado manualmente en un sandbox.
+alter table public.checkout_email_outbox
+  add column if not exists first_attempt_at timestamptz,
+  add column if not exists idempotency_expires_at timestamptz;
+alter table public.checkout_email_outbox
+  drop constraint if exists checkout_email_outbox_status_check;
+alter table public.checkout_email_outbox
+  add constraint checkout_email_outbox_status_check
+  check (status in ('pending', 'processing', 'sent', 'failed', 'uncertain'));
 
 create index if not exists checkout_email_outbox_pending_idx
   on public.checkout_email_outbox(status, next_attempt_at)
@@ -250,6 +263,7 @@ as $$
     from public.checkout_email_outbox
     where (p_order_id is null or order_id = p_order_id)
       and attempt_count < 8
+      and (idempotency_expires_at is null or idempotency_expires_at > timezone('utc', now()))
       and (
         (status in ('pending', 'failed') and next_attempt_at <= timezone('utc', now())) or
         (status = 'processing' and locked_at < timezone('utc', now()) - interval '10 minutes')
@@ -259,6 +273,11 @@ as $$
   )
   update public.checkout_email_outbox o
      set status = 'processing', attempt_count = o.attempt_count + 1,
+         first_attempt_at = coalesce(o.first_attempt_at, timezone('utc', now())),
+         idempotency_expires_at = coalesce(
+           o.idempotency_expires_at,
+           timezone('utc', now()) + interval '23 hours'
+         ),
          locked_at = timezone('utc', now()), updated_at = timezone('utc', now())
     from due
    where o.id = due.id
@@ -277,6 +296,7 @@ as $$
   select o.order_id
   from public.checkout_email_outbox o
   where o.attempt_count < 8
+    and (o.idempotency_expires_at is null or o.idempotency_expires_at > timezone('utc', now()))
     and (
       (o.status in ('pending', 'failed') and o.next_attempt_at <= timezone('utc', now())) or
       (o.status = 'processing' and o.locked_at < timezone('utc', now()) - interval '10 minutes')
@@ -288,6 +308,33 @@ $$;
 
 revoke all on function public.checkout_due_notification_orders(integer) from public, anon, authenticated;
 grant execute on function public.checkout_due_notification_orders(integer) to service_role;
+
+-- Resend conserva claves de idempotencia durante 24 horas. La ventana local se
+-- cierra una hora antes: después de ese límite el resultado requiere revisión
+-- manual y nunca se vuelve a enviar automáticamente con una clave vencida.
+create or replace function public.checkout_expire_uncertain_notifications()
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  expired integer;
+begin
+  update public.checkout_email_outbox
+     set status = 'uncertain',
+         locked_at = null,
+         last_error = coalesce(last_error, 'idempotency_window_expired'),
+         updated_at = timezone('utc', now())
+   where status in ('pending', 'failed', 'processing')
+     and idempotency_expires_at <= timezone('utc', now());
+  get diagnostics expired = row_count;
+  return expired;
+end;
+$$;
+
+revoke all on function public.checkout_expire_uncertain_notifications() from public, anon, authenticated;
+grant execute on function public.checkout_expire_uncertain_notifications() to service_role;
 
 -- Extiende el registro atómico existente sin cambiar su firma ni su protección.
 create or replace function public.checkout_record_verified_order(
@@ -308,7 +355,13 @@ begin
 
   if current_row.payment_status = 'charged_back' and p_payment_status <> 'charged_back'
     then return true; end if;
-  if current_row.payment_status in ('refunded', 'partially_refunded', 'manual_review', 'canceled', 'failed')
+  if current_row.payment_status = 'refunded'
+     and p_payment_status not in ('refunded', 'charged_back')
+    then return true; end if;
+  if current_row.payment_status = 'partially_refunded'
+     and p_payment_status not in ('partially_refunded', 'refunded', 'charged_back')
+    then return true; end if;
+  if current_row.payment_status in ('manual_review', 'canceled', 'failed')
      and p_payment_status not in ('refunded', 'partially_refunded', 'charged_back', 'manual_review')
     then return true; end if;
   if current_row.payment_status = 'processed' and p_payment_status in ('created', 'processing', 'action_required')

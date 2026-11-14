@@ -94,9 +94,10 @@ export function paymentStatusFromOrder(order) {
   const chargebacks = Array.isArray(order?.transactions?.chargebacks) ? order.transactions.chargebacks : [];
   const statuses = payments.map(payment => String(payment?.status || '')).filter(Boolean);
   const orderStatus = String(order?.status || '');
+  const statusDetail = String(order?.status_detail || '');
   if (chargebacks.length || ['charged_back', 'chargeback'].some(s => statuses.includes(s)) || orderStatus === 'charged_back') return 'charged_back';
   if (statuses.includes('refunded') || orderStatus === 'refunded') return 'refunded';
-  if (statuses.includes('partially_refunded') || orderStatus === 'partially_refunded') return 'partially_refunded';
+  if (statuses.includes('partially_refunded') || orderStatus === 'partially_refunded' || statusDetail === 'partially_refunded') return 'partially_refunded';
   const refundAmount = payments.reduce((sum, payment) => sum + Number(payment?.refunded_amount || 0), 0);
   if (refunds.length || refundAmount > 0) {
     const total = Number(order?.total_paid_amount);
