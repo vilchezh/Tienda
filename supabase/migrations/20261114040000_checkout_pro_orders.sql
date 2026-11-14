@@ -125,7 +125,9 @@ begin
   on conflict (request_id) do nothing;
   if not found then return false; end if;
   -- Estados adversos son absorbentes frente a respuestas anteriores y eventos fuera de orden.
-  if current_row.payment_status in ('refunded', 'partially_refunded', 'charged_back', 'manual_review')
+  if current_row.payment_status = 'charged_back' and p_payment_status <> 'charged_back'
+    then return true; end if;
+  if current_row.payment_status in ('refunded', 'partially_refunded', 'manual_review', 'canceled', 'failed')
      and p_payment_status not in ('refunded', 'partially_refunded', 'charged_back', 'manual_review')
     then return true; end if;
   if current_row.payment_status = 'processed' and p_payment_status in ('created', 'processing', 'action_required')
