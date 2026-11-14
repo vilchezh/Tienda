@@ -147,6 +147,7 @@ create table public.checkout_rate_windows (
   window_start timestamptz primary key,
   requests integer not null check (requests > 0)
 );
+alter table public.checkout_rate_windows enable row level security;
 revoke all on public.checkout_rate_windows from public, anon, authenticated;
 grant all on public.checkout_rate_windows to service_role;
 create or replace function public.checkout_take_rate_slot() returns boolean

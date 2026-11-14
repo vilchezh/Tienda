@@ -50,6 +50,8 @@ La migración no fue aplicada y las funciones no fueron desplegadas durante este
 
 ## Configuración requerida antes de probar remotamente
 
+Para preparar un proyecto completamente independiente, seguir [la guía del sandbox](CHECKOUT-SANDBOX.md). La migración base y la semilla ficticia viven en `supabase/test/` y nunca se ejecutan con `supabase db push` sobre el proyecto publicado.
+
 En **Supabase → Edge Functions → Secrets**, crear:
 
 - `MP_ACCESS_TOKEN_TEST`: Access Token de prueba.

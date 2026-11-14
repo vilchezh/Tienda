@@ -1,0 +1,19 @@
+[
+  {
+    "id": "pieza-sandbox-001",
+    "nombre": "Pieza ficticia de prueba",
+    "sku": "SANDBOX-001",
+    "categoria": "Pruebas",
+    "subcategoria": "Checkout",
+    "precioBase": 100000,
+    "resumen": "Producto inventado para probar Checkout Pro. No se fabrica ni se entrega.",
+    "imagen": "assets/img/logo.jpg/Code_Generated_Image.png",
+    "fotos": ["assets/img/logo.jpg/Code_Generated_Image.png"],
+    "glb": "assets/modelos/mesa-ratona-industrial-900x500x450.glb",
+    "maderas": [{"nombre":"Madera de prueba","delta":0,"tex":"assets/texturas/pino-con-nudos.jpg","activo":true}],
+    "tonosMadera": [{"nombre":"Natural","rgb":[0.88,0.78,0.64],"hex":"#d1b58c","activo":true}],
+    "coloresMetal": [{"nombre":"Negro","rgb":[0.1,0.11,0.12],"activo":true}],
+    "acabados": [{"nombre":"Mate","rough":0.75,"activo":true}],
+    "extras": [{"nombre":"Extra ficticio","precio":1000,"activo":true}]
+  }
+]

@@ -156,6 +156,7 @@ test('an interrupted creation retries with the stored amount and original idempo
     const value = String(url);
     calls.push({ value, init });
     if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+    if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 0, payments_enabled: true }]);
     if (value.includes('checkout_orders?client_request_id=')) return Response.json([saved]);
     if (value.endsWith('/v1/orders')) return Response.json({ id: 'mp-order-1', checkout_url: 'https://www.mercadopago.com.ar/checkout/test' });
     if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
@@ -170,6 +171,26 @@ test('an interrupted creation retries with the stored amount and original idempo
   assert.equal(provider.init.headers['X-Idempotency-Key'], clientRequestId);
   assert.equal(JSON.parse(provider.init.body).total_amount, '257000.00');
   assert.equal(calls.some(call => call.value.includes('/rest/v1/productos?')), false);
+});
+
+test('global switch blocks both new checkout and recovery without touching confirmed orders', async () => {
+  const calls = [];
+  const fetchMock = async url => {
+    const value = String(url);
+    calls.push(value);
+    if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+    if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 0, payments_enabled: false }]);
+    throw new Error(`unexpected request: ${value}`);
+  };
+  for (const requestId of [clientRequestId, '33333333-3333-4333-8333-333333333333']) {
+    const response = await createOrderHandler(env, fetchMock)(new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+      method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: product.id, client_request_id: requestId, ...selection }),
+    }));
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error, 'checkout_disabled');
+  }
+  assert.equal(calls.some(value => value.includes('checkout_orders') || value.endsWith('/v1/orders')), false);
 });
 
 test('simultaneous creation attempts with one idempotency key do not both call Mercado Pago', async () => {
@@ -252,4 +273,7 @@ test('migration keeps test mode fail-closed and protects payment tables with RLS
   assert.match(sql, /for update/i);
   assert.match(sql, /on conflict \(request_id\) do nothing/i);
   assert.match(sql, /checkout_take_rate_slot/i);
+  assert.match(sql, /alter table public\.checkout_rate_windows enable row level security/i);
+  assert.match(sql, /revoke all on public\.checkout_rate_windows from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.checkout_take_rate_slot\(\) to service_role/i);
 });

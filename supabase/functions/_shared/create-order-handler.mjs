@@ -94,6 +94,13 @@ export function createOrderHandler(env, fetchFn = fetch) {
       }
       if (body.extras != null && (!Array.isArray(body.extras) || body.extras.length > 20 || body.extras.some(x => typeof x !== 'string' || x.length > 120))) throw new CheckoutError('Extras inválidos.', 400, 'invalid_selection');
 
+      // El interruptor se consulta antes de cualquier reuso o recuperación.
+      // Los webhooks siguen procesando pagos ya creados aunque se apague.
+      const settings = await firstRow(env, fetchFn, 'checkout_settings?id=eq.default&select=commission_percent,payments_enabled&limit=1');
+      if (!settings?.payments_enabled) {
+        throw new CheckoutError('Checkout Pro de prueba todavía no está habilitado.', 503, 'checkout_disabled');
+      }
+
       const existing = await findExisting(env, fetchFn, clientRequestId);
       if (existing?.mp_checkout_url) {
         const checkoutUrl = safeCheckoutUrl(existing.mp_checkout_url);
@@ -106,13 +113,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
         throw new CheckoutError('La orden todavía se está preparando. Intentá nuevamente.', 409, 'order_in_progress');
       }
 
-      const [product, settings] = retry ? [null, null] : await Promise.all([
-        firstRow(env, fetchFn, `productos?id=eq.${encodeFilter(productId)}&activo=eq.true&select=*&limit=1`),
-        firstRow(env, fetchFn, 'checkout_settings?id=eq.default&select=commission_percent,payments_enabled&limit=1'),
-      ]);
-      if (!retry && !settings?.payments_enabled) {
-        throw new CheckoutError('Checkout Pro de prueba todavía no está habilitado.', 503, 'checkout_disabled');
-      }
+      const product = retry ? null : await firstRow(env, fetchFn, `productos?id=eq.${encodeFilter(productId)}&activo=eq.true&select=*&limit=1`);
       if (!retry && !product) throw new CheckoutError('La pieza no está disponible.', 404, 'product_not_found');
 
       const selection = {
