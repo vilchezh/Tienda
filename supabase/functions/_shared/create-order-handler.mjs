@@ -9,6 +9,7 @@ import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_BODY_BYTES = 4096;
 
 function json(body, status, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -48,7 +49,7 @@ async function findExisting(env, fetchFn, clientRequestId) {
   return firstRow(
     env,
     fetchFn,
-    `checkout_orders?client_request_id=eq.${encodeFilter(clientRequestId)}&select=id,status,mp_checkout_url&limit=1`
+    `checkout_orders?client_request_id=eq.${encodeFilter(clientRequestId)}&select=*&limit=1`
   );
 }
 
@@ -71,7 +72,15 @@ export function createOrderHandler(env, fetchFn = fetch) {
     if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, cors);
 
     try {
-      const body = await request.json().catch(() => null);
+      const slot = await supabaseRequest(env, fetchFn, 'rpc/checkout_take_rate_slot', { method: 'POST', body: '{}' });
+      if (slot !== true) throw new CheckoutError('Demasiadas solicitudes. Intentá en un minuto.', 429, 'rate_limited');
+      if (Number(request.headers.get('content-length') || 0) > MAX_BODY_BYTES) throw new CheckoutError('Solicitud demasiado grande.', 413, 'request_too_large');
+      if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw new CheckoutError('Se requiere JSON.', 415, 'invalid_content_type');
+      const raw = await request.text();
+      if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) throw new CheckoutError('Solicitud demasiado grande.', 413, 'request_too_large');
+      let body;
+      try { body = JSON.parse(raw); }
+      catch { throw new CheckoutError('JSON inválido.', 400, 'invalid_request'); }
       const productId = typeof body?.product_id === 'string' ? body.product_id.trim() : '';
       const clientRequestId = typeof body?.client_request_id === 'string' ? body.client_request_id : '';
       if (!productId || productId.length > 120 || !UUID_PATTERN.test(clientRequestId)) {
@@ -80,24 +89,31 @@ export function createOrderHandler(env, fetchFn = fetch) {
       if (body?.custom_notes) {
         throw new CheckoutError('Los pedidos personalizados se coordinan por WhatsApp.', 409, 'custom_order');
       }
+      for (const key of ['wood_type', 'wood_stain', 'metal_color', 'finish']) {
+        if (body[key] != null && (typeof body[key] !== 'string' || body[key].length > 120)) throw new CheckoutError('Opción inválida.', 400, 'invalid_selection');
+      }
+      if (body.extras != null && (!Array.isArray(body.extras) || body.extras.length > 20 || body.extras.some(x => typeof x !== 'string' || x.length > 120))) throw new CheckoutError('Extras inválidos.', 400, 'invalid_selection');
 
       const existing = await findExisting(env, fetchFn, clientRequestId);
       if (existing?.mp_checkout_url) {
         const checkoutUrl = safeCheckoutUrl(existing.mp_checkout_url);
         if (checkoutUrl) return json({ order_id: existing.id, checkout_url: checkoutUrl, reused: true }, 200, cors);
       }
-      if (existing) {
+      const retry = existing && !existing.mp_checkout_url &&
+        ['creating', 'failed', 'created'].includes(existing.status) &&
+        Date.now() - new Date(existing.updated_at || existing.created_at).getTime() > 120000;
+      if (existing && !retry) {
         throw new CheckoutError('La orden todavía se está preparando. Intentá nuevamente.', 409, 'order_in_progress');
       }
 
-      const [product, settings] = await Promise.all([
+      const [product, settings] = retry ? [null, null] : await Promise.all([
         firstRow(env, fetchFn, `productos?id=eq.${encodeFilter(productId)}&activo=eq.true&select=*&limit=1`),
         firstRow(env, fetchFn, 'checkout_settings?id=eq.default&select=commission_percent,payments_enabled&limit=1'),
       ]);
-      if (!settings?.payments_enabled) {
+      if (!retry && !settings?.payments_enabled) {
         throw new CheckoutError('Checkout Pro de prueba todavía no está habilitado.', 503, 'checkout_disabled');
       }
-      if (!product) throw new CheckoutError('La pieza no está disponible.', 404, 'product_not_found');
+      if (!retry && !product) throw new CheckoutError('La pieza no está disponible.', 404, 'product_not_found');
 
       const selection = {
         wood_type: body.wood_type || null,
@@ -106,8 +122,8 @@ export function createOrderHandler(env, fetchFn = fetch) {
         finish: body.finish || null,
         extras: body.extras || [],
       };
-      const priced = priceSelection(product, selection, settings.commission_percent);
-      const inserted = await supabaseRequest(env, fetchFn, 'checkout_orders', {
+      const priced = retry ? { total: Number(existing.total_amount) } : priceSelection(product, selection, settings.commission_percent);
+      const inserted = retry ? [existing] : await supabaseRequest(env, fetchFn, 'checkout_orders', {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
@@ -121,6 +137,15 @@ export function createOrderHandler(env, fetchFn = fetch) {
           currency: 'ARS',
           status: 'creating',
         }),
+      }).catch(async error => {
+        if (error.internalStatus === 409) {
+          const winner = await findExisting(env, fetchFn, clientRequestId);
+          if (winner?.mp_checkout_url && safeCheckoutUrl(winner.mp_checkout_url)) {
+            throw new CheckoutError('La orden ya fue creada. Reintentá para continuar.', 409, 'order_already_created');
+          }
+          throw new CheckoutError('La orden se está preparando. Reintentá en unos minutos.', 409, 'order_in_progress');
+        }
+        throw error;
       });
       const localOrder = Array.isArray(inserted) ? inserted[0] : null;
       if (!localOrder?.id) throw new CheckoutError('No se pudo registrar la orden.', 503, 'database_error');
@@ -135,11 +160,11 @@ export function createOrderHandler(env, fetchFn = fetch) {
         total_amount: amount,
         currency: 'ARS',
         external_reference: localOrder.id,
-        description: `${product.nombre} · ${product.sku || product.id}`.slice(0, 250),
+        description: `${retry ? existing.product_snapshot.nombre : product.nombre} · ${retry ? (existing.product_snapshot.sku || existing.product_id) : (product.sku || product.id)}`.slice(0, 250),
         expiration_time: 'P1D',
         items: [{
-          external_code: String(product.sku || product.id).slice(0, 100),
-          title: String(product.nombre).slice(0, 120),
+          external_code: String(retry ? (existing.product_snapshot.sku || existing.product_id) : (product.sku || product.id)).slice(0, 100),
+          title: String(retry ? existing.product_snapshot.nombre : product.nombre).slice(0, 120),
           description: 'Mueble configurado en Acero y Escamas',
           quantity: 1,
           unit_price: amount,
@@ -161,7 +186,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
           body: JSON.stringify(orderPayload),
         });
       } catch (error) {
-        await supabaseRequest(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(localOrder.id)}`, {
+        await supabaseRequest(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(localOrder.id)}&status=eq.creating`, {
           method: 'PATCH',
           body: JSON.stringify({ status: 'failed', status_detail: 'provider_error', updated_at: new Date().toISOString() }),
         }).catch(() => {});
@@ -172,15 +197,9 @@ export function createOrderHandler(env, fetchFn = fetch) {
       if (!mpOrder.id || !checkoutUrl) {
         throw new CheckoutError('Mercado Pago no devolvió un checkout válido.', 502, 'invalid_provider_response');
       }
-      await supabaseRequest(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(localOrder.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status: String(mpOrder.status || 'created'),
-          status_detail: mpOrder.status_detail || null,
-          mp_order_id: String(mpOrder.id),
-          mp_checkout_url: checkoutUrl,
-          updated_at: new Date().toISOString(),
-        }),
+      await supabaseRequest(env, fetchFn, 'rpc/checkout_finalize_creation', {
+        method: 'POST',
+        body: JSON.stringify({ p_id: localOrder.id, p_mp_id: String(mpOrder.id), p_url: checkoutUrl }),
       });
       return json({ order_id: localOrder.id, checkout_url: checkoutUrl, amount: priced.total, currency: 'ARS' }, 201, cors);
     } catch (error) {

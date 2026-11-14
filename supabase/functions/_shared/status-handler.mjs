@@ -28,6 +28,8 @@ export function statusHandler(env, fetchFn = fetch) {
         `checkout_orders?id=eq.${encodeFilter(id)}&select=id,status,status_detail,payment_status,total_amount,currency,product_snapshot,updated_at&limit=1`
       );
       if (!order) return json({ error: 'order_not_found' }, 404, cors);
+      // Una URL de retorno nunca acredita un pago: los estados antiguos requieren
+      // reconciliación por un operador o un nuevo webhook verificado.
       return json({
         order_id: order.id,
         order_status: order.status,

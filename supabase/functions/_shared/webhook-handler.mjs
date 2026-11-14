@@ -37,19 +37,15 @@ export function webhookHandler(env, fetchFn = fetch) {
       });
       if (!valid) return json({ error: 'invalid_signature' }, 401);
 
-      const event = await request.json().catch(() => ({}));
+      if (Number(request.headers.get('content-length') || 0) > 8192) return json({ error: 'request_too_large' }, 413);
+      const raw = await request.text();
+      if (new TextEncoder().encode(raw).length > 8192) return json({ error: 'request_too_large' }, 413);
+      const event = JSON.parse(raw);
       const bodyId = String(event?.data?.id || '');
       const eventType = String(event?.type || event?.topic || '').toLowerCase();
       if (eventType !== 'order' || !dataId || (bodyId && bodyId !== dataId)) {
         return json({ error: 'invalid_order_event' }, 400);
       }
-
-      const processed = await firstRow(
-        env,
-        fetchFn,
-        `mp_webhook_events?request_id=eq.${encodeFilter(requestId)}&select=id&limit=1`
-      );
-      if (processed) return json({ ok: true, duplicate: true }, 200);
 
       const mpOrder = await fetchRealOrder(env, fetchFn, dataId);
       const localId = String(mpOrder.external_reference || '');
@@ -69,31 +65,21 @@ export function webhookHandler(env, fetchFn = fetch) {
       const actualAmount = Number(mpOrder.total_amount);
       const amountMatches = Number.isFinite(actualAmount) && actualAmount === expectedAmount;
       const currencyMatches = String(mpOrder.currency || '') === String(localOrder.currency || 'ARS');
+      const paidAmount = Number(mpOrder.total_paid_amount);
       const paymentStatus = paymentStatusFromOrder(mpOrder);
+      const processed = paymentStatus === 'processed';
+      const amountCredited = Number.isFinite(paidAmount) && paidAmount >= expectedAmount;
       const verifiedStatus = amountMatches && currencyMatches ? String(mpOrder.status || 'unknown') : 'manual_review';
-      const paidAmount = Number(mpOrder.total_paid_amount || 0);
+      const effectiveStatus = amountMatches && currencyMatches && (!processed || amountCredited) ? paymentStatus : 'manual_review';
 
-      await supabaseRequest(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(localId)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          mp_order_id: dataId,
-          status: verifiedStatus,
-          status_detail: amountMatches && currencyMatches ? (mpOrder.status_detail || null) : 'amount_or_currency_mismatch',
-          payment_status: amountMatches && currencyMatches ? paymentStatus : 'manual_review',
-          mp_paid_amount: Number.isFinite(paidAmount) ? paidAmount : null,
-          last_webhook_request_id: requestId,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-      await supabaseRequest(env, fetchFn, 'mp_webhook_events', {
+      await supabaseRequest(env, fetchFn, 'rpc/checkout_record_verified_order', {
         method: 'POST',
         body: JSON.stringify({
-          request_id: requestId,
-          resource_id: dataId,
-          event_type: 'order',
-          action: event?.action || null,
-          order_status: verifiedStatus,
-          payment_status: amountMatches && currencyMatches ? paymentStatus : 'manual_review',
+          p_id: localId, p_mp_id: dataId, p_request_id: requestId,
+          p_action: String(event?.action || '').slice(0, 120),
+          p_status: verifiedStatus, p_payment_status: effectiveStatus,
+          p_detail: effectiveStatus === 'manual_review' ? 'amount_currency_or_credit_mismatch' : (mpOrder.status_detail || null),
+          p_paid: Number.isFinite(paidAmount) ? paidAmount : null,
         }),
       });
       return json({ ok: true }, 200);

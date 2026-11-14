@@ -94,7 +94,22 @@ export function safeCheckoutUrl(value) {
 
 export function paymentStatusFromOrder(order) {
   const payments = Array.isArray(order?.transactions?.payments) ? order.transactions.payments : [];
+  const refunds = Array.isArray(order?.transactions?.refunds) ? order.transactions.refunds : [];
+  const chargebacks = Array.isArray(order?.transactions?.chargebacks) ? order.transactions.chargebacks : [];
   const statuses = payments.map(payment => String(payment?.status || '')).filter(Boolean);
-  const priority = ['approved', 'authorized', 'in_process', 'pending', 'rejected', 'cancelled', 'refunded', 'charged_back'];
-  return priority.find(status => statuses.includes(status)) || statuses[0] || null;
+  const orderStatus = String(order?.status || '');
+  if (chargebacks.length || ['charged_back', 'chargeback'].some(s => statuses.includes(s)) || orderStatus === 'charged_back') return 'charged_back';
+  if (statuses.includes('refunded') || orderStatus === 'refunded') return 'refunded';
+  if (statuses.includes('partially_refunded') || orderStatus === 'partially_refunded') return 'partially_refunded';
+  const refundAmount = payments.reduce((sum, payment) => sum + Number(payment?.refunded_amount || 0), 0);
+  if (refunds.length || refundAmount > 0) {
+    const total = Number(order?.total_paid_amount);
+    return Number.isFinite(total) && refundAmount >= total && total > 0 ? 'refunded' : 'partially_refunded';
+  }
+  if (['canceled', 'cancelled'].includes(orderStatus)) return 'canceled';
+  if (orderStatus === 'failed') return 'failed';
+  if (['processed', 'approved'].includes(orderStatus)) return 'processed';
+  if (statuses.includes('processed') || statuses.includes('approved')) return 'processing';
+  if (['created', 'processing', 'action_required'].includes(orderStatus)) return orderStatus;
+  return 'manual_review';
 }

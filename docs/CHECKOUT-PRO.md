@@ -12,10 +12,19 @@ La integración está implementada para usar exclusivamente la API de Orders de 
 6. El webhook valida HMAC-SHA256 con `x-signature`, `x-request-id`, `data.id` y una tolerancia de cinco minutos. Después consulta `GET /v1/orders/{id}`: el payload del webhook y la URL de retorno nunca se toman como prueba de pago.
 7. `/pago` muestra solamente el estado persistido después de esa verificación del servidor.
 
+La firma admite `ts` de 10 dígitos (segundos) y 13 dígitos (milisegundos), manteniendo el valor original en el HMAC y rechazando desvíos superiores a cinco minutos. Los estados `refunded`, `partially_refunded` y `charged_back` prevalecen sobre cualquier pago anterior; `processed` solo se muestra como acreditado si el importe de `total_paid_amount` cubre el total esperado. Si Mercado Pago no informa un importe verificable, se exige revisión manual.
+
+La creación y el webhook actualizan cada pedido mediante funciones SQL atómicas. La deduplicación se hace con una restricción única sobre `request_id` dentro de la misma transacción; los estados adversos no retroceden por una notificación demorada. Si la creación se interrumpe, repetir el mismo `client_request_id` después de dos minutos reintenta `POST /v1/orders` con el mismo `X-Idempotency-Key` y el importe guardado. Un operador puede volver a enviar la notificación Order para reconciliar estados antiguos; antes de activar ventas debe comprobar también la entrega/reintentos del webhook en Mercado Pago.
+
+El endpoint de creación limita JSON a 4 KiB, valida tipos y opciones, y usa un cupo transaccional global de 60 intentos por minuto. CORS solo limita el uso desde navegadores: **no autentica solicitudes**. El cupo global protege el token de prueba, pero puede rechazar compradores legítimos durante picos; revisar un límite por identidad/IP confiable en el gateway antes de ventas reales.
+
+La comisión actual es un **recargo sobre el subtotal**: `subtotal × (1 + porcentaje/100)`, seguido de redondeo hacia arriba a $1.000. Esto difiere del precio necesario para compensar una comisión descontada del cobro, `subtotal ÷ (1 − porcentaje/100)`. Por ejemplo, con $100.000 y 10%, el recargo da $110.000 y compensar un descuento de 10% exige $111.111,12 antes del redondeo. No se cambió el método vigente; revisar costos, impuestos y condiciones comerciales antes de usar credenciales productivas.
+
 Referencias oficiales usadas:
 
 - [Ejemplo Checkout Pro con Orders API del SDK oficial](https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/createCheckoutPro.ts)
 - [Cliente oficial `POST /v1/orders`](https://github.com/mercadopago/sdk-nodejs/blob/master/src/clients/order/create/index.ts)
+- [Tipos oficiales de respuesta Order, pagos, reembolsos y contracargos](https://github.com/mercadopago/sdk-nodejs/blob/master/src/clients/order/commonTypes.ts)
 - [Validación oficial de firmas de webhook](https://github.com/mercadopago/sdk-nodejs/blob/master/docs/webhooks.md)
 
 ## Controles que fallan de forma segura

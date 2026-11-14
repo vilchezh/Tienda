@@ -42,8 +42,9 @@ export function signatureManifest(dataId, requestId, timestamp) {
 export async function verifyMercadoPagoSignature({ signature, requestId, dataId, secret, now = Date.now(), toleranceSeconds = 300 }) {
   if (!secret || !signature || !requestId || !dataId) return false;
   const { timestamp, hash } = parseSignature(signature);
-  if (!/^\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(hash)) return false;
-  const drift = Math.abs(now - Number(timestamp) * 1000) / 1000;
+  if (!/^(\d{10}|\d{13})$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(hash)) return false;
+  const signedAt = Number(timestamp) * (timestamp.length === 10 ? 1000 : 1);
+  const drift = Math.abs(now - signedAt) / 1000;
   if (!Number.isFinite(drift) || drift > toleranceSeconds) return false;
   const expected = await hmacHex(secret, signatureManifest(dataId, requestId, timestamp));
   return constantTimeEqual(expected, hash);

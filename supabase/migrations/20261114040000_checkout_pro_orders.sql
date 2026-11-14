@@ -97,3 +97,66 @@ comment on table public.checkout_orders is
   'Pedidos creados del lado servidor. Sin datos de tarjeta ni credenciales.';
 comment on table public.mp_webhook_events is
   'Registro minimo para deduplicar notificaciones Order verificadas.';
+
+-- Serializa webhook y creación sobre la misma fila. Solo las Edge Functions con
+-- service_role pueden ejecutar estas operaciones; no se exponen a anon/authenticated.
+create or replace function public.checkout_finalize_creation(p_id uuid, p_mp_id text, p_url text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  update public.checkout_orders
+     set mp_order_id = coalesce(mp_order_id, p_mp_id), mp_checkout_url = p_url,
+         status = case when status in ('creating', 'failed') then 'created' else status end,
+         updated_at = now()
+   where id = p_id and (mp_order_id is null or mp_order_id = p_mp_id);
+  if not found then raise exception 'order mismatch'; end if;
+end $$;
+
+create or replace function public.checkout_record_verified_order(
+  p_id uuid, p_mp_id text, p_request_id text, p_action text,
+  p_status text, p_payment_status text, p_detail text, p_paid numeric
+) returns boolean language plpgsql security definer set search_path = public as $$
+declare current_row public.checkout_orders%rowtype;
+begin
+  select * into current_row from public.checkout_orders where id = p_id for update;
+  if not found or (current_row.mp_order_id is not null and current_row.mp_order_id <> p_mp_id)
+    then raise exception 'order mismatch'; end if;
+  insert into public.mp_webhook_events(request_id, resource_id, event_type, action, order_status, payment_status)
+  values (p_request_id, p_mp_id, 'order', p_action, p_status, p_payment_status)
+  on conflict (request_id) do nothing;
+  if not found then return false; end if;
+  -- Estados adversos son absorbentes frente a respuestas anteriores y eventos fuera de orden.
+  if current_row.payment_status in ('refunded', 'partially_refunded', 'charged_back', 'manual_review')
+     and p_payment_status not in ('refunded', 'partially_refunded', 'charged_back', 'manual_review')
+    then return true; end if;
+  if current_row.payment_status = 'processed' and p_payment_status in ('created', 'processing', 'action_required')
+    then return true; end if;
+  update public.checkout_orders set mp_order_id = p_mp_id, status = p_status,
+    payment_status = p_payment_status, status_detail = p_detail, mp_paid_amount = p_paid,
+    last_webhook_request_id = p_request_id, updated_at = now() where id = p_id;
+  return true;
+end $$;
+
+revoke all on function public.checkout_finalize_creation(uuid,text,text) from public, anon, authenticated;
+revoke all on function public.checkout_record_verified_order(uuid,text,text,text,text,text,text,numeric) from public, anon, authenticated;
+grant execute on function public.checkout_finalize_creation(uuid,text,text) to service_role;
+grant execute on function public.checkout_record_verified_order(uuid,text,text,text,text,text,text,numeric) to service_role;
+
+create table public.checkout_rate_windows (
+  window_start timestamptz primary key,
+  requests integer not null check (requests > 0)
+);
+revoke all on public.checkout_rate_windows from public, anon, authenticated;
+grant all on public.checkout_rate_windows to service_role;
+create or replace function public.checkout_take_rate_slot() returns boolean
+language plpgsql security definer set search_path = public as $$
+declare count_now integer;
+begin
+  insert into public.checkout_rate_windows(window_start, requests)
+  values (date_trunc('minute', now()), 1)
+  on conflict (window_start) do update set requests = checkout_rate_windows.requests + 1
+  returning requests into count_now;
+  delete from public.checkout_rate_windows where window_start < now() - interval '1 day';
+  return count_now <= 60;
+end $$;
+revoke all on function public.checkout_take_rate_slot() from public, anon, authenticated;
+grant execute on function public.checkout_take_rate_slot() to service_role;

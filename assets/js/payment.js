@@ -13,6 +13,15 @@
     rejected: ['Pago rechazado', 'El pago fue rechazado. Podés volver a la tienda e iniciar otro intento.'],
     cancelled: ['Pago cancelado', 'La operación fue cancelada.'],
     manual_review: ['Pedido en revisión', 'Detectamos una diferencia y el pedido requiere revisión manual.'],
+    processed: ['Pago acreditado', 'Mercado Pago confirmó el importe acreditado. Te contactaremos para coordinar la fabricación.'],
+    created: ['Pedido creado', 'El pago aún no fue confirmado.'],
+    processing: ['Pago en proceso', 'Mercado Pago sigue procesando la orden.'],
+    action_required: ['Acción pendiente', 'Mercado Pago requiere una acción para continuar.'],
+    failed: ['Pago fallido', 'La orden no pudo completarse.'],
+    canceled: ['Pago cancelado', 'La orden fue cancelada.'],
+    refunded: ['Pago reembolsado', 'Mercado Pago informa que el pago fue reembolsado.'],
+    partially_refunded: ['Reembolso parcial', 'Parte del importe fue reembolsada. Consultanos antes de avanzar.'],
+    charged_back: ['Contracargo', 'Mercado Pago informa un contracargo. El pedido requiere revisión.'],
   };
 
   async function loadStatus() {
@@ -30,7 +39,7 @@
       const response = await fetch(endpoint, { headers: { apikey: window.STORE_CONFIG.supabaseAnonKey } });
       const data = await response.json();
       if (!response.ok) throw new Error('status');
-      const status = data.payment_status || data.order_status || 'pending';
+      const status = data.payment_status || 'created';
       const copy = labels[status] || ['Pedido recibido', 'Todavía no hay un estado final confirmado.'];
       title.textContent = copy[0];
       message.textContent = copy[1];

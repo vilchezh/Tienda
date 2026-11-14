@@ -52,6 +52,15 @@ test('only HTTPS Mercado Pago checkout URLs are accepted', () => {
   }
 });
 
+test('refunded and charged back orders never appear accredited', () => {
+  assert.equal(paymentStatusFromOrder({ status: 'refunded', transactions: { payments: [{ status: 'approved' }] } }), 'refunded');
+  assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'charged_back' }, { status: 'approved' }] } }), 'charged_back');
+  assert.equal(paymentStatusFromOrder({ status: 'partially_refunded', transactions: { payments: [{ status: 'processed' }] } }), 'partially_refunded');
+  assert.equal(paymentStatusFromOrder({ status: 'action_required' }), 'action_required');
+  assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved', refunded_amount: '500.00' }], refunds: [{}] } }), 'partially_refunded');
+  assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved' }], chargebacks: [{}] } }), 'charged_back');
+});
+
 async function signature(secret, manifest) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -68,6 +77,12 @@ test('Order webhook signature validates the official manifest and rejects tamper
   assert.equal(await verifyMercadoPagoSignature(input), true);
   assert.equal(await verifyMercadoPagoSignature({ ...input, dataId: 'tampered' }), false);
   assert.equal(await verifyMercadoPagoSignature({ ...input, now: 1800000601000 }), false);
+  const millis = '1800000000123';
+  const millHash = await signature(env.MP_WEBHOOK_SECRET_TEST, signatureManifest('ORD01JTESTABC', requestId, millis));
+  const notification = { signature: `ts=${millis},v1=${millHash}`, requestId, dataId: 'ORD01JTESTABC', secret: env.MP_WEBHOOK_SECRET_TEST, now: 1800000000123 };
+  assert.equal(await verifyMercadoPagoSignature(notification), true);
+  assert.equal(await verifyMercadoPagoSignature({ ...notification, now: 1800000301124 }), false);
+  assert.equal(await verifyMercadoPagoSignature({ ...notification, signature: `ts=1800000000,v1=${millHash}` }), false);
 });
 
 test('Order webhook signature normalizes alphanumeric resource ids', () => {
@@ -82,10 +97,12 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
   const fetchMock = async (url, init = {}) => {
     calls.push({ url: String(url), init, body: init.body ? JSON.parse(init.body) : null });
     const value = String(url);
+    if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
     if (value.includes('checkout_orders?client_request_id=')) return Response.json([]);
     if (value.includes('productos?')) return Response.json([product]);
     if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 7.5, payments_enabled: true }]);
     if (value.endsWith('/rest/v1/checkout_orders') && init.method === 'POST') return Response.json([{ id: localOrderId }], { status: 201 });
+    if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
     if (value.includes('/rest/v1/checkout_orders?id=eq.')) return new Response(null, { status: 204 });
     if (value === 'https://api.mercadopago.com/v1/orders') {
       return Response.json({ id: 'mp-order-1', status: 'created', checkout_url: 'https://www.mercadopago.com.ar/checkout/v1/redirect?id=test' }, { status: 201 });
@@ -114,6 +131,73 @@ test('create function recalculates catalog prices and sends POST /v1/orders with
   assert.equal(JSON.stringify(mpCall.body).includes('total":1'), false);
 });
 
+test('oversized and malformed requests are rejected before any provider call', async () => {
+  let providerCalls = 0;
+  const fetchMock = async url => {
+    if (String(url).endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+    providerCalls += 1;
+    throw new Error('unexpected');
+  };
+  const endpoint = 'https://project.supabase.co/functions/v1/create-mp-order';
+  const headers = { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' };
+  const tooLarge = await createOrderHandler(env, fetchMock)(new Request(endpoint, { method: 'POST', headers, body: 'x'.repeat(4097) }));
+  assert.equal(tooLarge.status, 413);
+  const malformed = await createOrderHandler(env, fetchMock)(new Request(endpoint, { method: 'POST', headers, body: '{' }));
+  assert.equal(malformed.status, 400);
+  assert.equal(providerCalls, 0);
+});
+
+test('an interrupted creation retries with the stored amount and original idempotency key', async () => {
+  const calls = [];
+  const saved = { id: localOrderId, client_request_id: clientRequestId, product_id: product.id,
+    product_snapshot: { nombre: product.nombre, sku: product.sku }, total_amount: 257000,
+    status: 'creating', updated_at: new Date(Date.now() - 180000).toISOString() };
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    calls.push({ value, init });
+    if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+    if (value.includes('checkout_orders?client_request_id=')) return Response.json([saved]);
+    if (value.endsWith('/v1/orders')) return Response.json({ id: 'mp-order-1', checkout_url: 'https://www.mercadopago.com.ar/checkout/test' });
+    if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
+    throw new Error(value);
+  };
+  const request = new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+    method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId }),
+  });
+  assert.equal((await createOrderHandler(env, fetchMock)(request)).status, 201);
+  const provider = calls.find(call => call.value.endsWith('/v1/orders'));
+  assert.equal(provider.init.headers['X-Idempotency-Key'], clientRequestId);
+  assert.equal(JSON.parse(provider.init.body).total_amount, '257000.00');
+  assert.equal(calls.some(call => call.value.includes('/rest/v1/productos?')), false);
+});
+
+test('simultaneous creation attempts with one idempotency key do not both call Mercado Pago', async () => {
+  let providerCalls = 0;
+  let inserts = 0;
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    if (value.endsWith('/rpc/checkout_take_rate_slot')) return Response.json(true);
+    if (value.includes('checkout_orders?client_request_id=')) return Response.json([]);
+    if (value.includes('productos?')) return Response.json([product]);
+    if (value.includes('checkout_settings?')) return Response.json([{ commission_percent: 0, payments_enabled: true }]);
+    if (value.endsWith('/rest/v1/checkout_orders') && init.method === 'POST') {
+      inserts += 1;
+      return inserts === 1 ? Response.json([{ id: localOrderId }], { status: 201 }) : Response.json({ code: '23505' }, { status: 409 });
+    }
+    if (value.endsWith('/v1/orders')) { providerCalls += 1; return Response.json({ id: 'mp-1', checkout_url: 'https://www.mercadopago.com.ar/checkout/test' }); }
+    if (value.endsWith('/rpc/checkout_finalize_creation')) return new Response(null, { status: 204 });
+    throw new Error(value);
+  };
+  const makeRequest = () => new Request('https://project.supabase.co/functions/v1/create-mp-order', {
+    method: 'POST', headers: { Origin: env.STORE_BASE_URL, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: product.id, client_request_id: clientRequestId, ...selection }),
+  });
+  const responses = await Promise.all([createOrderHandler(env, fetchMock)(makeRequest()), createOrderHandler(env, fetchMock)(makeRequest())]);
+  assert.deepEqual(responses.map(r => r.status).sort(), [201, 409]);
+  assert.equal(providerCalls, 1);
+});
+
 test('signed Order webhook fetches real state from Mercado Pago before updating the local order', async () => {
   const dataId = 'mp-order-1';
   const requestId = 'webhook-request-1';
@@ -123,15 +207,13 @@ test('signed Order webhook fetches real state from Mercado Pago before updating 
   const fetchMock = async (url, init = {}) => {
     calls.push({ url: String(url), init, body: init.body ? JSON.parse(init.body) : null });
     const value = String(url);
-    if (value.includes('mp_webhook_events?')) return Response.json([]);
     if (value === `https://api.mercadopago.com/v1/orders/${dataId}`) return Response.json({
       id: dataId, external_reference: localOrderId, status: 'processed', status_detail: 'accredited',
       total_amount: '257000.00', total_paid_amount: '257000.00', currency: 'ARS',
       transactions: { payments: [{ status: 'approved' }] },
     });
     if (value.includes('checkout_orders?id=eq.') && init.method !== 'PATCH') return Response.json([{ id: localOrderId, total_amount: 257000, currency: 'ARS', mp_order_id: dataId }]);
-    if (value.includes('checkout_orders?id=eq.') && init.method === 'PATCH') return new Response(null, { status: 204 });
-    if (value.endsWith('/rest/v1/mp_webhook_events')) return Response.json([], { status: 201 });
+    if (value.endsWith('/rpc/checkout_record_verified_order')) return Response.json(true);
     throw new Error(`Unexpected URL ${value}`);
   };
   const request = new Request(`https://project.supabase.co/functions/v1/mp-order-webhook?data.id=${dataId}`, {
@@ -142,10 +224,10 @@ test('signed Order webhook fetches real state from Mercado Pago before updating 
   const response = await webhookHandler(env, fetchMock)(request);
   assert.equal(response.status, 200);
   assert.equal(calls.some(call => call.url === `https://api.mercadopago.com/v1/orders/${dataId}`), true);
-  const update = calls.find(call => call.init.method === 'PATCH');
-  assert.equal(update.body.status, 'processed');
-  assert.equal(update.body.payment_status, 'approved');
-  assert.equal(paymentStatusFromOrder({ transactions: { payments: [{ status: 'approved' }] } }), 'approved');
+  const update = calls.find(call => call.url.endsWith('/rpc/checkout_record_verified_order'));
+  assert.equal(update.body.p_status, 'processed');
+  assert.equal(update.body.p_payment_status, 'processed');
+  assert.equal(paymentStatusFromOrder({ status: 'processed', transactions: { payments: [{ status: 'approved' }] } }), 'processed');
 });
 
 test('forged webhook is rejected before any provider or database request', async () => {
@@ -167,4 +249,7 @@ test('migration keeps test mode fail-closed and protects payment tables with RLS
   assert.match(sql, /total_amount % 1000 = 0/i);
   assert.match(sql, /alter table public\.checkout_orders enable row level security/i);
   assert.match(sql, /tienda_security\.is_admin\(\)/i);
+  assert.match(sql, /for update/i);
+  assert.match(sql, /on conflict \(request_id\) do nothing/i);
+  assert.match(sql, /checkout_take_rate_slot/i);
 });
