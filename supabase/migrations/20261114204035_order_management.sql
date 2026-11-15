@@ -367,7 +367,7 @@ begin
   if current_row.payment_status = 'processed' and p_payment_status in ('created', 'processing', 'action_required')
     then return true; end if;
 
-  was_accredited := current_row.payment_status = 'processed';
+  was_accredited := coalesce(current_row.payment_status = 'processed', false);
   update public.checkout_orders set mp_order_id = p_mp_id, status = p_status,
     payment_status = p_payment_status, status_detail = p_detail, mp_paid_amount = p_paid,
     last_webhook_request_id = p_request_id, updated_at = timezone('utc', now()) where id = p_id;
