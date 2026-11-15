@@ -470,6 +470,13 @@ test('customer and seller emails are responsive, operational and escape every dy
   assert.match(sellerTemplate.text, /Calle 123/);
 });
 
+test('both immediate and scheduled notification entrypoints expose the public store URL to email templates', () => {
+  const webhookEntry = readFileSync(new URL('../supabase/functions/mp-order-webhook/index.ts', import.meta.url), 'utf8');
+  const scheduledEntry = readFileSync(new URL('../supabase/functions/process-order-notifications/index.ts', import.meta.url), 'utf8');
+  assert.match(webhookEntry, /['"]STORE_BASE_URL['"]/);
+  assert.match(scheduledEntry, /['"]STORE_BASE_URL['"]/);
+});
+
 test('Resend 403 is classified as a permanent configuration rejection', () => {
   assert.deepEqual(providerFailure(403), { code: 'provider_forbidden', permanent: true });
   assert.deepEqual(providerFailure(429), { code: 'provider_rate_limited', permanent: false });
