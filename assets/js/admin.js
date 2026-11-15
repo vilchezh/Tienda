@@ -15,15 +15,33 @@ const h = Store.escapeHTML;
     let checkoutSettingsAvailable = false;
     let orders = [];
     let selectedOrderId = null;
+    let orderPage = 0;
+    let orderTotal = 0;
+    let orderSearchTimer;
+    let orderLoadSequence = 0;
+    const ORDER_PAGE_SIZE = 50;
 
     const PAYMENT_LABELS = {
-      processed: 'Acreditado', processing: 'En proceso', created: 'Creado', action_required: 'Requiere acción',
+      processed: 'Acreditado', processing: 'En proceso', created: 'Orden creada · sin pago', action_required: 'Requiere acción',
       manual_review: 'Revisión manual', refunded: 'Reembolsado', partially_refunded: 'Reembolso parcial',
       charged_back: 'Contracargo', canceled: 'Cancelado', failed: 'Fallido',
     };
     const MANUFACTURING_LABELS = {
       not_started: 'Sin iniciar', confirmed: 'Confirmado', in_production: 'En fabricación',
       ready: 'Listo', delivered: 'Entregado', canceled: 'Cancelado',
+    };
+    const EMAIL_STATUS_LABELS = {
+      pending: 'Pendiente', processing: 'Enviando', sent: 'Enviado', failed: 'Reintento pendiente',
+      rejected: 'Rechazado permanentemente', uncertain: 'Resultado incierto · revisión manual',
+    };
+    const EMAIL_ERROR_LABELS = {
+      recipient_not_configured: 'Falta configurar el destinatario.',
+      provider_authentication_failed: 'Resend rechazó la credencial de envío.',
+      provider_forbidden: 'Resend rechazó remitente o destinatario. Revisar dominio verificado y destinatario permitido.',
+      provider_request_rejected: 'Resend rechazó la configuración del mensaje.',
+      provider_rate_limited: 'Resend aplicó un límite temporal.',
+      provider_outcome_uncertain: 'No se pudo confirmar si Resend aceptó el mensaje.',
+      idempotency_window_expired: 'Venció la ventana segura de reintento; no se reenvió automáticamente.',
     };
 
     // Mapa actualizado con Variado, Gym completo y Maquinas/Herramientas
@@ -92,34 +110,31 @@ const h = Store.escapeHTML;
       return 'warn';
     }
 
-    function orderSearchText(order) {
-      const customer = relatedOne(order.checkout_order_customers);
-      const product = order.product_snapshot || {};
-      return [order.id, order.mp_order_id, order.product_id, product.nombre, product.sku, customer?.full_name, customer?.email]
-        .filter(Boolean).join(' ').toLocaleLowerCase('es');
-    }
-
-    function filteredOrders() {
-      const search = document.getElementById('orderSearch').value.trim().toLocaleLowerCase('es');
-      const payment = document.getElementById('orderPaymentFilter').value;
-      const manufacturing = document.getElementById('orderManufacturingFilter').value;
-      return orders.filter(order => (!search || orderSearchText(order).includes(search)) &&
-        (!payment || order.payment_status === payment) &&
-        (!manufacturing || order.manufacturing_status === manufacturing));
+    function effectivePaymentStatus(order) {
+      return order.payment_status || order.status || 'created';
     }
 
     function renderOrders() {
-      const visible = filteredOrders();
       const body = document.getElementById('ordersTableBody');
-      document.getElementById('ordersStatus').textContent = orders.length
-        ? `${visible.length} de ${orders.length} pedidos · datos visibles sólo para administradores autorizados.`
-        : 'No hay pedidos para mostrar.';
-      body.innerHTML = visible.map(order => {
+      const first = orderTotal ? orderPage * ORDER_PAGE_SIZE + 1 : 0;
+      const last = Math.min((orderPage + 1) * ORDER_PAGE_SIZE, orderTotal);
+      document.getElementById('ordersStatus').textContent = orderTotal
+        ? `${orderTotal.toLocaleString('es-AR')} resultados · mostrando ${first}-${last} · datos visibles sólo para administradores autorizados.`
+        : 'No hay pedidos que coincidan con los filtros.';
+      document.getElementById('ordersPageStatus').textContent = orderTotal
+        ? `Página ${orderPage + 1} de ${Math.ceil(orderTotal / ORDER_PAGE_SIZE)}` : 'Sin resultados';
+      document.getElementById('btnPreviousOrders').disabled = orderPage === 0;
+      document.getElementById('btnNextOrders').disabled = last >= orderTotal;
+      body.innerHTML = orders.map(order => {
         const product = order.product_snapshot || {};
-        const payment = order.payment_status || order.status || 'created';
+        const customer = relatedOne(order.checkout_order_customers);
+        const payment = effectivePaymentStatus(order);
         return `<tr tabindex="0" data-order-id="${h(order.id)}" class="${order.id === selectedOrderId ? 'active' : ''}">
           <td>${h(formatOrderDate(order.created_at))}</td>
-          <td><strong>${h(String(order.id).slice(0, 8))}</strong><span class="order-ref">${h(order.mp_order_id || 'Sin ID de MP')}</span></td>
+          <td><strong>${h(String(order.id).slice(0, 8))}</strong>
+            <span class="order-customer-name">${h(customer?.full_name || 'Datos no capturados')}</span>
+            <span class="order-customer-email">${h(customer?.email || '—')}</span>
+            <span class="order-ref">Orden MP: ${h(order.mp_order_id || 'Sin ID')}</span></td>
           <td>${h(product.nombre || order.product_id)}<span class="order-ref">${h(product.sku || order.product_id)}</span></td>
           <td><strong>$${h(Number(order.total_amount).toLocaleString('es-AR'))}</strong><span class="order-ref">${h(order.currency || 'ARS')}</span></td>
           <td><span class="order-badge ${paymentBadgeClass(payment)}">${h(PAYMENT_LABELS[payment] || payment)}</span></td>
@@ -138,7 +153,12 @@ const h = Store.escapeHTML;
     function emailSummary(order) {
       const items = Array.isArray(order.checkout_email_outbox) ? order.checkout_email_outbox : [];
       if (!items.length) return 'Sin avisos en cola (se crean al acreditarse el pago).';
-      return items.map(item => `${item.notification_type === 'seller_payment_received' ? 'Vendedor' : 'Cliente'}: ${item.status}${item.sent_at ? ` · ${formatOrderDate(item.sent_at)}` : ''}`).join(' · ');
+      return items.map(item => {
+        const recipient = item.notification_type === 'seller_payment_received' ? 'Vendedor' : 'Cliente';
+        const status = EMAIL_STATUS_LABELS[item.status] || item.status;
+        const reason = item.last_error ? (EMAIL_ERROR_LABELS[item.last_error] || 'Error de entrega registrado; revisar configuración.') : '';
+        return `${recipient}: ${status}${item.sent_at ? ` · ${formatOrderDate(item.sent_at)}` : ''}${reason ? ` · ${reason}` : ''}`;
+      }).join(' · ');
     }
 
     async function renderOrderAudit(orderId) {
@@ -158,8 +178,9 @@ const h = Store.escapeHTML;
       const product = order.product_snapshot || {};
       const selection = order.selection_snapshot || {};
       const customer = relatedOne(order.checkout_order_customers);
+      const payment = effectivePaymentStatus(order);
       const extras = Array.isArray(selection.extras) && selection.extras.length ? selection.extras.join(', ') : 'Ninguno';
-      const delivery = customer?.delivery_method === 'delivery'
+      const delivery = !customer ? 'Datos no capturados' : customer.delivery_method === 'delivery'
         ? [customer.address_line, customer.city, customer.province, customer.postal_code].filter(Boolean).join(', ')
         : 'Retiro a coordinar';
       const manufacturingOptions = Object.entries(MANUFACTURING_LABELS)
@@ -170,9 +191,12 @@ const h = Store.escapeHTML;
         <dl class="detail-list">
           <div><dt>Referencia</dt><dd>${h(product.sku || order.product_id)}</dd></div>
           <div><dt>Importe</dt><dd>$${h(Number(order.total_amount).toLocaleString('es-AR'))} ${h(order.currency || 'ARS')}</dd></div>
-          <div><dt>Pago</dt><dd>${h(PAYMENT_LABELS[order.payment_status] || order.payment_status || order.status)}</dd></div>
+          <div><dt>Pago</dt><dd>${h(PAYMENT_LABELS[payment] || payment)}</dd></div>
           <div><dt>Orden Mercado Pago</dt><dd>${h(order.mp_order_id || 'Pendiente')}</dd></div>
         </dl>
+        ${payment === 'processed'
+          ? '<p class="order-sale-note good">Venta acreditada. La fabricación se gestiona por separado.</p>'
+          : '<p class="order-sale-note warn">Este registro no cuenta como venta acreditada. Conserva la trazabilidad del intento de pago.</p>'}
         <h3>Configuración</h3>
         <dl class="detail-list">
           <div><dt>Madera</dt><dd>${h(selection.wood_type || '—')}</dd></div>
@@ -208,22 +232,66 @@ const h = Store.escapeHTML;
       renderOrderDetail(order);
     }
 
-    async function loadOrders() {
+    function argentinaStart(date) {
+      return date ? new Date(`${date}T00:00:00-03:00`).toISOString() : null;
+    }
+
+    function nextLocalDay(date) {
+      if (!date) return null;
+      const [year, month, day] = date.split('-').map(Number);
+      const next = new Date(Date.UTC(year, month - 1, day + 1));
+      return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    function orderDateBounds() {
+      const month = document.getElementById('orderMonthFilter').value;
+      const from = document.getElementById('orderDateFrom').value;
+      const to = document.getElementById('orderDateTo').value;
+      if (month) {
+        const [year, number] = month.split('-').map(Number);
+        const nextYear = number === 12 ? year + 1 : year;
+        const nextMonth = number === 12 ? 1 : number + 1;
+        return {
+          from: argentinaStart(`${year}-${String(number).padStart(2, '0')}-01`),
+          to: argentinaStart(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01`),
+        };
+      }
+      if (from && to && from > to) throw new Error('El rango de fechas no es válido.');
+      return { from: argentinaStart(from), to: to ? argentinaStart(nextLocalDay(to)) : null };
+    }
+
+    async function loadOrders(resetPage = true) {
+      const sequence = ++orderLoadSequence;
       const status = document.getElementById('ordersStatus');
+      if (resetPage) orderPage = 0;
       status.textContent = 'Cargando pedidos…';
-      const { data, error } = await supabaseClient.from('checkout_orders').select(`
-        id,product_id,product_snapshot,selection_snapshot,total_amount,currency,status,payment_status,status_detail,
-        mp_order_id,created_at,updated_at,manufacturing_status,manufacturing_updated_at,internal_notes,
-        checkout_order_customers(full_name,email,phone,delivery_method,address_line,city,province,postal_code,delivery_notes,retention_until),
-        checkout_email_outbox(notification_type,status,attempt_count,sent_at,last_error)
-      `).order('created_at', { ascending: false }).limit(250).abortSignal(AbortSignal.timeout(10000));
+      document.getElementById('btnPreviousOrders').disabled = true;
+      document.getElementById('btnNextOrders').disabled = true;
+      let bounds;
+      try { bounds = orderDateBounds(); }
+      catch (error) { status.textContent = error.message; return; }
+      const { data, error } = await supabaseClient.rpc('checkout_admin_list_orders', {
+        p_search: document.getElementById('orderSearch').value.trim() || null,
+        p_payment_group: document.getElementById('orderPaymentGroup').value,
+        p_payment_status: document.getElementById('orderPaymentFilter').value || null,
+        p_manufacturing_status: document.getElementById('orderManufacturingFilter').value || null,
+        p_date_from: bounds.from,
+        p_date_to: bounds.to,
+        p_sort: document.getElementById('orderSort').value,
+        p_limit: ORDER_PAGE_SIZE,
+        p_offset: orderPage * ORDER_PAGE_SIZE,
+      }).abortSignal(AbortSignal.timeout(10000));
+      if (sequence !== orderLoadSequence) return;
       if (error) {
         orders = [];
+        orderTotal = 0;
         document.getElementById('ordersTableBody').replaceChildren();
         status.textContent = 'La sección Pedidos estará disponible al aplicar la migración del Issue #4 en el sandbox o al autorizar esta cuenta como administradora.';
         return;
       }
-      orders = Array.isArray(data) ? data : [];
+      const rows = Array.isArray(data) ? data : [];
+      orders = rows.map(row => row.order_data).filter(Boolean);
+      orderTotal = rows.length ? Number(rows[0].total_count) || 0 : 0;
       renderOrders();
       if (selectedOrderId && orders.some(order => order.id === selectedOrderId)) selectOrder(selectedOrderId);
       else if (orders[0]) selectOrder(orders[0].id);
@@ -721,10 +789,48 @@ const h = Store.escapeHTML;
 
     document.getElementById('btnViewCatalog').addEventListener('click', () => setAdminView('catalog'));
     document.getElementById('btnViewOrders').addEventListener('click', () => setAdminView('orders'));
-    document.getElementById('btnRefreshOrders').addEventListener('click', loadOrders);
-    for (const id of ['orderSearch', 'orderPaymentFilter', 'orderManufacturingFilter']) {
-      document.getElementById(id).addEventListener(id === 'orderSearch' ? 'input' : 'change', renderOrders);
+    document.getElementById('btnRefreshOrders').addEventListener('click', () => loadOrders(true));
+    document.getElementById('orderSearch').addEventListener('input', () => {
+      clearTimeout(orderSearchTimer);
+      orderSearchTimer = setTimeout(() => loadOrders(true), 300);
+    });
+    for (const id of ['orderPaymentGroup', 'orderPaymentFilter', 'orderManufacturingFilter', 'orderSort']) {
+      document.getElementById(id).addEventListener('change', () => loadOrders(true));
     }
+    document.getElementById('orderMonthFilter').addEventListener('change', event => {
+      if (event.target.value) {
+        document.getElementById('orderDateFrom').value = '';
+        document.getElementById('orderDateTo').value = '';
+      }
+      loadOrders(true);
+    });
+    for (const id of ['orderDateFrom', 'orderDateTo']) {
+      document.getElementById(id).addEventListener('change', () => {
+        document.getElementById('orderMonthFilter').value = '';
+        loadOrders(true);
+      });
+    }
+    document.getElementById('btnResetOrderFilters').addEventListener('click', () => {
+      document.getElementById('orderSearch').value = '';
+      document.getElementById('orderPaymentGroup').value = 'all';
+      document.getElementById('orderPaymentFilter').value = '';
+      document.getElementById('orderManufacturingFilter').value = '';
+      document.getElementById('orderSort').value = 'desc';
+      document.getElementById('orderMonthFilter').value = '';
+      document.getElementById('orderDateFrom').value = '';
+      document.getElementById('orderDateTo').value = '';
+      loadOrders(true);
+    });
+    document.getElementById('btnPreviousOrders').addEventListener('click', () => {
+      if (orderPage === 0) return;
+      orderPage -= 1;
+      loadOrders(false);
+    });
+    document.getElementById('btnNextOrders').addEventListener('click', () => {
+      if ((orderPage + 1) * ORDER_PAGE_SIZE >= orderTotal) return;
+      orderPage += 1;
+      loadOrders(false);
+    });
 
     document.getElementById('btnImportJson').addEventListener('click', async () => {
       await importFromLocalJsonToSupabase();

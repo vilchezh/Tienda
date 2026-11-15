@@ -255,15 +255,27 @@
         <label>Buscar
           <input type="search" id="orderSearch" placeholder="Pedido, producto, cliente o email">
         </label>
-        <label>Pago
+        <label>Vista comercial
+          <select id="orderPaymentGroup">
+            <option value="all">Todos</option>
+            <option value="accredited">Acreditados</option>
+            <option value="unpaid">Intentos sin pago</option>
+            <option value="processing">En proceso</option>
+            <option value="refunded">Reembolsados</option>
+          </select>
+        </label>
+        <label>Estado de pago
           <select id="orderPaymentFilter">
-            <option value="">Todos</option>
+            <option value="">Todos los estados</option>
             <option value="processed">Acreditado</option>
+            <option value="created">Orden creada · sin pago</option>
             <option value="processing">En proceso</option>
             <option value="action_required">Requiere acción</option>
             <option value="manual_review">Revisión manual</option>
             <option value="refunded">Reembolsado</option>
+            <option value="partially_refunded">Reembolso parcial</option>
             <option value="charged_back">Contracargo</option>
+            <option value="canceled">Cancelado</option>
             <option value="failed">Fallido</option>
           </select>
         </label>
@@ -278,14 +290,35 @@
             <option value="canceled">Cancelado</option>
           </select>
         </label>
+        <label>Orden
+          <select id="orderSort">
+            <option value="desc">Más recientes primero</option>
+            <option value="asc">Más antiguos primero</option>
+          </select>
+        </label>
+        <label>Mes y año
+          <input type="month" id="orderMonthFilter">
+        </label>
+        <label>Desde
+          <input type="date" id="orderDateFrom">
+        </label>
+        <label>Hasta
+          <input type="date" id="orderDateTo">
+        </label>
         <button type="button" class="btn" id="btnRefreshOrders">Actualizar</button>
+        <button type="button" class="btn" id="btnResetOrderFilters">Restablecer</button>
       </div>
     </div>
     <p id="ordersStatus" class="orders-status" role="status">Cargando pedidos…</p>
+    <div class="orders-pagination" aria-label="Paginación de pedidos">
+      <button type="button" class="btn" id="btnPreviousOrders">← Anteriores</button>
+      <span id="ordersPageStatus">Página 1</span>
+      <button type="button" class="btn" id="btnNextOrders">Siguientes →</button>
+    </div>
     <div class="orders-workspace">
       <div class="orders-table-wrap">
         <table class="orders-table">
-          <thead><tr><th>Fecha</th><th>Pedido</th><th>Producto</th><th>Importe</th><th>Pago</th><th>Fabricación</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Pedido y cliente</th><th>Producto</th><th>Importe</th><th>Pago</th><th>Fabricación</th></tr></thead>
           <tbody id="ordersTableBody"></tbody>
         </table>
       </div>

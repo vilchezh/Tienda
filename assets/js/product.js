@@ -17,7 +17,6 @@ const urlParams = new URLSearchParams(window.location.search);
     };
     let productData = null;
     let checkoutConfig = { loaded: false, paymentsEnabled: false, commissionPercent: 0 };
-    let checkoutRequestId = null;
     let checkoutBusy = false;
     const textureCache = {};
 
@@ -180,20 +179,28 @@ const urlParams = new URLSearchParams(window.location.search);
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
       status.textContent = 'Preparando una orden segura en Mercado Pago…';
-      checkoutRequestId ||= crypto.randomUUID();
       try {
+        const checkoutPayload = { ...currentSelection(), customer: currentCustomer() };
+        const attempt = await Store.checkoutAttempt(productData.id, checkoutPayload);
         const response = await fetch(Store.edgeFunctionURL('create-mp-order'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             apikey: window.STORE_CONFIG.supabaseAnonKey,
           },
-          body: JSON.stringify({ ...currentSelection(), customer: currentCustomer(), client_request_id: checkoutRequestId }),
+          body: JSON.stringify({ ...checkoutPayload, client_request_id: attempt.requestId }),
         });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.message || 'No pudimos iniciar el checkout.');
+        if (!response.ok) {
+          if (result.error === 'idempotency_mismatch') {
+            Store.clearCheckoutAttempt(null, productData.id);
+            throw new Error('La configuración cambió desde el intento anterior. Revisala y volvé a presionar Comprar para crear un intento nuevo.');
+          }
+          throw new Error(result.message || 'No pudimos iniciar el checkout.');
+        }
         const checkoutUrl = Store.checkoutURL(result.checkout_url);
         if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace válido.');
+        Store.recordCheckoutOrder(attempt.requestId, result.order_id);
         status.textContent = 'Redirigiendo al entorno de prueba de Mercado Pago…';
         window.location.assign(checkoutUrl);
       } catch (error) {

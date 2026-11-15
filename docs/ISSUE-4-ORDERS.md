@@ -12,6 +12,8 @@ Esta etapa está preparada exclusivamente para `pacyytbscnlklyrhsshp` y el Worke
 - Outbox de correo con clave única por pedido/tipo, reclamo transaccional, hasta 8 intentos, backoff y clave de idempotencia estable para Resend.
 - Ventana local de idempotencia de 23 horas: una entrega de resultado incierto deja de reintentarse antes de que venza la protección de 24 horas de Resend y queda marcada `uncertain` para revisión.
 - Aviso inmediato después de un webhook acreditado y una función separada para reintentos programados.
+- Recuperación del intento de checkout durante 24 horas en la misma pestaña: recargas, errores de red y retornos pendientes reutilizan `client_request_id`; una configuración distinta o un pago terminal permiten un intento nuevo.
+- Listado administrativo paginado de 50 filas con total, búsqueda, orden, mes/rango en `America/Argentina/Buenos_Aires` y filtros comerciales para separar ventas acreditadas de intentos sin pago.
 
 Los dos pagos sandbox existentes seguirán visibles, pero mostrarán “No capturado en pedidos anteriores” porque se crearon antes de esta captura. No inventar ni completar esos datos a partir de Mercado Pago.
 
@@ -19,7 +21,7 @@ Los dos pagos sandbox existentes seguirán visibles, pero mostrarán “No captu
 
 Todo lo siguiente requiere revisión y autorización explícita. Ejecutar únicamente contra `pacyytbscnlklyrhsshp`.
 
-1. Aplicar `supabase/migrations/20261114204035_order_management.sql` después de la migración de checkout existente.
+1. Aplicar `supabase/migrations/20261114204035_order_management.sql` después de la migración de checkout existente y luego `supabase/migrations/20261115174702_improve_order_attempts_admin.sql`. Si la primera ya está aplicada, ejecutar sólo la segunda.
 2. Ejecutar `supabase/test/03_assertions.sql` en una transacción que termina en `ROLLBACK` y revisar advisors de seguridad/performance.
 3. Configurar los secretos de correo enumerados abajo.
 4. Desplegar nuevamente `create-mp-order` y `mp-order-webhook`, porque ambas cambiaron.
@@ -51,6 +53,14 @@ x-dispatch-secret: <ORDER_NOTIFICATION_DISPATCH_SECRET>
 Guardar el secreto en el mecanismo protegido de la tarea, no en SQL versionado. La función rechaza llamadas sin esa cabecera. El webhook intenta el envío inmediato; Cron procesa pendientes, fallidos y reclamos abandonados. Resend recibe una `Idempotency-Key` estable (`pedido + tipo`), y la base impide más de una fila por `pedido + tipo`.
 
 Resend conserva una clave de idempotencia durante 24 horas. El primer reclamo fija un vencimiento local a 23 horas. Si Resend aceptó el correo pero falló la confirmación en Supabase, la fila queda `processing`: sólo se reclama con la misma clave dentro de esa ventana. Al vencer, `checkout_expire_uncertain_notifications()` la mueve a `uncertain`; no hay reenvío automático posterior que pueda duplicar el mensaje.
+
+Un `403` de Resend es permanente, no transitorio: la outbox lo guarda como `rejected` con el código seguro `provider_forbidden` y no lo vuelve a reclamar. Según la documentación vigente de Resend, las causas habituales son usar `resend.dev` para enviar a un destinatario distinto del correo propietario de la cuenta o usar un `from` cuyo dominio todavía no está verificado. Si el correo al comprador fue enviado pero el del vendedor recibió `403`, comprobar primero que `ORDER_NOTIFICATION_TO` sea el destinatario autorizado durante pruebas; para enviar a cualquier buzón, verificar un dominio y cambiar `ORDER_EMAIL_FROM` a ese dominio. El panel muestra este diagnóstico sin guardar la respuesta completa del proveedor ni datos personales en logs.
+
+## Intentos de checkout y conciliación
+
+El navegador guarda en `sessionStorage` únicamente UUID, fecha, producto y una huella SHA-256 del formulario; no conserva nombre, correo, teléfono ni domicilio en claro. El mismo intento se recupera después de recargar, volver desde Mercado Pago con estado pendiente o reintentar una falla de red. Cambiar producto/configuración/contacto produce una huella distinta y, por diseño, un nuevo intento. Un estado terminal verificado libera el intento para permitir una compra legítima idéntica posterior.
+
+Las órdenes `created`, `failed` o `canceled` aparecen en **Intentos sin pago** y no cuentan como ventas. No se fusionan ni eliminan por email, producto o importe. Para órdenes históricas `created`, corresponde conciliar por `mp_order_id` contra Orders API o el panel de Mercado Pago antes de cualquier decisión; esta etapa no hace una conciliación masiva automática porque no debe inferir acreditaciones ni modificar pagos existentes sin revisión y autorización.
 
 ## Mantenimiento programado de datos personales
 

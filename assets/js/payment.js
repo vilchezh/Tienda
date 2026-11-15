@@ -47,6 +47,9 @@
       document.getElementById('resultAmount').textContent = `$${Number(data.amount).toLocaleString('es-AR')} ${data.currency}`;
       document.getElementById('resultStatus').textContent = status;
       details.hidden = false;
+      if (['approved', 'processed', 'rejected', 'failed', 'canceled', 'cancelled', 'refunded', 'partially_refunded', 'charged_back'].includes(status)) {
+        Store.clearCheckoutAttempt(data.order_id);
+      }
     } catch {
       title.textContent = 'No pudimos verificar el estado';
       message.textContent = 'La notificación puede estar demorada. Volvé a intentar en unos minutos; no tomamos la URL de retorno como confirmación de pago.';

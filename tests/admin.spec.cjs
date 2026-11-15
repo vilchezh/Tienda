@@ -10,6 +10,16 @@ const sandboxOrder={
  checkout_order_customers:{full_name:'Cliente Sandbox',email:'buyer@example.invalid',phone:'+54 11 5555 0000',delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000',delivery_notes:'Timbre 2'},
  checkout_email_outbox:[{notification_type:'customer_payment_confirmed',status:'sent',sent_at:'2026-11-14T15:06:00Z'}]
 };
+function generatedOrder(index) {
+ const created=new Date(Date.UTC(2026,10,14,23)-index*6*60*60*1000).toISOString();
+ const paid=index%2===0;
+ return {...structuredClone(sandboxOrder),
+  id:`00000000-0000-4000-8000-${String(index).padStart(12,'0')}`,
+  mp_order_id:`ORD-${String(index).padStart(4,'0')}`,created_at:created,status:paid?'processed':'created',
+  payment_status:paid?'processed':'created',
+  checkout_order_customers:{...sandboxOrder.checkout_order_customers,full_name:`Cliente ${index}`,email:`cliente${index}@example.invalid`}
+ };
+}
 test('admin previews final selling price and breakdown while payment switch is off',async({page})=>{
  const state=await setup(page,{authenticated:true,rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
  await page.goto('/admin.html');
@@ -45,6 +55,59 @@ test('orders view fails closed when the session is not an authorized administrat
  await page.locator('#btnViewOrders').click();
  await expect(page.locator('#ordersStatus')).toContainText('autorizar esta cuenta');
  await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+});
+test('orders use server pagination and combinable Buenos Aires date/payment filters beyond 250 rows',async({page})=>{
+ const orders=Array.from({length:275},(_,index)=>generatedOrder(index));
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+ await expect(page.locator('#ordersStatus')).toContainText('275 resultados');
+ expect(state.orderQueries[0]).toMatchObject({p_limit:50,p_offset:0,p_sort:'desc',p_payment_group:'all'});
+ await page.locator('#btnNextOrders').click();
+ await expect.poll(()=>state.orderQueries.at(-1).p_offset).toBe(50);
+ await expect(page.locator('#ordersPageStatus')).toContainText('Página 2');
+ await page.locator('#orderPaymentGroup').selectOption('unpaid');
+ await expect(page.locator('#ordersStatus')).toContainText('137 resultados');
+ expect(state.orderQueries.at(-1).p_payment_group).toBe('unpaid');
+ await page.locator('#orderMonthFilter').fill('2026-11');
+ await page.locator('#orderMonthFilter').evaluate(input=>input.dispatchEvent(new Event('change',{bubbles:true})));
+ await expect.poll(()=>state.orderQueries.at(-1).p_date_from).toBe('2026-11-01T03:00:00.000Z');
+ expect(state.orderQueries.at(-1).p_date_to).toBe('2026-12-01T03:00:00.000Z');
+ await page.locator('#btnResetOrderFilters').click();
+ await expect(page.locator('#ordersStatus')).toContainText('275 resultados');
+ await page.locator('#orderSort').selectOption('asc');
+ await expect.poll(()=>state.orderQueries.at(-1).p_sort).toBe('asc');
+ await page.locator('#orderSearch').fill('Cliente 274');
+ await expect(page.locator('#ordersStatus')).toContainText('1 resultados');
+ expect(state.orderQueries.at(-1).p_search).toBe('Cliente 274');
+ expect(state.errors).toEqual([]);
+});
+test('unpaid attempts are not presented as sales and customer/email content is escaped',async({page})=>{
+ const payload='"><img src=x onerror="window.ORDER_XSS=1">';
+ const attempt={...structuredClone(sandboxOrder),status:'created',payment_status:'created',mp_order_id:'ORD-UNPAID',
+  checkout_order_customers:{...sandboxOrder.checkout_order_customers,full_name:payload,email:'safe@example.invalid'},
+  checkout_email_outbox:[{notification_type:'seller_payment_received',status:'rejected',last_error:'provider_forbidden'}]};
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[attempt]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody')).toContainText(payload);
+ await expect(page.locator('#ordersTableBody')).toContainText('safe@example.invalid');
+ await expect(page.locator('#ordersTableBody')).toContainText('Orden creada · sin pago');
+ await expect(page.locator('#orderDetail')).toContainText('no cuenta como venta acreditada');
+ await expect(page.locator('#orderDetail')).toContainText('Rechazado permanentemente');
+ await expect(page.locator('#orderDetail')).toContainText('dominio verificado');
+ expect(await page.locator('[onerror]').count()).toBe(0);
+ expect(await page.evaluate(()=>window.ORDER_XSS)).toBeUndefined();
+});
+test('order customer summary remains readable without page overflow on mobile',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('.order-customer-name')).toHaveText('Cliente Sandbox');
+ await expect(page.locator('.order-customer-email')).toHaveText('buyer@example.invalid');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('login failure, successful login and sign out use existing Supabase Auth',async({page})=>{
  const state=await setup(page);

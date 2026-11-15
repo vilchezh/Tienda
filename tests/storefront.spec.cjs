@@ -3,6 +3,12 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const { setup, product } = require('./helpers.cjs');
 const sandboxProduct = { ...require('../supabase/test/productos-preview.json')[0], activo:true, checkout_habilitado:true, precio_base:100000 };
 
+async function fillCheckoutContact(page, email = 'buyer@example.invalid') {
+  await page.locator('#checkoutFullName').fill('Comprador de Prueba');
+  await page.locator('#checkoutEmail').fill(email);
+  await page.locator('#checkoutPrivacy').check();
+}
+
 test('catalog shows final sandbox price with commission even while checkout is disabled',async({page})=>{
   const state=await setup(page,{rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
   await page.goto('/');
@@ -96,9 +102,7 @@ test('Checkout Pro test mode sends selections without trusting a client total an
   await page.locator('#btnComprar').click();
   expect(state.checkoutRequests).toHaveLength(0);
   await expect(page.locator('#checkoutStatus')).toContainText('datos obligatorios');
-  await page.locator('#checkoutFullName').fill('Comprador de Prueba');
-  await page.locator('#checkoutEmail').fill('buyer@example.invalid');
-  await page.locator('#checkoutPrivacy').check();
+  await fillCheckoutContact(page);
   await page.locator('#btnComprar').click();
   await expect.poll(()=>state.checkoutRequests.length).toBe(1);
   expect(state.checkoutRequests[0].data).toMatchObject({
@@ -118,6 +122,60 @@ test('Checkout Pro test mode sends selections without trusting a client total an
   expect(state.checkoutRequests[0].data.client_request_id).toMatch(/^[0-9a-f-]{36}$/);
   await expect(page).toHaveURL(/mercadopago\.com\.ar\/checkout\/v1\/redirect/);
   expect(state.errors).toEqual([]);
+});
+test('checkout reload and network retry preserve one client request id',async({page})=>{
+  const state=await setup(page,{rows:[{...product,checkout_habilitado:true}],checkoutSettings:{id:'default',commission_percent:0,payments_enabled:true},checkoutFailuresBeforeSuccess:1});
+  await page.goto('/producto.html?id='+product.id);
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(1);
+  const firstId=state.checkoutRequests[0].data.client_request_id;
+  await page.reload();
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(2);
+  expect(state.checkoutRequests[1].data.client_request_id).toBe(firstId);
+  await expect(page).toHaveURL(/mercadopago\.com\.ar/);
+});
+test('double click sends one request and a configuration change starts a new attempt',async({page})=>{
+  const state=await setup(page,{rows:[{...product,checkout_habilitado:true}],checkoutSettings:{id:'default',commission_percent:0,payments_enabled:true},checkoutFailuresBeforeSuccess:1});
+  await page.goto('/producto.html?id='+product.id);
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').evaluate(button=>{button.click();button.click();});
+  await expect.poll(()=>state.checkoutRequests.length).toBe(1);
+  const abandonedId=state.checkoutRequests[0].data.client_request_id;
+  await page.locator('.extra-checkbox').first().check();
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(2);
+  expect(state.checkoutRequests[1].data.client_request_id).not.toBe(abandonedId);
+});
+test('pending return reuses the attempt and a terminal payment allows a legitimate repeated purchase',async({page})=>{
+  const orderStatus={order_id:'11111111-1111-4111-8111-111111111111',order_status:'created',payment_status:'created',amount:199000,currency:'ARS',product:{nombre:'Mesa'}};
+  const state=await setup(page,{rows:[{...product,checkout_habilitado:true}],checkoutSettings:{id:'default',commission_percent:0,payments_enabled:true},orderStatus});
+  await page.goto('/producto.html?id='+product.id);
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(1);
+  const pendingId=state.checkoutRequests[0].data.client_request_id;
+  await expect(page).toHaveURL(/mercadopago\.com\.ar/);
+  await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111');
+  await expect(page.locator('#resultTitle')).toHaveText('Pedido creado');
+  await page.goto('/producto.html?id='+product.id);
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(2);
+  expect(state.checkoutRequests[1].data.client_request_id).toBe(pendingId);
+  await expect(page).toHaveURL(/mercadopago\.com\.ar/);
+
+  orderStatus.order_status='processed';
+  orderStatus.payment_status='processed';
+  await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111');
+  await expect(page.locator('#resultTitle')).toHaveText('Pago acreditado');
+  await page.goto('/producto.html?id='+product.id);
+  await fillCheckoutContact(page);
+  await page.locator('#btnComprar').click();
+  await expect.poll(()=>state.checkoutRequests.length).toBe(3);
+  expect(state.checkoutRequests[2].data.client_request_id).not.toBe(pendingId);
 });
 test('custom work keeps WhatsApp available and blocks direct checkout',async({page})=>{
   const state=await setup(page,{rows:[{...product,checkout_habilitado:true}],checkoutSettings:{id:'default',commission_percent:5,payments_enabled:true}});

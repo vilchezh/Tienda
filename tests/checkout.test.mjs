@@ -9,7 +9,12 @@ import {
 } from '../supabase/functions/_shared/checkout-core.mjs';
 import { createOrderHandler } from '../supabase/functions/_shared/create-order-handler.mjs';
 import { normalizeCheckoutCustomer } from '../supabase/functions/_shared/customer-data.mjs';
-import { dispatchDueOrderNotifications, dispatchOrderNotifications } from '../supabase/functions/_shared/email-notifications.mjs';
+import {
+  dispatchDueOrderNotifications,
+  dispatchOrderNotifications,
+  orderEmailTemplate,
+  providerFailure,
+} from '../supabase/functions/_shared/email-notifications.mjs';
 import { processMaintenanceHandler } from '../supabase/functions/_shared/process-maintenance-handler.mjs';
 import { processNotificationsHandler } from '../supabase/functions/_shared/process-notifications-handler.mjs';
 import { signatureManifest, verifyMercadoPagoSignature } from '../supabase/functions/_shared/webhook-signature.mjs';
@@ -428,6 +433,49 @@ test('customer contact and delivery are minimized and validated before order cre
   }).address_line, 'Calle 123');
 });
 
+test('customer and seller emails are responsive, operational and escape every dynamic value', () => {
+  const malicious = '<img src=x onerror="alert(1)">';
+  const emailOrder = {
+    id: localOrderId,
+    product_id: product.id,
+    product_snapshot: { nombre: malicious, sku: 'AYE-TEST', imagen: 'javascript:alert(1)' },
+    selection_snapshot: { ...selection, extras: [malicious] },
+    total_amount: 257000,
+    currency: 'ARS',
+    mp_order_id: 'ORD-TEST-1',
+  };
+  const emailCustomer = {
+    ...normalizeCheckoutCustomer({
+      ...customer,
+      full_name: malicious,
+      delivery_method: 'delivery',
+      address_line: 'Calle 123', city: 'CABA', province: 'Buenos Aires', postal_code: '1000',
+      delivery_notes: malicious,
+    }),
+  };
+  const customerTemplate = orderEmailTemplate(env, { notification_type: 'customer_payment_confirmed' }, emailOrder, emailCustomer);
+  const sellerTemplate = orderEmailTemplate(env, { notification_type: 'seller_payment_received' }, emailOrder, emailCustomer);
+  for (const content of [customerTemplate, sellerTemplate]) {
+    assert.match(content.html, /@media\(max-width:620px\)/);
+    assert.match(content.html, /role="presentation"/);
+    assert.match(content.html, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
+    assert.doesNotMatch(content.html, /<img src=x onerror=/);
+    assert.doesNotMatch(content.html, /javascript:alert/);
+    assert.match(content.text, /El pago acreditado|Nueva compra acreditada/);
+  }
+  assert.match(customerTemplate.text, /La fabricación haya comenzado/i);
+  assert.match(sellerTemplate.text, /buyer@example\.invalid/);
+  assert.match(sellerTemplate.text, /\+54 11 5555 0000/);
+  assert.match(sellerTemplate.text, /ORD-TEST-1/);
+  assert.match(sellerTemplate.text, /Calle 123/);
+});
+
+test('Resend 403 is classified as a permanent configuration rejection', () => {
+  assert.deepEqual(providerFailure(403), { code: 'provider_forbidden', permanent: true });
+  assert.deepEqual(providerFailure(429), { code: 'provider_rate_limited', permanent: false });
+  assert.deepEqual(providerFailure(503), { code: 'provider_503', permanent: false });
+});
+
 test('email outbox claims once and sends stable provider idempotency keys', async () => {
   const sent = [];
   let claimCount = 0;
@@ -456,6 +504,42 @@ test('email outbox claims once and sends stable provider idempotency keys', asyn
   assert.equal(sent.length, 2);
   assert.equal(new Set(sent.map(item => item.headers['Idempotency-Key'])).size, 2);
   assert.deepEqual(sent.map(item => item.body.to[0]).sort(), [customer.email, notificationEnv.ORDER_NOTIFICATION_TO].sort());
+});
+
+test('a Resend 403 becomes a safe permanent rejection without leaking provider details', async () => {
+  const notificationEnv = {
+    ...env, RESEND_API_KEY: 're_test_not_real', ORDER_EMAIL_FROM: 'Sandbox <pedidos@example.invalid>',
+    ORDER_NOTIFICATION_TO: 'seller@example.invalid',
+  };
+  const notification = {
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', order_id: localOrderId,
+    notification_type: 'seller_payment_received', attempt_count: 1,
+  };
+  const patches = [];
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json([notification]);
+    if (value.includes('/checkout_orders?')) return Response.json([{
+      id: localOrderId, product_id: product.id, product_snapshot: product,
+      selection_snapshot: selection, total_amount: 257000, currency: 'ARS', mp_order_id: 'ORD-TEST',
+    }]);
+    if (value.includes('/checkout_order_customers?')) return Response.json([normalizeCheckoutCustomer(customer)]);
+    if (value === 'https://api.resend.com/emails') {
+      return Response.json({ message: 'sensitive provider explanation buyer@example.invalid' }, { status: 403 });
+    }
+    if (value.includes('/checkout_email_outbox?') && init.method === 'PATCH') {
+      patches.push(JSON.parse(init.body));
+      return new Response(null, { status: 204 });
+    }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  assert.deepEqual(await dispatchOrderNotifications(notificationEnv, fetchMock, localOrderId), {
+    configured: true, processed: 0,
+  });
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].status, 'rejected');
+  assert.equal(patches[0].last_error, 'provider_forbidden');
+  assert.equal(JSON.stringify(patches).includes('buyer@example.invalid'), false);
 });
 
 test('an accepted Resend email is not downgraded when persisting sent state fails', async () => {
@@ -593,4 +677,17 @@ test('order management migration isolates personal data and deduplicates notific
   assert.match(sql, /checkout_expire_uncertain_notifications/i);
   assert.match(sql, /checkout_purge_expired_customer_data/i);
   assert.doesNotMatch(sql, /grant (insert|update|delete|all).*checkout_order_customers.*authenticated/i);
+});
+
+test('admin order query is RLS-invoker paginated and permanent email failures are terminal', () => {
+  const sql = readFileSync('supabase/migrations/20261115174702_improve_order_attempts_admin.sql', 'utf8');
+  assert.match(sql, /security invoker/i);
+  assert.match(sql, /select tienda_security\.is_admin\(\)/i);
+  assert.match(sql, /limit least\(greatest\(coalesce\(p_limit, 50\), 1\), 100\)/i);
+  assert.match(sql, /offset greatest\(coalesce\(p_offset, 0\), 0\)/i);
+  assert.match(sql, /p_date_from is null or o\.created_at >= p_date_from/i);
+  assert.match(sql, /p_date_to is null or o\.created_at < p_date_to/i);
+  assert.match(sql, /'rejected'/i);
+  assert.match(sql, /revoke all on function public\.checkout_admin_list_orders[\s\S]*from public, anon/i);
+  assert.doesNotMatch(sql, /security definer/i);
 });

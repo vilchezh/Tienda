@@ -176,7 +176,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
         body: JSON.stringify({
           p_client_request_id: clientRequestId,
           p_product_id: product.id,
-          p_product_snapshot: { id: product.id, sku: product.sku, nombre: product.nombre },
+          p_product_snapshot: { id: product.id, sku: product.sku, nombre: product.nombre, imagen: product.imagen || null },
           p_selection_snapshot: priced.normalizedSelection,
           p_subtotal_amount: priced.subtotal,
           p_commission_percent: Number(settings.commission_percent),

@@ -21,8 +21,11 @@ do $$ begin
      has_function_privilege('anon', 'public.checkout_claim_notifications(uuid)', 'execute') or
      has_function_privilege('authenticated', 'public.checkout_due_notification_orders(integer)', 'execute') or
      has_function_privilege('authenticated', 'public.checkout_expire_uncertain_notifications()', 'execute') or
-     has_function_privilege('anon', 'public.checkout_purge_expired_customer_data()', 'execute') then
+     has_function_privilege('anon', 'public.checkout_purge_expired_customer_data()', 'execute') or
+     has_function_privilege('anon', 'public.checkout_admin_list_orders(text,text,text,text,timestamptz,timestamptz,text,integer,integer)', 'execute') then
     raise exception 'datos personales u outbox expuestos'; end if;
+  if not has_function_privilege('authenticated', 'public.checkout_admin_list_orders(text,text,text,text,timestamptz,timestamptz,text,integer,integer)', 'execute') then
+    raise exception 'administrador autenticado sin acceso a listado paginado'; end if;
   if not has_column_privilege('authenticated', 'public.checkout_orders', 'manufacturing_status', 'update') or
      has_column_privilege('authenticated', 'public.checkout_orders', 'payment_status', 'update') then
     raise exception 'permisos de actualización de pedidos incorrectos'; end if;
@@ -39,6 +42,8 @@ do $$ begin
   if (select count(*) from public.checkout_orders) <> 0 then raise exception 'pedido visible sin admin'; end if;
   if (select count(*) from public.checkout_order_customers) <> 0 then raise exception 'compradores visibles sin admin'; end if;
   if (select tienda_security.is_admin()) then raise exception 'usuario anónimo es admin'; end if;
+  if (select count(*) from public.checkout_admin_list_orders()) <> 0 then
+    raise exception 'RPC de pedidos expuso datos a usuario no administrador'; end if;
 end $$;
 reset role;
 
