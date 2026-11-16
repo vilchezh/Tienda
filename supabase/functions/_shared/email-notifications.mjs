@@ -27,15 +27,6 @@ function selectionLines(selection = {}) {
   return rows.filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`);
 }
 
-function safePublicImage(env, value) {
-  try {
-    const base = new URL(String(env.STORE_BASE_URL || ''));
-    if (base.protocol !== 'https:' || base.username || base.password) return '';
-    const image = new URL(value || '/assets/img/logo.jpg/Code_Generated_Image.png', base);
-    return image.protocol === 'https:' && image.origin === base.origin && !image.username && !image.password
-      ? image.href : '';
-  } catch { return ''; }
-}
 
 function deliveryText(customer) {
   if (!customer) return 'Datos no capturados';
@@ -46,58 +37,88 @@ function deliveryText(customer) {
 
 function tableRows(rows) {
   return rows.filter(([, value]) => value != null && value !== '').map(([label, value]) =>
-    `<tr><td style="padding:8px 0;color:#9fb0aa;font-size:12px;vertical-align:top;width:34%">${escapeHTML(label)}</td><td style="padding:8px 0;color:#f4f0e6;font-size:14px;vertical-align:top">${escapeHTML(value)}</td></tr>`
+    `<tr><td style="padding:8px 0;color:#9fb0aa;font-size:12px;vertical-align:top;width:36%;line-height:1.5">${escapeHTML(label)}</td><td style="padding:8px 0;color:#f4f0e6;font-size:14px;vertical-align:top;line-height:1.5;word-break:break-word;overflow-wrap:anywhere">${escapeHTML(value)}</td></tr>`
   ).join('');
 }
 
 export function orderEmailTemplate(env, notification, order, customer) {
   const product = order.product_snapshot || {};
-  const details = selectionLines(order.selection_snapshot);
   const reference = String(product.sku || order.product_id || order.id).slice(0, 120);
+  const orderCode = String(order.id || '').slice(0, 8).toUpperCase();
   const isCustomer = notification.notification_type === 'customer_payment_confirmed';
-  const greeting = isCustomer ? `Hola ${customer?.full_name || ''},` : 'Nueva compra acreditada';
+  const customerName = String(customer?.full_name || '').trim();
+  const greeting = isCustomer ? (customerName ? 'Hola ' + customerName + ',' : 'Hola,') : 'Nueva venta acreditada';
   const subject = emailSubject(isCustomer
-    ? `Pago acreditado · ${product.nombre || 'Pedido Acero y Escamas'}`
-    : `Nueva compra acreditada · ${reference}`);
-  const delivery = deliveryText(customer);
-  const image = safePublicImage(env, product.imagen);
+    ? 'Pago acreditado · ' + (product.nombre || 'Acero y Escamas')
+    : 'Nueva compra acreditada · ' + reference);
+  const title = isCustomer ? '¡Tu pago fue confirmado!' : 'Nueva venta acreditada';
+  const intro = isCustomer
+    ? 'Recibimos tu pago y registramos el pedido. Revisaremos los detalles y te contactaremos para coordinar la entrega.'
+    : 'Se acreditó una compra en la tienda. Revisá los datos del pedido en el panel antes de comenzar la preparación.';
+  const nextStep = isCustomer
+    ? 'Te contactaremos para confirmar los detalles y coordinar la fabricación y la entrega. No necesitás realizar otro pago.'
+    : 'Ingresá al administrador, verificá la acreditación y revisá los datos del cliente antes de preparar el pedido.';
+  const details = selectionLines(order.selection_snapshot);
   const commonRows = [
     ['Producto', product.nombre || 'Producto'],
     ['Referencia', reference],
     ...details.map(line => line.split(/: (.*)/s).slice(0, 2)),
-    ['Importe acreditado', money(order.total_amount)],
-    ['Entrega', delivery],
+    ['Entrega', deliveryText(customer)],
+    ['Pedido', '#' + orderCode],
   ];
   const sellerRows = [
-    ['Cliente', customer?.full_name || 'Datos no capturados'],
+    ['Cliente', customer?.full_name || 'No capturado'],
     ['Correo', customer?.email || 'No capturado'],
     ['Teléfono', customer?.phone || 'No capturado'],
     ...commonRows,
-    ['Pedido', order.id],
+    ['ID interno', order.id],
     ['Orden Mercado Pago', order.mp_order_id || 'No registrada'],
     ['Indicaciones', customer?.delivery_notes || 'Sin indicaciones'],
   ];
-  const customerRows = [...commonRows, ['Pedido', order.id]];
-  const textRows = (isCustomer ? customerRows : sellerRows).map(([label, value]) => `${label}: ${value}`);
-  const text = isCustomer ? [
-    greeting, '', 'Recibimos la acreditación de tu pago.', ...textRows, '',
-    'Próximos pasos: el taller revisará la configuración y se comunicará para confirmar fabricación y entrega.',
-    'El pago acreditado no implica que la fabricación haya comenzado.', '', 'Acero y Escamas',
-  ].join('\n') : [
-    greeting, '', ...textRows, '',
-    'Acción: revisar datos y confirmar el estado de fabricación desde el administrador autenticado.',
-    'No iniciar fabricación basándose sólo en este correo: verificar el pedido en el panel.',
+  const rows = isCustomer ? commonRows : sellerRows;
+  const text = [
+    subject, '', greeting, '', intro, '',
+    'Importe acreditado: ' + money(order.total_amount),
+    ...rows.map(([label, value]) => label + ': ' + String(value ?? '')),
+    '', 'Próximos pasos: ' + nextStep, '', 'Acero y Escamas',
   ].join('\n');
-  const intro = isCustomer
-    ? 'Recibimos la acreditación de tu pago. El taller revisará cada detalle antes de confirmar la fabricación.'
-    : 'Mercado Pago informó una acreditación. Revisá los datos operativos antes de confirmar la fabricación.';
-  const nextStep = isCustomer
-    ? 'Próximos pasos: revisaremos la configuración y nos comunicaremos para coordinar fabricación y entrega.'
-    : 'Acción requerida: verificá el pedido en el administrador autenticado y confirmá el estado de fabricación.';
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@media(max-width:620px){.email-shell{width:100%!important}.email-pad{padding:22px 18px!important}.email-title{font-size:24px!important}.email-image{height:180px!important}}</style></head><body style="margin:0;padding:0;background:#0f1516;color:#f4f0e6;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHTML(subject)} · Pedido ${escapeHTML(String(order.id).slice(0, 8))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f1516"><tr><td align="center" style="padding:24px 10px"><table role="presentation" class="email-shell" width="620" cellspacing="0" cellpadding="0" border="0" style="width:620px;max-width:620px;background:#182021;border:1px solid #435749"><tr><td class="email-pad" style="padding:28px 34px;border-bottom:4px solid #8ca58f"><table role="presentation" width="100%"><tr><td><div style="font-size:10px;letter-spacing:2px;color:#9fb0aa">ACERO Y ESCAMAS · HERRERÍA</div><div style="margin-top:8px;font-size:15px;color:#f4f0e6">Diseño industrial hecho a medida</div></td><td align="right"><span style="display:inline-block;padding:7px 10px;border:1px solid #8ca58f;color:#c5d5c8;font-size:11px">PAGO ACREDITADO</span></td></tr></table></td></tr>${image ? `<tr><td><img class="email-image" src="${escapeHTML(image)}" width="620" height="240" alt="${escapeHTML(product.nombre || 'Acero y Escamas')}" style="display:block;width:100%;height:240px;object-fit:cover;border:0"></td></tr>` : ''}<tr><td class="email-pad" style="padding:34px"><p style="margin:0 0 12px;color:#c5d5c8;font-size:15px">${escapeHTML(greeting)}</p><h1 class="email-title" style="margin:0 0 14px;font-size:28px;line-height:1.2;color:#f4f0e6">${escapeHTML(isCustomer ? 'Tu pago fue acreditado' : 'Nueva compra para revisar')}</h1><p style="margin:0 0 26px;color:#c8d0cb;font-size:15px;line-height:1.65">${escapeHTML(intro)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-top:1px solid #435749;border-bottom:1px solid #435749">${tableRows(isCustomer ? customerRows : sellerRows)}</table><div style="margin-top:26px;padding:18px;border-left:4px solid #8ca58f;background:#111819"><p style="margin:0;color:#e7e2d7;font-size:14px;line-height:1.6">${escapeHTML(nextStep)}</p></div><p style="margin:24px 0 0;color:#9fb0aa;font-size:12px;line-height:1.6">El pago y la fabricación son estados independientes. ${escapeHTML(isCustomer ? 'La fabricación todavía no comenzó.' : 'No uses el correo como única fuente de verificación.')}</p></td></tr><tr><td style="padding:20px 34px;background:#111718;color:#83928c;font-size:11px;line-height:1.5">Acero y Escamas · Pedido ${escapeHTML(String(order.id).slice(0, 8).toUpperCase())}</td></tr></table></td></tr></table></body></html>`;
+  const html = [
+    "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>@media(max-width:620px){.email-shell{width:100%!important}.email-pad{padding:20px 18px!important}.email-title{font-size:24px!important;line-height:1.2!important}.email-amount{font-size:29px!important}}</style></head>",
+    "<body style=\"margin:0;padding:0;background:#eef2ee;color:#17251e;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;\">",
+    "<div style=\"display:none!important;visibility:hidden;max-height:0;overflow:hidden;opacity:0;color:transparent;\">",
+    escapeHTML(subject),
+    "</div><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;background:#eef2ee;\"><tr><td align=\"center\" style=\"padding:16px 10px;\">",
+    "<table role=\"presentation\" class=\"email-shell\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:560px;table-layout:fixed;background:#ffffff;border:1px solid #d8e3da;\">",
+    "<tr><td class=\"email-pad\" style=\"padding:24px 28px;background:#0f3d2e;color:#ffffff;\">",
+    "<div style=\"font-size:20px;font-weight:700;letter-spacing:1px;line-height:1.35;\">ACERO Y ESCAMAS</div>",
+    "<div style=\"font-size:13px;color:#d2e3d8;margin-top:5px;line-height:1.45;\">Herrería y muebles a medida</div>",
+    "<div style=\"font-size:11px;font-weight:700;letter-spacing:1px;color:#0f3d2e;background:#e5f2e8;display:inline-block;padding:7px 11px;margin-top:17px;\">PAGO ACREDITADO</div></td></tr>",
+    "<tr><td class=\"email-pad\" style=\"padding:28px;color:#17251e;\">",
+    "<p style=\"font-size:15px;margin:0 0 10px;line-height:1.5;color:#41574b;\">",
+    escapeHTML(greeting),
+    "</p><h1 class=\"email-title\" style=\"font-size:27px;line-height:1.25;margin:0 0 12px;color:#153c2a;\">",
+    escapeHTML(title),
+    "</h1><p style=\"font-size:15px;line-height:1.65;margin:0 0 22px;color:#394a40;\">",
+    escapeHTML(intro),
+    "</p><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;margin-bottom:24px;\"><tr><td style=\"background:#e9f4ed;border-left:4px solid #0f3d2e;padding:15px 18px;\">",
+    "<div style=\"font-size:11px;line-height:1.4;letter-spacing:1px;font-weight:700;color:#42644e;\">IMPORTE ACREDITADO</div>",
+    "<div class=\"email-amount\" style=\"font-size:32px;line-height:1.3;font-weight:700;margin-top:4px;color:#0f3d2e;\">",
+    escapeHTML(money(order.total_amount)),
+    "</div></td></tr></table>",
+    "<h2 style=\"font-size:17px;margin:0 0 12px;color:#153c2a;\">Detalle del pedido</h2>",
+    "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;border-top:1px solid #d8e3da;border-bottom:1px solid #d8e3da;table-layout:fixed;\">",
+    tableRows(rows),
+    "</table><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;margin-top:24px;\"><tr><td style=\"background:#f2f6f3;padding:17px 18px;border-left:3px solid #6e997c;\">",
+    "<div style=\"font-size:14px;font-weight:700;color:#173e2c;margin-bottom:6px;\">Próximos pasos</div>",
+    "<div style=\"font-size:14px;line-height:1.6;color:#374d40;\">",
+    escapeHTML(nextStep),
+    "</div></td></tr></table></td></tr>",
+    "<tr><td class=\"email-pad\" style=\"padding:18px 28px;background:#f6f8f6;color:#52665a;font-size:12px;line-height:1.5;\">Acero y Escamas · Pedido #",
+    escapeHTML(orderCode),
+    "</td></tr></table></td></tr></table></body></html>",
+  ].join('');
   return { subject, text, html };
 }
-
 export function providerFailure(status) {
   const code = Number(status);
   if (code === 401) return { code: 'provider_authentication_failed', permanent: true };

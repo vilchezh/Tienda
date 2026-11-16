@@ -462,9 +462,14 @@ test('customer and seller emails are responsive, operational and escape every dy
     assert.match(content.html, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
     assert.doesNotMatch(content.html, /<img src=x onerror=/);
     assert.doesNotMatch(content.html, /javascript:alert/);
-    assert.match(content.text, /El pago acreditado|Nueva compra acreditada/);
+    assert.match(content.text, /Pago acreditado|Nueva compra acreditada/);
   }
-  assert.match(customerTemplate.text, /La fabricación haya comenzado/i);
+  assert.match(customerTemplate.text, /No necesitás realizar otro pago/);
+  assert.match(customerTemplate.html, /max-width:560px/);
+  assert.match(customerTemplate.html, /Pedido #11111111/);
+  assert.doesNotMatch(customerTemplate.html, /<img\b/i);
+  assert.doesNotMatch(customerTemplate.html, /11111111-1111-4111-8111-111111111111/);
+  assert.doesNotMatch(customerTemplate.html, /El pago y la fabricación son estados independientes/);
   assert.match(sellerTemplate.text, /buyer@example\.invalid/);
   assert.match(sellerTemplate.text, /\+54 11 5555 0000/);
   assert.match(sellerTemplate.text, /ORD-TEST-1/);
