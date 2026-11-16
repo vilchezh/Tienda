@@ -229,3 +229,26 @@ for (const width of [390,1280]) test(`responsive and accessible storefront at ${
   expect(audit.violations).toEqual([]);
   await page.screenshot({path:testInfo.outputPath(`product-${width}.png`),fullPage:true});
 });
+
+test('transactional email fits narrow mobile viewports without cropped content', async ({ page }) => {
+  const { orderEmailTemplate } = await import('../supabase/functions/_shared/email-notifications.mjs');
+  const customer = { full_name: 'Comprador de prueba', email: 'buyer@example.invalid', delivery_method: 'pickup' };
+  const order = {
+    id: '11111111-1111-4111-8111-111111111111',
+    product_id: 'pieza-sandbox-001',
+    product_snapshot: { id: 'pieza-sandbox-001', nombre: 'Mesa de hierro y madera de prueba', sku: 'SANDBOX-001', imagen: '/assets/img/logo.jpg/Code_Generated_Image.png' },
+    selection_snapshot: { wood_type: 'Pino', wood_stain: 'Natural', metal_color: 'Negro', finish: 'Mate', extras: [] },
+    total_amount: 108000, currency: 'ARS',
+    mp_order_id: 'ORDTST01SAMPLE000001',
+  };
+  for (const notificationType of ['customer_payment_confirmed', 'seller_payment_received']) {
+    for (const width of [320, 360, 620]) {
+      await page.setViewportSize({ width, height: 780 });
+      await page.setContent(orderEmailTemplate({}, { notification_type: notificationType }, order, customer).html);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      await expect(page.locator('h1')).toBeVisible();
+      await expect(page.locator('.email-amount')).toContainText('108.000');
+      await expect(page.locator('img')).toHaveCount(0);
+    }
+  }
+});
