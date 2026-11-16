@@ -23,7 +23,7 @@ function publicError(error, headers) {
   if (error instanceof CheckoutError) {
     return json({ error: error.code, message: error.message }, error.status, headers);
   }
-  console.error('create-mp-order failed', error instanceof Error ? error.message : 'unknown');
+  console.error('create-mp-order failed', 'unexpected_error');
   return json({ error: 'checkout_unavailable', message: 'No pudimos iniciar el pago. Intentá nuevamente.' }, 500, headers);
 }
 
@@ -40,7 +40,7 @@ async function mercadoPagoRequest(env, fetchFn, path, init = {}) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    console.error('Mercado Pago rejected order', response.status, body?.code || body?.message || 'unknown');
+    console.error('Mercado Pago rejected order', response.status);
     throw new CheckoutError('Mercado Pago no pudo crear la orden de prueba.', 502, 'provider_error');
   }
   return body;

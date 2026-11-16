@@ -15,7 +15,7 @@ Get-Content -Raw .\supabase\test\02_seed.sql | Set-Clipboard
 Get-Content -Raw .\supabase\test\03_assertions.sql | Set-Clipboard
 ```
 
-Cada línea es una operación separada: copiar, pegar y ejecutar antes de pasar a la siguiente. Si las dos primeras migraciones ya existen en el sandbox, aplicar únicamente `20261115174702_improve_order_attempts_admin.sql`. La base crea `productos`, `tienda_security.is_admin()` y una tabla de administradores vacía; la semilla agrega `pieza-sandbox-001` ficticia y deshabilitada para compra. `03_assertions.sql` prueba RLS, privilegios, cupo, deduplicación y estados en una transacción que termina en `ROLLBACK`. También puede ejecutarse con `psql -v ON_ERROR_STOP=1 -f <ruta>` contra la conexión obtenida en **Connect** del mismo proyecto. No guardar contraseñas en Git ni usar `supabase db push` contra producción.
+Cada línea es una operación separada: copiar, pegar y ejecutar antes de pasar a la siguiente. En un sandbox que ya contiene tablas, consultar primero los indicadores de [Issue #4](ISSUE-4-ORDERS.md#comprobar-migraciones-antes-de-ejecutar-sql) y ejecutar únicamente las migraciones faltantes; no repetir la base, la semilla ni una migración ya aplicada. La base crea `productos`, `tienda_security.is_admin()` y una tabla de administradores vacía; la semilla agrega `pieza-sandbox-001` ficticia y deshabilitada para compra. `03_assertions.sql` prueba RLS, privilegios, cupo, deduplicación y estados en una transacción que termina en `ROLLBACK`. También puede ejecutarse con `psql -v ON_ERROR_STOP=1 -f <ruta>` contra la conexión obtenida en **Connect** del mismo proyecto. No guardar contraseñas en Git ni usar `supabase db push` contra producción.
 
 ## 2. Build y Worker sandbox
 

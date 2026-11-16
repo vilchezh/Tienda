@@ -19,7 +19,7 @@ export function processNotificationsHandler(env, fetchFn = fetch) {
       const result = await dispatchDueOrderNotifications(env, fetchFn, 25);
       return json({ ok: true, ...result }, 200);
     } catch (error) {
-      console.error('notification retry failed', error instanceof Error ? error.message : 'unknown');
+      console.error('notification retry failed');
       return json({ error: 'notification_retry_failed' }, 500);
     }
   };

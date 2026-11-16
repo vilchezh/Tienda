@@ -85,12 +85,12 @@ export function webhookHandler(env, fetchFn = fetch) {
       });
       if (effectiveStatus === 'processed') {
         await dispatchOrderNotifications(env, fetchFn, localId).catch(error => {
-          console.error('order email dispatch deferred', error instanceof Error ? error.message : 'unknown');
+          console.error('order email dispatch deferred', error instanceof CheckoutError ? error.code : 'unexpected_error');
         });
       }
       return json({ ok: true }, 200);
     } catch (error) {
-      console.error('mp-order-webhook failed', error instanceof Error ? error.message : 'unknown');
+      console.error('mp-order-webhook failed', error instanceof CheckoutError ? error.code : 'unexpected_error');
       return json({ error: 'webhook_processing_failed' }, error instanceof CheckoutError ? error.status : 500);
     }
   };

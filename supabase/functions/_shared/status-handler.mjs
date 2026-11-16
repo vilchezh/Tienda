@@ -41,7 +41,7 @@ export function statusHandler(env, fetchFn = fetch) {
         updated_at: order.updated_at,
       }, 200, cors);
     } catch (error) {
-      return json({ error: 'status_unavailable', message: error.message }, error instanceof CheckoutError ? error.status : 500, cors);
+      return json({ error: 'status_unavailable', message: error instanceof CheckoutError ? error.message : 'No se pudo consultar el pedido.' }, error instanceof CheckoutError ? error.status : 500, cors);
     }
   };
 }

@@ -41,6 +41,7 @@ const h = Store.escapeHTML;
       provider_request_rejected: 'Resend rechazó la configuración del mensaje.',
       provider_rate_limited: 'Resend aplicó un límite temporal.',
       provider_outcome_uncertain: 'No se pudo confirmar si Resend aceptó el mensaje.',
+      payment_no_longer_accredited: 'El pago dejó de estar acreditado antes del envío.',
       idempotency_window_expired: 'Venció la ventana segura de reintento; no se reenvió automáticamente.',
     };
 
@@ -290,6 +291,12 @@ const h = Store.escapeHTML;
         return;
       }
       const rows = Array.isArray(data) ? data : [];
+      // Una última página puede quedar vacía si cambian los pedidos mientras se navega.
+      // El RPC devuelve cero filas en ese caso y no puede incluir el total filtrado.
+      if (!rows.length && orderPage > 0) {
+        orderPage = 0;
+        return loadOrders(false);
+      }
       orders = rows.map(row => row.order_data).filter(Boolean);
       orderTotal = rows.length ? Number(rows[0].total_count) || 0 : 0;
       renderOrders();

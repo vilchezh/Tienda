@@ -24,12 +24,35 @@ Todo lo siguiente requiere revisión y autorización explícita. Ejecutar única
 1. Aplicar `supabase/migrations/20261114204035_order_management.sql` después de la migración de checkout existente y luego `supabase/migrations/20261115174702_improve_order_attempts_admin.sql`. Si la primera ya está aplicada, ejecutar sólo la segunda.
 2. Ejecutar `supabase/test/03_assertions.sql` en una transacción que termina en `ROLLBACK` y revisar advisors de seguridad/performance.
 3. Configurar los secretos de correo enumerados abajo.
-4. Desplegar nuevamente `create-mp-order` y `mp-order-webhook`, porque ambas cambiaron.
+4. Desplegar nuevamente `create-mp-order`, `mp-order-webhook` y `get-mp-order-status`, porque sus manejadores cambiaron.
 5. Desplegar las nuevas funciones `process-order-notifications` y `process-order-maintenance`.
 6. Publicar el frontend sólo en `tienda-checkout-sandbox`.
 7. Probar con datos ficticios y reenvío de un webhook ya existente; no hace falta crear otro pago para validar deduplicación y panel.
 
 No desplegar el frontend nuevo antes de la migración y de `create-mp-order`: el nuevo formulario exige que el backend pueda guardar contacto de forma atómica.
+
+### Comprobar migraciones antes de ejecutar SQL
+
+En **SQL Editor** del proyecto `pacyytbscnlklyrhsshp`, ejecutar primero esta consulta de solo lectura. El historial `supabase_migrations.schema_migrations` sólo es fiable si las migraciones se aplicaron mediante CLI; una ejecución manual desde SQL Editor puede no figurar allí.
+
+```sql
+select
+  to_regclass('public.checkout_orders') is not null as checkout_base,
+  to_regclass('public.checkout_order_customers') is not null as buyers_table,
+  to_regclass('public.checkout_order_events') is not null as audit_table,
+  to_regclass('public.checkout_email_outbox') is not null as email_outbox,
+  to_regprocedure('public.checkout_create_order(uuid,text,jsonb,jsonb,bigint,numeric,bigint,jsonb)') is not null as atomic_order_creation,
+  to_regprocedure('public.checkout_admin_list_orders(text,text,text,text,timestamptz,timestamptz,text,integer,integer)') is not null as paginated_admin_list,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'checkout_settings'
+            and column_name = 'personal_data_retention_days') as retention_setting,
+  exists (select 1 from pg_constraint
+          where conrelid = to_regclass('public.checkout_email_outbox')
+            and conname = 'checkout_email_outbox_status_check'
+            and pg_get_constraintdef(oid) like '%rejected%') as permanent_rejection_status;
+```
+
+`checkout_base` debe ser verdadero antes de aplicar cualquiera de las dos migraciones del Issue #4. Si sólo `checkout_base` es verdadero, aplicar **20261114204035** y luego **20261115174702**. Si las tablas de compradores, auditoría y outbox, la creación atómica y el ajuste de retención ya existen, aplicar sólo **20261115174702** cuando falte `paginated_admin_list` o `permanent_rejection_status`. Si todos los indicadores son verdaderos, no ejecutar ninguna. Una mezcla incompleta exige inspección manual antes de aplicar archivos completos: la primera migración crea políticas con nombres fijos y no está diseñada para repetirse. Al finalizar, ejecutar `03_assertions.sql` con `ROLLBACK` y comprobar también las dos órdenes históricas por ID y estado; no modificar sus importes ni vincular compradores ficticios.
 
 ## Servicio de correo: Resend
 
@@ -55,6 +78,8 @@ Guardar el secreto en el mecanismo protegido de la tarea, no en SQL versionado. 
 Resend conserva una clave de idempotencia durante 24 horas. El primer reclamo fija un vencimiento local a 23 horas. Si Resend aceptó el correo pero falló la confirmación en Supabase, la fila queda `processing`: sólo se reclama con la misma clave dentro de esa ventana. Al vencer, `checkout_expire_uncertain_notifications()` la mueve a `uncertain`; no hay reenvío automático posterior que pueda duplicar el mensaje.
 
 Un `403` de Resend es permanente, no transitorio: la outbox lo guarda como `rejected` con el código seguro `provider_forbidden` y no lo vuelve a reclamar. Según la documentación vigente de Resend, las causas habituales son usar `resend.dev` para enviar a un destinatario distinto del correo propietario de la cuenta o usar un `from` cuyo dominio todavía no está verificado. Si el correo al comprador fue enviado pero el del vendedor recibió `403`, comprobar primero que `ORDER_NOTIFICATION_TO` sea el destinatario autorizado durante pruebas; para enviar a cualquier buzón, verificar un dominio y cambiar `ORDER_EMAIL_FROM` a ese dominio. El panel muestra este diagnóstico sin guardar la respuesta completa del proveedor ni datos personales en logs.
+
+Antes de cada reintento, el despachador comprueba que el pedido siga en `payment_status=processed`. Si hubo reembolso, contracargo o revisión, marca el aviso pendiente como `rejected` con `payment_no_longer_accredited` y no envía una nueva confirmación. Un correo ya aceptado por Resend no se puede retirar; revisar esos casos en el panel.
 
 ## Intentos de checkout y conciliación
 

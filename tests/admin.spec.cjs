@@ -83,6 +83,18 @@ test('orders use server pagination and combinable Buenos Aires date/payment filt
  expect(state.orderQueries.at(-1).p_search).toBe('Cliente 274');
  expect(state.errors).toEqual([]);
 });
+test('an empty last page returns to the first page when the result set shrinks',async({page})=>{
+ const orders=Array.from({length:51},(_,index)=>generatedOrder(index));
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+ state.orders.pop();
+ await page.locator('#btnNextOrders').click();
+ await expect.poll(()=>state.orderQueries.at(-1).p_offset).toBe(0);
+ await expect(page.locator('#ordersPageStatus')).toHaveText('Página 1 de 1');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+});
 test('unpaid attempts are not presented as sales and customer/email content is escaped',async({page})=>{
  const payload='"><img src=x onerror="window.ORDER_XSS=1">';
  const attempt={...structuredClone(sandboxOrder),status:'created',payment_status:'created',mp_order_id:'ORD-UNPAID',

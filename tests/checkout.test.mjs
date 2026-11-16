@@ -17,6 +17,7 @@ import {
 } from '../supabase/functions/_shared/email-notifications.mjs';
 import { processMaintenanceHandler } from '../supabase/functions/_shared/process-maintenance-handler.mjs';
 import { processNotificationsHandler } from '../supabase/functions/_shared/process-notifications-handler.mjs';
+import { statusHandler } from '../supabase/functions/_shared/status-handler.mjs';
 import { signatureManifest, verifyMercadoPagoSignature } from '../supabase/functions/_shared/webhook-signature.mjs';
 import { webhookHandler } from '../supabase/functions/_shared/webhook-handler.mjs';
 
@@ -483,6 +484,17 @@ test('Resend 403 is classified as a permanent configuration rejection', () => {
   assert.deepEqual(providerFailure(503), { code: 'provider_503', permanent: false });
 });
 
+test('public order status never exposes an unexpected backend error', async () => {
+  const request = new Request(`${env.SUPABASE_URL}/functions/v1/get-mp-order-status?order_id=${localOrderId}`, {
+    headers: { Origin: env.STORE_BASE_URL },
+  });
+  const response = await statusHandler(env, async () => { throw new Error('secret buyer@example.invalid'); })(request);
+  assert.equal(response.status, 500);
+  const body = await response.json();
+  assert.equal(body.error, 'status_unavailable');
+  assert.equal(JSON.stringify(body).includes('buyer@example.invalid'), false);
+});
+
 test('email outbox claims once and sends stable provider idempotency keys', async () => {
   const sent = [];
   let claimCount = 0;
@@ -497,7 +509,7 @@ test('email outbox claims once and sends stable provider idempotency keys', asyn
   const fetchMock = async (url, init = {}) => {
     const value = String(url);
     if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json(claimCount++ === 0 ? notifications : []);
-    if (value.includes('/checkout_orders?')) return Response.json([{ id: localOrderId, product_id: product.id, product_snapshot: product, selection_snapshot: selection, total_amount: 257000, currency: 'ARS' }]);
+    if (value.includes('/checkout_orders?')) return Response.json([{ id: localOrderId, product_id: product.id, product_snapshot: product, selection_snapshot: selection, total_amount: 257000, currency: 'ARS', payment_status: 'processed' }]);
     if (value.includes('/checkout_order_customers?')) return Response.json([{ full_name: customer.full_name, email: customer.email }]);
     if (value.includes('/checkout_email_outbox?') && init.method === 'PATCH') return new Response(null, { status: 204 });
     if (value === 'https://api.resend.com/emails') {
@@ -528,7 +540,7 @@ test('a Resend 403 becomes a safe permanent rejection without leaking provider d
     if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json([notification]);
     if (value.includes('/checkout_orders?')) return Response.json([{
       id: localOrderId, product_id: product.id, product_snapshot: product,
-      selection_snapshot: selection, total_amount: 257000, currency: 'ARS', mp_order_id: 'ORD-TEST',
+      selection_snapshot: selection, total_amount: 257000, currency: 'ARS', mp_order_id: 'ORD-TEST', payment_status: 'processed',
     }]);
     if (value.includes('/checkout_order_customers?')) return Response.json([normalizeCheckoutCustomer(customer)]);
     if (value === 'https://api.resend.com/emails') {
@@ -547,6 +559,34 @@ test('a Resend 403 becomes a safe permanent rejection without leaking provider d
   assert.equal(patches[0].status, 'rejected');
   assert.equal(patches[0].last_error, 'provider_forbidden');
   assert.equal(JSON.stringify(patches).includes('buyer@example.invalid'), false);
+});
+
+test('notification retry does not announce a payment refunded after the outbox claim', async () => {
+  const notificationEnv = {
+    ...env, RESEND_API_KEY: 're_test_not_real', ORDER_EMAIL_FROM: 'Sandbox <pedidos@example.invalid>',
+  };
+  const notification = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', order_id: localOrderId,
+    notification_type: 'customer_payment_confirmed', recipient_email: customer.email, attempt_count: 2,
+  };
+  const patches = [];
+  let providerCalls = 0;
+  const fetchMock = async (url, init = {}) => {
+    const value = String(url);
+    if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json([notification]);
+    if (value.includes('/checkout_orders?')) return Response.json([{ id: localOrderId, payment_status: 'refunded' }]);
+    if (value.includes('/checkout_order_customers?')) return Response.json([{ email: customer.email }]);
+    if (value.includes('/checkout_email_outbox?') && init.method === 'PATCH') {
+      patches.push(JSON.parse(init.body));
+      return new Response(null, { status: 204 });
+    }
+    if (value === 'https://api.resend.com/emails') { providerCalls += 1; return Response.json({ id: 'unexpected' }); }
+    throw new Error(`Unexpected URL ${value}`);
+  };
+  assert.deepEqual(await dispatchOrderNotifications(notificationEnv, fetchMock, localOrderId), { configured: true, processed: 0 });
+  assert.equal(providerCalls, 0);
+  assert.equal(patches[0].status, 'rejected');
+  assert.equal(patches[0].last_error, 'payment_no_longer_accredited');
 });
 
 test('an accepted Resend email is not downgraded when persisting sent state fails', async () => {
@@ -568,7 +608,7 @@ test('an accepted Resend email is not downgraded when persisting sent state fail
     if (value.endsWith('/rpc/checkout_claim_notifications')) return Response.json([notification]);
     if (value.includes('/checkout_orders?')) return Response.json([{
       id: localOrderId, product_id: product.id, product_snapshot: product,
-      selection_snapshot: selection, total_amount: 257000, currency: 'ARS',
+      selection_snapshot: selection, total_amount: 257000, currency: 'ARS', payment_status: 'processed',
     }]);
     if (value.includes('/checkout_order_customers?')) return Response.json([{ full_name: customer.full_name, email: customer.email }]);
     if (value === 'https://api.resend.com/emails') return Response.json({ id: 'resend-accepted-id' });

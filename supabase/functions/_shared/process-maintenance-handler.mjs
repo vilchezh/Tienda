@@ -23,7 +23,7 @@ export function processMaintenanceHandler(env, fetchFn = fetch) {
       });
       return json({ ok: true, purged: Number(purged) || 0 }, 200);
     } catch (error) {
-      console.error('order maintenance failed', error instanceof Error ? error.message : 'unknown');
+      console.error('order maintenance failed');
       return json({ error: 'maintenance_failed' }, 500);
     }
   };

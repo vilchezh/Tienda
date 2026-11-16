@@ -131,10 +131,19 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
   if (!Array.isArray(claimed) || claimed.length === 0) return { configured: true, processed: 0 };
 
   const [order, customer] = await Promise.all([
-    firstRow(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(orderId)}&select=id,product_id,product_snapshot,selection_snapshot,total_amount,currency,mp_order_id,created_at&limit=1`),
+    firstRow(env, fetchFn, `checkout_orders?id=eq.${encodeFilter(orderId)}&select=id,product_id,product_snapshot,selection_snapshot,total_amount,currency,mp_order_id,payment_status,created_at&limit=1`),
     firstRow(env, fetchFn, `checkout_order_customers?order_id=eq.${encodeFilter(orderId)}&select=full_name,email,phone,delivery_method,address_line,city,province,postal_code,delivery_notes&limit=1`),
   ]);
   if (!order) throw new Error('notification order not found');
+
+  // Un reembolso o contracargo puede llegar entre el reclamo y un reintento.
+  // En ese caso ya no corresponde enviar un aviso de pago acreditado.
+  if (order.payment_status !== 'processed') {
+    for (const notification of claimed) {
+      await markDeliveryFailure(env, fetchFn, notification, 'payment_no_longer_accredited', true);
+    }
+    return { configured: true, processed: 0 };
+  }
 
   let processed = 0;
   for (const notification of claimed) {
@@ -184,8 +193,7 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
       // Resend confirmó la aceptación. Si Supabase falla, no degradamos la fila
       // a failed: queda processing y sólo podrá reclamarse con la misma clave
       // mientras siga vigente. Así evitamos un segundo envío sin protección.
-      console.error('notification accepted but persistence failed', notification.id,
-        error instanceof Error ? error.message : 'unknown');
+      console.error('notification accepted but persistence failed');
     }
   }
   return { configured: true, processed };
