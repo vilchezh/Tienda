@@ -37,7 +37,7 @@ function deliveryText(customer) {
 
 function tableRows(rows) {
   return rows.filter(([, value]) => value != null && value !== '').map(([label, value]) =>
-    `<tr><td style="padding:8px 0;color:#9fb0aa;font-size:12px;vertical-align:top;width:36%;line-height:1.5">${escapeHTML(label)}</td><td style="padding:8px 0;color:#f4f0e6;font-size:14px;vertical-align:top;line-height:1.5;word-break:break-word;overflow-wrap:anywhere">${escapeHTML(value)}</td></tr>`
+    `<tr><td style="padding:8px 0;color:#52665a;font-size:12px;vertical-align:top;width:36%;line-height:1.5">${escapeHTML(label)}</td><td style="padding:8px 0;color:#17251e;font-size:14px;vertical-align:top;line-height:1.5;word-break:break-word;overflow-wrap:anywhere">${escapeHTML(value)}</td></tr>`
   ).join('');
 }
 
