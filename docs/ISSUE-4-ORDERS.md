@@ -7,8 +7,8 @@ Esta etapa se desarrolla exclusivamente en `pacyytbscnlklyrhsshp` y el Worker `t
 - Las migraciones iniciales del Issue #4 ya se aplicaron en sandbox; **no repetirlas**. La mejora de paginación está registrada allí como `20261116173004_improve_order_attempts_admin`.
 - Están desplegadas cinco funciones de checkout, hay 15 pedidos históricos de prueba y 6 avisos en outbox. El webhook y ambos correos se probaron en una compra ficticia.
 - `payments_enabled=false`. La pantalla `/pago` del Issue #3 ya se publicó sólo en sandbox.
-- Existe el Cron activo `checkout-sandbox-order-notifications` cada cinco minutos; **falta el Cron de purga diaria de contactos** y sigue pendiente verificar esa tarea con datos ficticios.
-- Revisión de permisos: `anon` y `authenticated` aún tienen `TRUNCATE`, `TRIGGER`, `REFERENCES` y `MAINTAIN` sobre `checkout_orders` y `checkout_settings`. La migración nueva `20261117210000_harden_checkout_privileges.sql` los retira sin cambiar `SELECT` ni `UPDATE` legítimos.
+- Cron de notificaciones activo cada cinco minutos (`checkout-sandbox-order-notifications`). Cron de mantenimiento y anonimización activo a las 03:15 de Argentina (`checkout-sandbox-order-maintenance`, job 3; `15 6 * * *` UTC). La primera ejecución programada será el 18/11/2026.
+- La migración `20261117210000_harden_checkout_privileges.sql` ya se aplicó en Supabase sandbox como `20261117231753_harden_checkout_privileges_20261117210000`. Verificado que `anon` y `authenticated` no tienen `TRUNCATE`, `TRIGGER`, `REFERENCES` ni `MAINTAIN` sobre `checkout_orders` y `checkout_settings`; conservaron lectura y edición de fabricación/notas donde corresponde.
 - Este archivo conserva los procedimientos originales de instalación para referencia histórica. Revisar las verificaciones de estado antes de repetir cualquier operación.
 
 
@@ -26,9 +26,9 @@ Esta etapa se desarrolla exclusivamente en `pacyytbscnlklyrhsshp` y el Worker `t
 - Recuperación del intento de checkout durante 24 horas en la misma pestaña: recargas, errores de red y retornos pendientes reutilizan `client_request_id`; una configuración distinta o un pago terminal permiten un intento nuevo.
 - Listado administrativo paginado de 50 filas con total, búsqueda, orden, mes/rango en `America/Argentina/Buenos_Aires` y filtros comerciales para separar ventas acreditadas de intentos sin pago.
 
-Los dos pagos sandbox existentes seguirán visibles, pero mostrarán “No capturado en pedidos anteriores” porque se crearon antes de esta captura. No inventar ni completar esos datos a partir de Mercado Pago.
+Los pedidos antiguos sin datos de contacto siguen visibles con “No capturado en pedidos anteriores”, ya que se registraron antes de la captura de compradores. No inventar ni completar esos datos a partir de Mercado Pago.
 
-## Orden de activación pendiente
+## Procedimiento de instalación original (histórico: NO repetir en sandbox)
 
 Todo lo siguiente requiere revisión y autorización explícita. Ejecutar únicamente contra `pacyytbscnlklyrhsshp`.
 
@@ -100,22 +100,22 @@ Las órdenes `created`, `failed` o `canceled` aparecen en **Intentos sin pago** 
 
 ## Mantenimiento programado de datos personales
 
-La purga se expone únicamente mediante `process-order-maintenance`. Después de aplicar la migración, configurar `ORDER_MAINTENANCE_SECRET` en los secretos de Edge Functions del sandbox y desplegar esa función. Luego crear una tarea HTTP diaria en **Supabase Cron** a las **03:15 de Argentina** (`15 6 * * *` en UTC):
+La purga se expone únicamente mediante `process-order-maintenance`. **Ya está desplegada y programada en sandbox** mediante Supabase Cron, todos los días a las **03:15 de Argentina** (`15 6 * * *` UTC). No volver a crear la tarea si ya existe. Configuración realizada: job 3, nombre `checkout-sandbox-order-maintenance`, con secreto almacenado en Vault.
 
 ```text
 POST https://pacyytbscnlklyrhsshp.supabase.co/functions/v1/process-order-maintenance
 x-maintenance-secret: <ORDER_MAINTENANCE_SECRET>
 ```
 
-Guardar el valor en Vault o en el almacén de secretos protegido del programador y construir la cabecera en tiempo de ejecución. No escribirlo en el comando SQL de Cron, logs ni archivos versionados. La función usa `service_role` sólo del lado servidor y llama exclusivamente a `checkout_purge_expired_customer_data()`. Verificar primero una ejecución manual contra datos ficticios vencidos y revisar el contador `purged`; esta preparación no crea ni ejecuta la tarea.
+Guardar el valor en Vault o en el almacén de secretos protegido del programador y construir la cabecera en tiempo de ejecución. No escribirlo en el comando SQL de Cron, logs ni archivos versionados. La función usa `service_role` sólo del lado servidor y llama exclusivamente a `checkout_purge_expired_customer_data()`. Se probó con dos compradores ficticios dentro de una transacción `ROLLBACK`: el caducado se eliminó, el destinatario del correo se anonimizó, el activo y ambos pedidos se conservaron. Se comprobó también idempotencia (`purged=0` en una segunda llamada). La Edge Function respondió **HTTP 200** con secreto Vault y `purged=0` contra datos vigentes; sin secreto respondió **HTTP 401**. Las pruebas sintéticas están versionadas en `supabase/test/04_retention.sql`. Ningún cliente real fue eliminado durante la validación.
 
 ### Revisión pendiente de permisos y datos
 
-La migración `supabase/migrations/20261117210000_harden_checkout_privileges.sql` se prepara en GitHub, pero **no debe desplegarse automáticamente**: requiere autorización para aplicar al sandbox y una lectura posterior con `has_table_privilege`. Los privilegios observados afectan también a `checkout_settings`; RLS no protege por sí solo las operaciones `TRUNCATE`.
+La migración `supabase/migrations/20261117210000_harden_checkout_privileges.sql` ya se aplicó con autorización al sandbox y se verificó su resultado. No repetirla. La protección de privilegios estructurales se añade a RLS; RLS por sí solo no protege `TRUNCATE`.
 
 No se habilitan ni implementan reembolsos automáticos desde el panel. Los estados `refunded`, `partially_refunded` y `charged_back` siguen llegando de Mercado Pago por webhook verificado; ejecutar una devolución de dinero es una operación distinta.
 
-El Cron de purga `checkout-sandbox-order-maintenance` todavía no está creado. Configurarlo solamente después de revisar la retención y validar en una transacción de prueba que no elimina datos activos.
+El Cron de purga `checkout-sandbox-order-maintenance` está **activo**. Se comprobó que el comando referencia Vault por nombre y nunca almacena el valor del secreto en SQL versionado. Después de la primera ejecución programada (18/11/2026, 03:15 Argentina) revisar `cron.job_run_details` y la respuesta HTTP. Retención actual: 365 días; al 17/11/2026 no hay contactos vencidos y el primer vencimiento es en noviembre de 2027.
 
 ## Seguridad y retención
 
@@ -124,7 +124,7 @@ El Cron de purga `checkout-sandbox-order-maintenance` todavía no está creado. 
 - El panel sólo recibe permiso de columna para `manufacturing_status` e `internal_notes`; no puede modificar pago, importes ni IDs de Mercado Pago.
 - `service_role` permanece dentro de Edge Functions y nunca se envía al navegador.
 - La creación inserta pedido y contacto en una única transacción SQL.
-- El plazo técnico inicial es 365 días. Antes de producción debe validarse legalmente y activarse la tarea diaria documentada arriba; la función borra contacto vencido y anonimiza destinatarios del log.
+- El plazo técnico inicial es 365 días. La tarea diaria **está activa sólo en sandbox**; antes de producción debe validarse legalmente el período y configurar una tarea independiente en producción con autorización explícita. La función borra contactos vencidos y anonimiza destinatarios del log.
 - Las notas internas no deben usarse para copiar documentos, datos de tarjeta ni información sensible adicional.
 
 ## Comprobaciones posteriores a una activación autorizada
@@ -141,6 +141,6 @@ El Cron de purga `checkout-sandbox-order-maintenance` todavía no está creado. 
 
 - El texto de privacidad y el plazo de 365 días necesitan revisión legal/comercial.
 - Deben verificarse SPF, DKIM y DMARC del dominio remitente; sin eso los correos pueden ir a spam.
-- La entrega real de correos y la tarea Cron no pueden comprobarse hasta configurar Resend y desplegar en sandbox.
+- En sandbox se probaron los correos a comprador y vendedor y sus diseños responsive. La Edge Function de mantenimiento respondió 200/401 según la autenticación y el Cron está activo; **falta comprobar el primer disparo programado**. Antes de producción, verificar un dominio propio en Resend para envíos a destinatarios reales.
 - La outbox limita reintentos a ocho y a 23 horas. Los estados `failed` y `uncertain` requieren revisión; el panel no incluye un botón manual de reenvío.
 - No se cifran campos individualmente en aplicación; la protección depende de Supabase, TLS, RLS, control de administradores y las políticas de acceso del proyecto.
