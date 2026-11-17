@@ -1,6 +1,17 @@
 # Issue #4 · Pedidos, compradores y correos (sandbox)
 
-Esta etapa está preparada exclusivamente para `pacyytbscnlklyrhsshp` y el Worker `tienda-checkout-sandbox`. No se aplicó SQL, no se desplegaron funciones y no se hicieron pagos. Producción (`ivyagavbhsyzvikzhmhe` y Worker `tienda`) queda fuera del procedimiento.
+Esta etapa se desarrolla exclusivamente en `pacyytbscnlklyrhsshp` y el Worker `tienda-checkout-sandbox`. Producción (`ivyagavbhsyzvikzhmhe` y Worker `tienda`) queda fuera del procedimiento.
+
+## Estado comprobado el 17/11/2026
+
+- Las migraciones iniciales del Issue #4 ya se aplicaron en sandbox; **no repetirlas**. La mejora de paginación está registrada allí como `20261116173004_improve_order_attempts_admin`.
+- Están desplegadas cinco funciones de checkout, hay 15 pedidos históricos de prueba y 6 avisos en outbox. El webhook y ambos correos se probaron en una compra ficticia.
+- `payments_enabled=false`. La pantalla `/pago` del Issue #3 ya se publicó sólo en sandbox.
+- Existe el Cron activo `checkout-sandbox-order-notifications` cada cinco minutos; **falta el Cron de purga diaria de contactos** y sigue pendiente verificar esa tarea con datos ficticios.
+- Revisión de permisos: `anon` y `authenticated` aún tienen `TRUNCATE`, `TRIGGER`, `REFERENCES` y `MAINTAIN` sobre `checkout_orders` y `checkout_settings`. La migración nueva `20261117210000_harden_checkout_privileges.sql` los retira sin cambiar `SELECT` ni `UPDATE` legítimos.
+- Este archivo conserva los procedimientos originales de instalación para referencia histórica. Revisar las verificaciones de estado antes de repetir cualquier operación.
+
+
 
 ## Qué agrega
 
@@ -97,6 +108,14 @@ x-maintenance-secret: <ORDER_MAINTENANCE_SECRET>
 ```
 
 Guardar el valor en Vault o en el almacén de secretos protegido del programador y construir la cabecera en tiempo de ejecución. No escribirlo en el comando SQL de Cron, logs ni archivos versionados. La función usa `service_role` sólo del lado servidor y llama exclusivamente a `checkout_purge_expired_customer_data()`. Verificar primero una ejecución manual contra datos ficticios vencidos y revisar el contador `purged`; esta preparación no crea ni ejecuta la tarea.
+
+### Revisión pendiente de permisos y datos
+
+La migración `supabase/migrations/20261117210000_harden_checkout_privileges.sql` se prepara en GitHub, pero **no debe desplegarse automáticamente**: requiere autorización para aplicar al sandbox y una lectura posterior con `has_table_privilege`. Los privilegios observados afectan también a `checkout_settings`; RLS no protege por sí solo las operaciones `TRUNCATE`.
+
+No se habilitan ni implementan reembolsos automáticos desde el panel. Los estados `refunded`, `partially_refunded` y `charged_back` siguen llegando de Mercado Pago por webhook verificado; ejecutar una devolución de dinero es una operación distinta.
+
+El Cron de purga `checkout-sandbox-order-maintenance` todavía no está creado. Configurarlo solamente después de revisar la retención y validar en una transacción de prueba que no elimina datos activos.
 
 ## Seguridad y retención
 

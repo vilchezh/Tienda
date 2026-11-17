@@ -261,6 +261,19 @@ const h = Store.escapeHTML;
       return { from: argentinaStart(from), to: to ? argentinaStart(nextLocalDay(to)) : null };
     }
 
+    // Descartar datos privados cuando fallan los filtros o los permisos de lectura.
+    function clearOrderResults(message) {
+      orders = [];
+      orderTotal = 0;
+      selectedOrderId = null;
+      document.getElementById('ordersTableBody').replaceChildren();
+      document.getElementById('orderDetail').textContent = 'No hay un pedido disponible para mostrar.';
+      document.getElementById('ordersStatus').textContent = message;
+      document.getElementById('ordersPageStatus').textContent = 'Sin resultados';
+      document.getElementById('btnPreviousOrders').disabled = true;
+      document.getElementById('btnNextOrders').disabled = true;
+    }
+
     async function loadOrders(resetPage = true) {
       const sequence = ++orderLoadSequence;
       const status = document.getElementById('ordersStatus');
@@ -270,26 +283,29 @@ const h = Store.escapeHTML;
       document.getElementById('btnNextOrders').disabled = true;
       let bounds;
       try { bounds = orderDateBounds(); }
-      catch (error) { status.textContent = error.message; return; }
-      const { data, error } = await supabaseClient.rpc('checkout_admin_list_orders', {
-        p_search: document.getElementById('orderSearch').value.trim() || null,
-        p_payment_group: document.getElementById('orderPaymentGroup').value,
-        p_payment_status: document.getElementById('orderPaymentFilter').value || null,
-        p_manufacturing_status: document.getElementById('orderManufacturingFilter').value || null,
-        p_date_from: bounds.from,
-        p_date_to: bounds.to,
-        p_sort: document.getElementById('orderSort').value,
-        p_limit: ORDER_PAGE_SIZE,
-        p_offset: orderPage * ORDER_PAGE_SIZE,
-      }).abortSignal(AbortSignal.timeout(10000));
+      catch (error) { clearOrderResults(error.message); return; }
+      let result;
+      try {
+        result = await supabaseClient.rpc('checkout_admin_list_orders', {
+          p_search: document.getElementById('orderSearch').value.trim() || null,
+          p_payment_group: document.getElementById('orderPaymentGroup').value,
+          p_payment_status: document.getElementById('orderPaymentFilter').value || null,
+          p_manufacturing_status: document.getElementById('orderManufacturingFilter').value || null,
+          p_date_from: bounds.from,
+          p_date_to: bounds.to,
+          p_sort: document.getElementById('orderSort').value,
+          p_limit: ORDER_PAGE_SIZE,
+          p_offset: orderPage * ORDER_PAGE_SIZE,
+        }).abortSignal(AbortSignal.timeout(10000));
+      } catch {
+        result = { error: true };
+      }
       if (sequence !== orderLoadSequence) return;
-      if (error) {
-        orders = [];
-        orderTotal = 0;
-        document.getElementById('ordersTableBody').replaceChildren();
-        status.textContent = 'La sección Pedidos estará disponible al aplicar la migración del Issue #4 en el sandbox o al autorizar esta cuenta como administradora.';
+      if (result?.error || !Array.isArray(result?.data)) {
+        clearOrderResults('No pudimos cargar los pedidos. Revisá la conexión y verificá que tu cuenta esté autorizada como administradora.');
         return;
       }
+      const { data } = result;
       const rows = Array.isArray(data) ? data : [];
       // Una última página puede quedar vacía si cambian los pedidos mientras se navega.
       // El RPC devuelve cero filas en ese caso y no puede incluir el total filtrado.
@@ -302,7 +318,10 @@ const h = Store.escapeHTML;
       renderOrders();
       if (selectedOrderId && orders.some(order => order.id === selectedOrderId)) selectOrder(selectedOrderId);
       else if (orders[0]) selectOrder(orders[0].id);
-      else document.getElementById('orderDetail').innerHTML = '<p>No hay pedidos para mostrar.</p>';
+      else {
+        selectedOrderId = null;
+        document.getElementById('orderDetail').textContent = 'No hay pedidos para mostrar.';
+      }
     }
 
     async function saveSelectedOrder() {
@@ -314,12 +333,22 @@ const h = Store.escapeHTML;
         manufacturing_status: document.getElementById('orderManufacturingStatus').value,
         internal_notes: document.getElementById('orderInternalNotes').value.trim(),
       };
-      const { error } = await supabaseClient.from('checkout_orders').update(changes).eq('id', order.id);
+      let error;
+      try {
+        ({ error } = await supabaseClient.from('checkout_orders').update(changes).eq('id', order.id));
+      } catch {
+        error = true;
+      }
       button.disabled = false;
       if (error) { showToast('No se pudo guardar el pedido. Verificá permisos de administrador.'); return; }
-      Object.assign(order, changes, { updated_at: new Date().toISOString() });
-      renderOrders();
-      renderOrderDetail(order);
+      const currentOrder = orders.find(item => item.id === order.id);
+      if (currentOrder) Object.assign(currentOrder, changes, { updated_at: new Date().toISOString() });
+      // La respuesta puede llegar después de seleccionar otro pedido o cambiar filtros.
+      // Nunca sobrescribir el detalle que está viendo el administrador.
+      if (currentOrder && selectedOrderId === order.id) {
+        renderOrders();
+        renderOrderDetail(currentOrder);
+      }
       showToast('✅ Estado de fabricación y notas guardados.');
     }
 

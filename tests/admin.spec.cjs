@@ -53,7 +53,34 @@ test('orders view fails closed when the session is not an authorized administrat
  await setup(page,{authenticated:true,rows:[sandboxProduct],ordersFailure:true});
  await page.goto('/admin.html');
  await page.locator('#btnViewOrders').click();
- await expect(page.locator('#ordersStatus')).toContainText('autorizar esta cuenta');
+ await expect(page.locator('#ordersStatus')).toContainText('autorizada como administradora');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+});
+test('a failed reload clears previously displayed private customer details',async({page})=>{
+ const options={authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]};
+ const state=await setup(page,options);
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ options.ordersFailure=true; // The next RPC is rejected as if the session lost access.
+ await page.locator('#btnRefreshOrders').click();
+ await expect(page.locator('#ordersStatus')).toContainText('autorizada como administradora');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+ await expect(page.locator('#orderDetail')).not.toContainText('buyer@example.invalid');
+ await expect(page.locator('#ordersPageStatus')).toHaveText('Sin resultados');
+ expect(state.orderWrites).toHaveLength(0);
+ expect(state.errors).toEqual([]);
+});
+test('an invalid date range clears old private order details',async({page})=>{
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ await page.locator('#orderDateFrom').fill('2026-11-30');
+ await page.locator('#orderDateTo').fill('2026-11-01');
+ await page.locator('#orderDateTo').dispatchEvent('change');
+ await expect(page.locator('#ordersStatus')).toContainText('rango de fechas no es válido');
+ await expect(page.locator('#orderDetail')).not.toContainText('buyer@example.invalid');
  await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
 });
 test('orders use server pagination and combinable Buenos Aires date/payment filters beyond 250 rows',async({page})=>{
