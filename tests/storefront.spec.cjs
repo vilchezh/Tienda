@@ -284,6 +284,14 @@ for (const [status, expected, tone] of [
   expect(state.statusRequests).toHaveLength(1);
   expect(state.errors).toEqual([]);
 });
+test('unexpected provider status cannot inherit a fake state',async({page})=>{
+  const state=await setup(page,{orderStatus:paymentMock('__proto__')});
+  await page.goto('/pago.html?pedido='+paymentOrderId+'&resultado=exito');
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','review');
+  await expect(page.locator('#resultTitle')).toHaveText('Estamos verificando tu pedido');
+  await expect(page.locator('#resultStatus')).toHaveText('En revisión');
+  expect(state.errors).toEqual([]);
+});
 test('payment page never treats URL success as payment proof',async({page})=>{
   const state=await setup(page,{orderStatus:paymentMock('created')});
   await page.goto('/pago.html?pedido='+paymentOrderId+'&resultado=exito');

@@ -73,7 +73,7 @@
       const data = await response.json();
       if (!data || typeof data !== 'object' || String(data.order_id || '').toLowerCase() !== orderId.toLowerCase()) throw new Error('order');
       const status = typeof data.payment_status === 'string' ? data.payment_status : '';
-      const entry = states[status] || unknown;
+      const entry = Object.prototype.hasOwnProperty.call(states, status) ? states[status] : unknown;
       render(entry);
       const product = typeof data.product?.nombre === 'string' ? data.product.nombre.trim() : '';
       document.getElementById('resultProduct').textContent = product || 'Pedido de Acero y Escamas';
