@@ -90,7 +90,7 @@ export function orderEmailTemplate(env, notification, order, customer) {
     "</div><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;background:#eef2ee;\"><tr><td align=\"center\" style=\"padding:16px 10px;\">",
     "<table role=\"presentation\" class=\"email-shell\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:100%;max-width:560px;table-layout:fixed;background:#ffffff;border:1px solid #d8e3da;\">",
     "<tr><td class=\"email-pad\" style=\"padding:24px 28px;background:#0f3d2e;color:#ffffff;\">",
-    "<img src=\"https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-708c76.png\" alt=\"Logo de Acero y Escamas\" width=\"80\" height=\"80\" align=\"right\" style=\"display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;\">",
+    "<img src=\"https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-708c76-sharp.png\" alt=\"Logo de Acero y Escamas\" width=\"80\" height=\"80\" align=\"right\" style=\"display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;\">",
     "<div style=\"font-size:20px;font-weight:700;letter-spacing:1px;line-height:1.35;\">ACERO Y ESCAMAS</div>",
     "<div style=\"font-size:13px;color:#d2e3d8;margin-top:5px;line-height:1.45;\">Herrería y muebles a medida</div>",
     "<div style=\"font-size:11px;font-weight:700;letter-spacing:1px;color:#0f3d2e;background:#e5f2e8;display:inline-block;padding:7px 11px;margin-top:17px;\">PAGO ACREDITADO</div></td></tr>",
