@@ -159,7 +159,7 @@ test('pending return reuses the attempt and a terminal payment allows a legitima
   const pendingId=state.checkoutRequests[0].data.client_request_id;
   await expect(page).toHaveURL(/mercadopago\.com\.ar/);
   await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111');
-  await expect(page.locator('#resultTitle')).toHaveText('Pedido creado');
+  await expect(page.locator('#resultTitle')).toHaveText('Recibimos tu pedido');
   await page.goto('/producto.html?id='+product.id);
   await fillCheckoutContact(page);
   await page.locator('#btnComprar').click();
@@ -170,7 +170,7 @@ test('pending return reuses the attempt and a terminal payment allows a legitima
   orderStatus.order_status='processed';
   orderStatus.payment_status='processed';
   await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111');
-  await expect(page.locator('#resultTitle')).toHaveText('Pago acreditado');
+  await expect(page.locator('#resultTitle')).toHaveText('¡Tu pago fue confirmado!');
   await page.goto('/producto.html?id='+product.id);
   await fillCheckoutContact(page);
   await page.locator('#btnComprar').click();
@@ -190,9 +190,9 @@ test('custom work keeps WhatsApp available and blocks direct checkout',async({pa
 test('return page reports only the server-verified payment state',async({page})=>{
   const state=await setup(page);
   await page.goto('/pago.html?pedido=11111111-1111-4111-8111-111111111111&resultado=exito');
-  await expect(page.locator('#resultTitle')).toHaveText('Pago aprobado');
+  await expect(page.locator('#resultTitle')).toHaveText('¡Tu pago fue confirmado!');
   await expect(page.locator('#resultAmount')).toHaveText('$199.000 ARS');
-  await expect(page.locator('#resultStatus')).toHaveText('approved');
+  await expect(page.locator('#resultStatus')).toHaveText('Acreditado');
   expect(state.statusRequests).toHaveLength(1);
   expect(state.errors).toEqual([]);
 });
@@ -254,4 +254,82 @@ test('transactional email fits narrow mobile viewports without cropped content',
       await expect(page.locator('img')).toHaveAttribute('align', 'right');
     }
   }
+});
+
+const paymentOrderId = '11111111-1111-4111-8111-111111111111';
+function paymentMock(status, overrides = {}) {
+  return { order_id:paymentOrderId, payment_status:status, order_status:status, amount:108000, currency:'ARS', product:{nombre:'Pieza de prueba'}, ...overrides };
+}
+for (const [status, expected, tone] of [
+  ['processed','¡Tu pago fue confirmado!','success'],
+  ['pending','Tu pago está pendiente','pending'],
+  ['in_process','Tu pago está en revisión','review'],
+  ['manual_review','Estamos revisando tu pedido','review'],
+  ['created','Recibimos tu pedido','pending'],
+  ['rejected','No se pudo aprobar el pago','failure'],
+  ['canceled','El pago fue cancelado','failure'],
+  ['refunded','Tu pago fue reembolsado','refund'],
+  ['partially_refunded','Se realizó un reembolso parcial','refund'],
+  ['charged_back','Hay una disputa sobre el pago','refund']
+]) test('payment result '+status+' maps verified state without showing internals',async({page})=>{
+  const state=await setup(page,{orderStatus:paymentMock(status)});
+  await page.goto('/pago.html?pedido='+paymentOrderId+'&resultado=exito');
+  await expect(page.locator('#resultTitle')).toHaveText(expected);
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state',tone);
+  await expect(page.locator('#resultOrder')).toHaveText('#11111111');
+  await expect(page.locator('#resultAmount')).toHaveText('$108.000 ARS');
+  await expect(page.locator('#resultProduct')).toHaveText('Pieza de prueba');
+  await expect(page.locator('#resultStatus')).not.toHaveText(status);
+  await expect(page.locator('#resultNext')).toBeVisible();
+  expect(state.statusRequests).toHaveLength(1);
+  expect(state.errors).toEqual([]);
+});
+test('payment page never treats URL success as payment proof',async({page})=>{
+  const state=await setup(page,{orderStatus:paymentMock('created')});
+  await page.goto('/pago.html?pedido='+paymentOrderId+'&resultado=exito');
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','pending');
+  await expect(page.locator('#resultTitle')).toHaveText('Recibimos tu pedido');
+  await expect(page.locator('#resultMessage')).toContainText('no tenemos una acreditación');
+  expect(state.statusRequests).toHaveLength(1);
+});
+test('invalid order reference cannot trigger a lookup or show verified details',async({page})=>{
+  const state=await setup(page);
+  await page.goto('/pago.html?pedido=bad-id&resultado=exito');
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','error');
+  await expect(page.locator('#resultDetails')).toBeHidden();
+  await expect(page.locator('#btnRefreshStatus')).toBeDisabled();
+  expect(state.statusRequests).toHaveLength(0);
+});
+test('server errors cannot display previously confirmed payment details',async({page})=>{
+  const state=await setup(page,{orderStatus:paymentMock('approved')});
+  await page.goto('/pago.html?pedido='+paymentOrderId);
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','success');
+  await page.route('**/functions/v1/get-mp-order-status*',route=>route.fulfill({status:503,json:{error:'unavailable'}}));
+  await page.locator('#btnRefreshStatus').click();
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','error');
+  await expect(page.locator('#resultDetails')).toBeHidden();
+  await expect(page.locator('#resultNext')).toBeHidden();
+  expect(state.errors).toEqual([]);
+});
+test('payment status response must match requested order and not inject markup',async({page})=>{
+  const injected = '<img src=x onerror=alert(1)>';
+  await setup(page,{orderStatus:paymentMock('processed',{product:{nombre:injected}})});
+  await page.goto('/pago.html?pedido='+paymentOrderId);
+  await expect(page.locator('#resultProduct')).toHaveText(injected);
+  expect(await page.locator('#resultDetails img').count().catch(()=>-1)).toBe(0);
+  expect(await page.evaluate(()=>document.querySelectorAll('[onerror], [onload]').length)).toBe(0);
+  await page.route('**/functions/v1/get-mp-order-status*',route=>route.fulfill({json:paymentMock('processed',{order_id:'33333333-3333-4333-8333-333333333333'})}));
+  await page.locator('#btnRefreshStatus').click();
+  await expect(page.locator('#paymentResult')).toHaveAttribute('data-state','error');
+  await expect(page.locator('#resultDetails')).toBeHidden();
+});
+for (const width of [320,390,1280]) test('payment page adapts at '+width+'px',async({page})=>{
+  const state=await setup(page,{orderStatus:paymentMock('approved',{product:{nombre:'Mesa de hierro y madera personalizada con acabado natural'}})});
+  await page.setViewportSize({width,height:820});
+  await page.goto('/pago.html?pedido='+paymentOrderId);
+  await expect(page.locator('#resultDetails')).toBeVisible();
+  await expect(page.locator('#resultTitle')).toBeVisible();
+  await expect(page.locator('.result-primary-action')).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  expect(state.errors).toEqual([]);
 });

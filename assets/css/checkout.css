@@ -1,15 +1,77 @@
-.checkout-result-page { min-height: 100vh; background: var(--warm-white); color: var(--graphite); }
-.result-header { padding: 16px clamp(18px, 5vw, 72px); background: var(--forest); }
-.result-header .brand-wrap { display: inline-flex; align-items: center; gap: 12px; color: var(--cream-light); text-decoration: none; }
-.result-header .brand-logo { width: 52px; height: 52px; object-fit: cover; border-radius: 50%; }
-.result-header .brand-titles { display: grid; }
-.result-card { width: min(680px, calc(100% - 32px)); margin: clamp(48px, 9vw, 100px) auto; padding: clamp(26px, 5vw, 48px); background: #fffdf8; border: 1px solid rgba(15, 61, 46, .18); box-shadow: 0 24px 70px rgba(21, 29, 26, .12); }
-.result-kicker { color: var(--forest); font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-.result-card h1 { margin: 14px 0; font-size: clamp(30px, 6vw, 48px); line-height: 1.05; }
-.result-card p { color: #4a5651; line-height: 1.65; }
-.result-card dl { margin: 28px 0 0; border-top: 1px solid rgba(15, 61, 46, .16); }
-.result-card dl div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid rgba(15, 61, 46, .12); }
-.result-card dt { color: #59645f; }
-.result-card dd { margin: 0; font-family: var(--font-mono); font-weight: 700; text-align: right; }
-.result-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
-@media (max-width: 520px) { .result-actions > * { width: 100%; justify-content: center; } }
+/* Issue #3: estado poscompra. Sólo afecta a /pago. */
+.checkout-result-page {
+  min-height: 100vh; margin: 0;
+  background: #171c1a; color: #1b2921;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+.checkout-result-page *, .checkout-result-page *::before, .checkout-result-page *::after { box-sizing: border-box; }
+.result-header { background: #0f3d2e; border-bottom: 3px solid #708c76; color: #f6f3eb; }
+.result-header-inner { max-width: 1120px; margin: 0 auto; padding: 16px 26px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.result-brand { display: inline-flex; align-items: center; gap: 14px; min-width: 0; text-decoration: none; }
+.result-brand-mark { display: block; width: 46px; height: 46px; flex: 0 0 46px; object-fit: contain; }
+.result-brand-copy { display: grid; line-height: 1.2; }
+.result-brand-copy strong { color: #f6f3eb; letter-spacing: .075em; font-size: clamp(15px, 2vw, 19px); }
+.result-brand-copy small { color: #cfddd1; font-size: 11px; margin-top: 4px; }
+.result-header-label { font: 600 11px/1.4 var(--font-mono, monospace); letter-spacing: .075em; color: #d8e4d9; text-align: right; }
+.result-layout { width: min(1080px, calc(100% - 36px)); margin: clamp(26px, 5.5vw, 72px) auto 36px; }
+.result-card { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); background: #f8f7f1; box-shadow: 0 28px 80px rgba(0,0,0,.25); border: 1px solid #496052; border-radius: 8px; overflow: hidden; }
+.result-content { min-width: 0; padding: clamp(24px, 5vw, 55px); }
+.result-state-icon { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; border: 2px solid #98b7a3; color: #214a36; background: #e6eee5; font-size: 29px; font-weight: 700; line-height: 1; margin-bottom: 24px; }
+.result-eyebrow { font: 700 11px/1.5 var(--font-mono, monospace); letter-spacing: .12em; color: #617265; margin: 0 0 12px; }
+.result-pill { display: inline-flex; align-items: center; border-radius: 2px; padding: 7px 10px; background: #e2eae1; color: #234b38; font: 700 11px/1.2 var(--font-mono, monospace); letter-spacing: .08em; text-transform: uppercase; }
+.result-content h1 { max-width: 18ch; font-size: clamp(32px, 4.5vw, 51px); letter-spacing: -.045em; font-weight: 700; line-height: 1.11; margin: 18px 0; color: #173e2c; text-wrap: balance; }
+.result-message { max-width: 49ch; font-size: clamp(15px, 1.7vw, 17px); line-height: 1.75; color: #4b5b4f; margin: 0; }
+.result-next { border-left: 3px solid #708c76; padding: 13px 0 13px 18px; margin-top: 26px; background: linear-gradient(90deg, rgba(112,140,118,.09), transparent); }
+.result-next h2 { color: #244d36; font-size: 16px; font-weight: 700; margin: 0 0 6px; }
+.result-next p { margin: 0; font-size: 14px; line-height: 1.7; color: #495a4d; }
+.result-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+.result-actions .button { border-radius: 3px; min-height: 48px; padding: 12px 19px; line-height: 1.3; font-size: 13px; gap: 8px; }
+.result-primary-action { background: #0f3d2e; border: 1px solid #0f3d2e; color: #fff; }
+.result-primary-action:hover { background: #18533f; color: #fff; }
+.result-secondary-action { background: #f8f7f1; border: 1px solid #768d7a; color: #214633; }
+.result-secondary-action:hover:not(:disabled) { background: #e7eee7; }
+.result-secondary-action:disabled { background: #e8ece6; border-color: #c2cdc1; color: #506454; cursor: wait; }
+.result-receipt { min-width: 0; background: #173e30; color: #f6f3eb; padding: clamp(28px, 4vw, 44px); display: flex; flex-direction: column; justify-content: center; }
+.result-receipt-eyebrow { margin: 0 0 20px; font: 700 11px/1.5 var(--font-mono, monospace); letter-spacing: .13em; color: #b6d1bd; }
+.result-receipt-product { font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; margin: 0 0 24px; }
+.result-data { margin: 0; }
+.result-data > div { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; border-top: 1px solid rgba(221,239,219,.21); padding: 15px 0; }
+.result-data dt { color: #bfd1c2; font-size: 13px; }
+.result-data dd { margin: 0; color: #fff; font-weight: 700; text-align: right; font-size: 13px; overflow-wrap: anywhere; }
+.result-total { border-top: 1px solid rgba(221,239,219,.3); margin-top: 14px; padding-top: 24px; }
+.result-total span { color: #c8dacd; font-size: 13px; }
+.result-total strong { display: block; margin-top: 8px; font-size: clamp(27px, 4vw, 39px); line-height: 1.1; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.result-security-note { color: #b9ccbc; font-size: 12px; line-height: 1.7; margin: 30px 0 0; }
+.result-footer-note { text-align: center; font-size: 12px; line-height: 1.6; color: #bec9bf; margin: 25px auto 0; }
+.result-layout[data-state="success"] .result-state-icon { background: #dcebd9; color: #0d5c37; border-color: #7fba95; }
+.result-layout[data-state="review"] .result-state-icon,
+.result-layout[data-state="pending"] .result-state-icon { background: #f8edcc; color: #745321; border-color: #d9bf7c; }
+.result-layout[data-state="review"] .result-pill,
+.result-layout[data-state="pending"] .result-pill { background: #f6eac7; color: #6b4c20; }
+.result-layout[data-state="failure"] .result-state-icon,
+.result-layout[data-state="refund"] .result-state-icon { background: #f7ddd7; color: #873829; border-color: #dcad9f; }
+.result-layout[data-state="failure"] .result-pill,
+.result-layout[data-state="refund"] .result-pill { background: #f7e0d9; color: #823d2d; }
+.result-layout[data-state="error"] .result-state-icon { background: #e3e5e3; color: #3e4940; border-color: #a6b4a8; }
+.result-layout[data-state="error"] .result-pill { background: #e4e8e3; color: #465448; }
+@media (max-width: 780px) {
+  .result-card { grid-template-columns: minmax(0, 1fr); }
+  .result-content { padding: clamp(24px, 5vw, 36px); }
+  .result-receipt { padding: clamp(24px, 5vw, 36px); }
+  .result-content h1 { max-width: 24ch; }
+}
+@media (max-width: 480px) {
+  .result-layout { width: calc(100% - 20px); margin-top: 20px; }
+  .result-header-inner { padding: 14px 15px; }
+  .result-brand { gap: 9px; }
+  .result-brand-mark { height: 39px; width: 39px; flex-basis: 39px; }
+  .result-brand-copy strong { font-size: 13px; }
+  .result-brand-copy small { font-size: 10px; }
+  .result-header-label { display: none; }
+  .result-content h1 { font-size: clamp(29px, 8vw, 36px); }
+  .result-actions > * { width: 100%; }
+  .result-receipt-product { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkout-result-page .button { transition: none; }
+}
