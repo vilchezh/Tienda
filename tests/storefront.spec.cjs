@@ -13,7 +13,10 @@ test('catalog shows final sandbox price with commission even while checkout is d
   const state=await setup(page,{rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
   await page.goto('/');
   await expect(page.locator('#catalogoGrid .product-price')).toContainText('108.000');
-  await expect(page.locator('#catalogoGrid .price-breakdown')).toContainText('Comisión $7.500 · Redondeo $500');
+  await expect(page.locator('#catalogoGrid .price-breakdown')).toHaveCount(0);
+  await expect(page.locator('footer a[href="admin.html"]')).toHaveCount(0);
+  await expect(page.locator('header a[href="arrepentimiento.html"]')).toBeVisible();
+  await expect(page.locator('.hero-materials img')).toHaveAttribute('src','assets/img/email-pangolin-708c76-sharp.png');
   expect(state.checkoutRequests).toHaveLength(0);
 });
 
@@ -21,11 +24,13 @@ test('product final price follows selected extras with checkout disabled',async(
   const state=await setup(page,{rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
   await page.goto('/producto.html?id=pieza-sandbox-001');
   await expect(page.locator('#priceDisplay')).toHaveText('108.000');
-  await expect(page.locator('#productPriceBreakdown')).toContainText('Comisión $7.500 · Redondeo $500');
+  await expect(page.locator('#productPriceBreakdown')).toHaveCount(0);
+  await expect(page.locator('.pricing-box')).toHaveCSS('position','sticky');
+  await expect(page.locator('#checkoutStatus')).not.toContainText('de prueba');
   await expect(page.locator('#btnComprar')).toBeDisabled();
   await page.locator('.extra-checkbox').first().check();
   await expect(page.locator('#priceDisplay')).toHaveText('109.000');
-  await expect(page.locator('#productPriceBreakdown')).toContainText('Extras $1.000');
+  await expect(page.locator('#priceDisplay')).toHaveText('109.000');
   await page.evaluate(()=> { window.STORE_CONFIG={...window.STORE_CONFIG,whatsappNumber:''}; });
   await page.locator('#customNotes').fill('Consulta ficticia');
   await expect(page.locator('#btnWhatsapp')).not.toHaveAttribute('href');

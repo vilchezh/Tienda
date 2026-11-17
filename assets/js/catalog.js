@@ -233,7 +233,6 @@
             ? `<span class="price-off-badge">-${Math.round((1 - pricing.total / oldPrice) * 100)}% OFF</span>`
             : ''}
         </div>
-        ${pricing ? `<div class="price-breakdown">Base $${formatoPeso.format(pricing.base)} · Madera $${formatoPeso.format(pricing.wood)} · Extras $0 · Comisión $${formatoPeso.format(pricing.commission)} · Redondeo $${formatoPeso.format(pricing.rounding)}</div>` : ''}
         </div>
       `;
       const cta = document.createElement('span');

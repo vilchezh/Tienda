@@ -61,9 +61,6 @@ const urlParams = new URLSearchParams(window.location.search);
       } catch { /* No mostrar un importe incompleto. */ }
       const money = value => `$${value.toLocaleString('es-AR')}`;
       document.getElementById('priceDisplay').textContent = pricing ? pricing.total.toLocaleString('es-AR') : '—';
-      document.getElementById('productPriceBreakdown').textContent = pricing
-        ? `Base ${money(pricing.base)} · Madera ${money(pricing.wood)} · Extras ${money(pricing.extras)} · Comisión ${money(pricing.commission)} · Redondeo ${money(pricing.rounding)}`
-        : 'Precio final no disponible. Intentá nuevamente más tarde.';
       document.getElementById('labelWoodType').textContent = state.woodType;
       document.getElementById('labelWoodStain').textContent = state.woodStain;
       document.getElementById('labelMetal').textContent = `${state.metalColor} · ${state.finish}`;
@@ -107,15 +104,15 @@ const urlParams = new URLSearchParams(window.location.search);
       button.disabled = true;
       if (checkoutBusy) return;
       if (!productData?.checkoutHabilitado) {
-        status.textContent = 'Esta pieza se encarga por consulta. Checkout Pro no está habilitado para este producto.';
+        status.textContent = 'Esta pieza se encarga por consulta; la compra directa no está disponible.';
         return;
       }
       if (!checkoutConfig.loaded) {
-        status.textContent = 'Checkout Pro de prueba no está disponible en este momento.';
+        status.textContent = 'La compra online no está disponible en este momento.';
         return;
       }
       if (!checkoutConfig.paymentsEnabled) {
-        status.textContent = 'Checkout Pro de prueba está deshabilitado desde el administrador.';
+        status.textContent = 'La compra online está temporalmente deshabilitada. Podés consultarnos antes de encargar.';
         return;
       }
       if (document.getElementById('customNotes').value.trim()) {
@@ -123,12 +120,11 @@ const urlParams = new URLSearchParams(window.location.search);
         return;
       }
       if (!pricing) {
-        status.textContent = 'No pudimos calcular el importe de Checkout Pro.';
+        status.textContent = 'No pudimos calcular el precio final. Reintentá más tarde.';
         return;
       }
       button.disabled = false;
-      const commission = checkoutConfig.commissionPercent.toLocaleString('es-AR', { maximumFractionDigits: 2 });
-      status.textContent = `Total en Checkout Pro de prueba: $${pricing.total.toLocaleString('es-AR')} ARS · comisión ${commission}% · redondeado al próximo múltiplo de $1.000.`;
+      status.textContent = `Total de tu configuración: ${pricing.total.toLocaleString('es-AR')} ARS. El importe se verificará nuevamente antes de pagar.`;
     }
 
     function currentSelection() {
