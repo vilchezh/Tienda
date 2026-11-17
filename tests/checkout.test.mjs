@@ -467,7 +467,7 @@ test('customer and seller emails are responsive, operational and escape every dy
   assert.match(customerTemplate.text, /No necesitás realizar otro pago/);
   assert.match(customerTemplate.html, /max-width:560px/);
   assert.match(customerTemplate.html, /Pedido #11111111/);
-  assert.match(customerTemplate.html, /<img src="https:\/\/tienda-checkout-sandbox\.acero-y-escamas\.workers\.dev\/assets\/img\/email-pangolin-transparent\.png"/);
+  assert.match(customerTemplate.html, /<img src="https:\/\/tienda-checkout-sandbox\.acero-y-escamas\.workers\.dev\/assets\/img\/email-pangolin-muted-green\.png"/);
   assert.doesNotMatch(customerTemplate.html, /class="email-image"/);
   assert.doesNotMatch(customerTemplate.html, /11111111-1111-4111-8111-111111111111/);
   assert.doesNotMatch(customerTemplate.html, /El pago y la fabricación son estados independientes/);
