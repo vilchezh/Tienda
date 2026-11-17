@@ -249,8 +249,8 @@ test('transactional email fits narrow mobile viewports without cropped content',
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.locator('.email-amount')).toContainText('108.000');
       await expect(page.locator('img')).toHaveCount(1);
-      await expect(page.locator('img')).toHaveAttribute('src', 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-muted-green.png');
-      await expect(page.locator('img')).toHaveAttribute('width', '64');
+      await expect(page.locator('img')).toHaveAttribute('src', 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-303a39.png');
+      await expect(page.locator('img')).toHaveAttribute('width', '80');
       await expect(page.locator('img')).toHaveAttribute('align', 'right');
     }
   }
