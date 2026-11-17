@@ -248,7 +248,10 @@ test('transactional email fits narrow mobile viewports without cropped content',
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.locator('.email-amount')).toContainText('108.000');
-      await expect(page.locator('img')).toHaveCount(0);
+      await expect(page.locator('img')).toHaveCount(1);
+      await expect(page.locator('img')).toHaveAttribute('src', 'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-transparent.png');
+      await expect(page.locator('img')).toHaveAttribute('width', '48');
+      await expect(page.locator('img')).toHaveAttribute('align', 'right');
     }
   }
 });
