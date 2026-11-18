@@ -9,10 +9,10 @@ alter table public.custom_quote_requests add column quote_preferences jsonb not 
 create function public.custom_quote_option_list_valid(input text[]) returns boolean
 language sql immutable set search_path=pg_catalog,pg_temp as $$
  select coalesce(cardinality(input) between 1 and 20,false)
-    and not exists(select 1 from unnest(input) v
-      where v is null or length(btrim(v)) not between 1 and 70 or v<>btrim(v))
-    and (select count(*) from unnest(input) v) =
-        (select count(distinct lower(v)) from unnest(input) v);
+    and not exists(select 1 from unnest(input) as item(value)
+      where item.value is null or length(btrim(item.value)) not between 1 and 70 or item.value<>btrim(item.value))
+    and (select count(*) from unnest(input) as item(value)) =
+        (select count(distinct lower(item.value)) from unnest(input) as item(value));
 $$;
 revoke all on function public.custom_quote_option_list_valid(text[]) from public,anon,authenticated;
 
@@ -124,8 +124,8 @@ begin
    if v is null or jsonb_typeof(v)<>'array' or jsonb_array_length(v)>8 then
      raise exception 'invalid_quote_materials';
    end if;
-   if exists(select 1 from jsonb_array_elements(v) item
-             where jsonb_typeof(item)<>'string' or length(trim(item#>>'{}')) not between 1 and 70)
+   if exists(select 1 from jsonb_array_elements(v) as item(value)
+             where jsonb_typeof(item.value)<>'string' or length(trim(item.value#>>'{}')) not between 1 and 70)
    then raise exception 'invalid_quote_materials'; end if;
  end loop;
  foreach k in array array['metal_color','metal_finish','wood_tone','wood_finish'] loop
