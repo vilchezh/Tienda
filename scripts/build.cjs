@@ -29,7 +29,11 @@ if (preview) {
   try { claims = JSON.parse(Buffer.from(rawKey.split('.')[1], 'base64url').toString('utf8')); }
   catch { throw new Error('Clave anon JWT inválida.'); }
   if (claims.ref !== 'pacyytbscnlklyrhsshp' || claims.role !== 'anon') throw new Error('La clave anon no coincide con el proyecto de pruebas.');
-  previewConfig = { siteUrl: site.origin, whatsappNumber: '', supabaseUrl: url.origin, supabaseAnonKey: rawKey };
+  const turnstileSiteKey = String(process.env.STORE_PREVIEW_TURNSTILE_SITE_KEY || '').trim();
+  if (turnstileSiteKey && !/^0x[A-Za-z0-9_-]{10,80}$/.test(turnstileSiteKey)) {
+    throw new Error('La site key pública de Turnstile no es válida.');
+  }
+  previewConfig = { siteUrl: site.origin, whatsappNumber: '', supabaseUrl: url.origin, supabaseAnonKey: rawKey, turnstileSiteKey };
 }
 
 rmSync(outputDirectory, { recursive: true, force: true });
