@@ -33,6 +33,9 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quote-options-admin.js'), 'utf8'), /custom_quote_options/);
   assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quote.js'), 'utf8'), /custom-quote-request/);
   assert.match(readFileSync(resolve(root, 'dist-preview/admin.html'), 'utf8'), /id="customQuotesAdmin"/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/admin.html'), 'utf8'), /id="adminMfaEnrollPanel"/);
+  const headers = readFileSync(resolve(root, 'dist-preview/_headers'), 'utf8');
+  for (const policy of ['X-Content-Type-Options: nosniff','X-Frame-Options: DENY','Referrer-Policy: strict-origin-when-cross-origin','Content-Security-Policy-Report-Only:']) assert.ok(headers.includes(policy), policy);
   assert.match(readFileSync(resolve(root, 'dist-preview/arrepentimiento.html'),'utf8'), /id="cancellationForm"/);
   assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/cancellation.js'),'utf8'), /cancellation-request/);
   assert.match(readFileSync(resolve(root, 'dist-preview/admin.html'),'utf8'), /id="cancellationsAdmin"/);
