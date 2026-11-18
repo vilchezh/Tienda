@@ -262,7 +262,7 @@ test('transactional email fits narrow mobile viewports without cropped content',
   for (const notificationType of ['customer_payment_confirmed', 'seller_payment_received']) {
     for (const width of [320, 360, 620]) {
       await page.setViewportSize({ width, height: 780 });
-      await page.setContent(orderEmailTemplate({}, { notification_type: notificationType }, order, customer).html);
+      await page.setContent(orderEmailTemplate({SUPABASE_URL:'https://pacyytbscnlklyrhsshp.supabase.co',STORE_BASE_URL:'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev'}, { notification_type: notificationType }, order, customer).html);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.locator('.email-amount')).toContainText('108.000');
