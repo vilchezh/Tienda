@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.process-order-maintenance]
 verify_jwt = false
+
+[functions.cancellation-request]
+verify_jwt = false
+
+[functions.process-cancellation-notifications]
+verify_jwt = false
