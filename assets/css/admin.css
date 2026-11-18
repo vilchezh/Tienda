@@ -139,3 +139,24 @@
 .home-featured-products{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:12px 0 24px}
 .home-featured-products label{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--sage-muted)}
 @media(max-width:600px){.home-form-grid{grid-template-columns:1fr}.home-section-item span{flex-basis:100%}}
+
+/* Issue #5 - bandeja de arrepentimientos (solo vista administrativa). */
+.cancellations-admin{padding:clamp(18px,4vw,36px);width:100%;max-width:1480px;margin:0 auto}
+.cancellations-admin[hidden]{display:none!important}
+.cancellations-admin h1{font-size:clamp(22px,3vw,30px);margin:6px 0}
+.cancellations-admin .card-header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+.cancellations-admin .cancellation-warning{padding:14px 16px;margin:18px 0;background:#26352b;border-left:4px solid #91ac8e;line-height:1.6}
+.cancellation-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,35%);gap:20px;align-items:start}
+.cancellation-table-wrap{max-width:100%;overflow-x:auto}
+.cancellation-table-wrap .orders-table{width:100%}
+.cancellation-table-wrap .orders-table tbody tr{cursor:pointer}
+.cancellation-table-wrap .orders-table tbody tr:focus-visible{outline:3px solid #e9bd85;outline-offset:-3px}
+.cancellation-detail{background:var(--bg-panel);border:1px solid var(--sage-muted);padding:18px;line-height:1.6;overflow-wrap:anywhere}
+.cancellation-detail h2{font-size:20px;margin:0 0 12px}
+.cancellation-detail p{margin:10px 0}
+.cancellation-detail label{display:block;margin:16px 0 6px;font-weight:700}
+.cancellation-detail select,.cancellation-detail textarea{display:block;width:100%;padding:11px;background:var(--bg-input);color:var(--cream-light);border:1px solid var(--sage-main);font:inherit}
+.cancellation-detail textarea{resize:vertical}
+.cancellation-detail button{margin:16px 0 8px}
+.cancellation-detail .small{font-size:12px;color:var(--text-muted)}
+@media(max-width:900px){.cancellation-workspace{grid-template-columns:1fr}}
