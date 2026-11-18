@@ -356,15 +356,19 @@ const h = Store.escapeHTML;
       const catalogView = view === 'catalog';
       const ordersView = view === 'orders';
       const homeView = view === 'home';
+       const cancellationView = view === 'cancellations';
       document.getElementById('mainAdmin').hidden = !catalogView;
       document.getElementById('ordersAdmin').hidden = !ordersView;
       document.getElementById('homeAdmin').hidden = !homeView;
+       document.getElementById('cancellationsAdmin').hidden = !cancellationView;
       document.querySelectorAll('.catalog-action').forEach(element => { element.hidden = !catalogView; });
-      for(const [id,selected] of [['btnViewCatalog',catalogView],['btnViewOrders',ordersView],['btnViewHome',homeView]]) {
+      for(const [id,selected] of [['btnViewCatalog',catalogView],['btnViewOrders',ordersView],['btnViewHome',homeView],['btnViewCancellations',cancellationView]]) {
         document.getElementById(id).classList.toggle('btn-primary',selected);
         document.getElementById(id).setAttribute('aria-pressed',String(selected));
       }
       if(ordersView)loadOrders();
+       if(cancellationView)window.CancellationAdmin?.open();
+       else window.CancellationAdmin?.close();
       if(homeView)window.StorefrontEditor?.open();
       else window.StorefrontEditor?.close();
     }
@@ -790,6 +794,7 @@ const h = Store.escapeHTML;
         document.getElementById('mainAdmin').hidden=true;
         document.getElementById('ordersAdmin').hidden=true;
         document.getElementById('homeAdmin').hidden=true;
+         document.getElementById('cancellationsAdmin').hidden=true;
         document.getElementById('loginScreen').style.display='block';
         const error=document.getElementById('loginError');
         error.textContent='Esta cuenta no está autorizada como administradora o falta la migración del Issue #5.';
@@ -848,6 +853,7 @@ const h = Store.escapeHTML;
     document.getElementById('btnViewCatalog').addEventListener('click', () => setAdminView('catalog'));
     document.getElementById('btnViewOrders').addEventListener('click', () => setAdminView('orders'));
     document.getElementById('btnViewHome').addEventListener('click', () => setAdminView('home'));
+     document.getElementById('btnViewCancellations').addEventListener('click', () => setAdminView('cancellations'));
     document.getElementById('btnRefreshOrders').addEventListener('click', () => loadOrders(true));
     document.getElementById('orderSearch').addEventListener('input', () => {
       clearTimeout(orderSearchTimer);
