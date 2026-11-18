@@ -17,7 +17,7 @@ Implementación nueva en el PR #2, rama feat/checkout-pro-orders-test. No se mod
 - Validación de cabeceras de archivos, tipo y extensión, límite de tamaño desde el servidor. No admitir ejecutables ni ZIP ni SVG.
 - PDF: no hay antivirus ni escaneo de malware, por decisión del usuario. Validar firma de archivo NO GARANTIZA que sea seguro. Nunca abrir automáticamente PDF; el administrador sólo descarga como application/octet-stream.
 - No dar enlaces públicos/signed URL a documentos; se accede con sesión autorizada.
-- Protección antiabuso: 3 solicitudes por huella IP/email/hora, 10 solicitudes globales por día en sandbox. Los borradores no enviados se eliminan con archivos asociados tras 24 horas.
+- Protección antiabuso: 3 solicitudes por huella IP/email/hora, 10 solicitudes globales por día en sandbox, con tope agregado de 200 MB de archivos registrados para evitar superar la cuota gratuita. Los borradores no enviados se eliminan con archivos asociados tras 24 horas.
 - No se usa Turnstile todavía porque no existen claves configuradas. Antes de producción instalar protección de CAPTCHA y reevaluar seguridad de archivos.
 - No se mezclan presupuestos con ventas acreditadas.
 
