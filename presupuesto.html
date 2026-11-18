@@ -44,16 +44,30 @@
           <div class="quote-pref-card">
             <h3>Metal y estructura</h3>
             <p class="field-tip">Ej.: estructural 20×20, 50×50, chapa o malla.</p>
-            <div id="quoteMetalMaterials" class="quote-multi-options" role="group" aria-label="Materiales metálicos"></div>
-            <label class="quote-other-check"><input id="quoteOtherMetalToggle" type="checkbox" data-other-toggle="metal_materials"> Otro material metálico (escribir)</label>
-            <input id="quoteOtherMetal" data-other-value="metal_materials" type="text" maxlength="70" placeholder="Ej.: caño redondo 1 pulgada" hidden>
+            <details class="quote-material-dropdown" data-material-dropdown="metal_materials">
+              <summary><span id="quoteMetalSummary">Sin preferencia</span><span class="quote-dropdown-chevron" aria-hidden="true"></span></summary>
+              <div class="quote-dropdown-panel">
+                <button type="button" class="quote-clear-choice is-active" data-clear-materials="metal_materials" aria-pressed="true">Sin preferencia</button>
+                <div id="quoteMetalMaterials" class="quote-multi-options" role="group" aria-label="Elegí uno o varios materiales metálicos"></div>
+                <label class="quote-other-check"><input id="quoteOtherMetalToggle" type="checkbox" data-other-toggle="metal_materials"> Otro (escribir)</label>
+                <input id="quoteOtherMetal" data-other-value="metal_materials" type="text" maxlength="70" placeholder="Ej.: caño redondo 1 pulgada" aria-label="Otro material metálico" hidden>
+                <p class="quote-dropdown-hint">Podés elegir varios materiales.</p>
+              </div>
+            </details>
           </div>
           <div class="quote-pref-card">
             <h3>Madera</h3>
             <p class="field-tip">Ej.: pino 30 mm o eucalipto 20 mm.</p>
-            <div id="quoteWoodMaterials" class="quote-multi-options" role="group" aria-label="Tipos y espesores de madera"></div>
-            <label class="quote-other-check"><input id="quoteOtherWoodToggle" type="checkbox" data-other-toggle="wood_materials"> Otra madera o espesor (escribir)</label>
-            <input id="quoteOtherWood" data-other-value="wood_materials" type="text" maxlength="70" placeholder="Ej.: guatambú 25 mm" hidden>
+            <details class="quote-material-dropdown" data-material-dropdown="wood_materials">
+              <summary><span id="quoteWoodSummary">Sin preferencia</span><span class="quote-dropdown-chevron" aria-hidden="true"></span></summary>
+              <div class="quote-dropdown-panel">
+                <button type="button" class="quote-clear-choice is-active" data-clear-materials="wood_materials" aria-pressed="true">Sin preferencia</button>
+                <div id="quoteWoodMaterials" class="quote-multi-options" role="group" aria-label="Elegí uno o varios tipos de madera"></div>
+                <label class="quote-other-check"><input id="quoteOtherWoodToggle" type="checkbox" data-other-toggle="wood_materials"> Otro (escribir)</label>
+                <input id="quoteOtherWood" data-other-value="wood_materials" type="text" maxlength="70" placeholder="Ej.: guatambú 25 mm" aria-label="Otra madera o espesor" hidden>
+                <p class="quote-dropdown-hint">Podés elegir varios tipos y espesores.</p>
+              </div>
+            </details>
           </div>
         </div>
       </section>
