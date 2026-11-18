@@ -85,13 +85,15 @@
   }
   submit.disabled=true;setMessage('Registrando tu solicitud…');
   try{
+   const proof=window.StoreTurnstile?.response()||'';
+   if(window.StoreTurnstile?.enabled()&&!proof)throw Error('Completá la verificación de seguridad antes de enviar.');
    const result=await api({action:'submit',submission_id:pending.submission_id,status_token:pending.status_token,
-    email,order_reference:reference,message:note});
+    email,order_reference:reference,message:note,turnstile_token:proof});
    if(!result.ok||!CODE_RE.test(result.code||''))throw Error('No se recibió el comprobante.');
    showReceipt(result.code,pending.status_token);
    try{sessionStorage.removeItem(pendingKey);}catch{}
    pending=null;
-  }catch(error){setMessage(error.message||'No pudimos registrar la solicitud.',true);}
+  }catch(error){window.StoreTurnstile?.reset();setMessage(error.message||'No pudimos registrar la solicitud.',true);}
   finally{submit.disabled=false;}
  });
 })();
