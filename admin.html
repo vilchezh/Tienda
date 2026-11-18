@@ -21,6 +21,14 @@
       <input type="password" id="loginPassword" aria-label="Contraseña" autocomplete="current-password" placeholder="Contraseña">
       <button class="btn btn-primary" id="btnLogin" style="width:100%; justify-content:center;">ENTRAR A SUPABASE</button>
       <p id="loginError" style="color:var(--danger); font-family:var(--font-mono); font-size:11px; margin-top:10px; display:none;"></p>
+      <section id="adminMfaLoginPanel" hidden class="admin-mfa-step" aria-labelledby="adminMfaLoginTitle">
+        <h2 id="adminMfaLoginTitle">Verificación en dos pasos</h2>
+        <p>Ingresá el código de 6 dígitos de tu aplicación autenticadora. Se requiere para proteger pedidos y datos de clientes.</p>
+        <label for="adminMfaLoginCode">Código de seguridad</label>
+        <input id="adminMfaLoginCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+        <button type="button" id="adminMfaLoginVerify" class="btn btn-primary">Verificar y entrar</button>
+        <p id="adminMfaLoginStatus" role="status"></p>
+      </section>
     </div>
   </div>
 
@@ -37,10 +45,24 @@
       <button type="button" class="btn catalog-action" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
       <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn catalog-action">👁️ Ver en Tienda</a>
       <button type="button" class="btn btn-primary catalog-action" id="btnSaveSupabase">💾 Publicar Cambios en Vivo</button>
+      <button type="button" class="btn" id="btnMfaManage">Seguridad 2FA</button>
       <button type="button" class="btn btn-danger" id="btnLogout">SALIR</button>
     </div>
   </header>
   <div class="hazard-divider"></div>
+  <section id="adminMfaEnrollPanel" class="admin-mfa-enroll" hidden aria-labelledby="adminMfaEnrollTitle">
+    <h2 id="adminMfaEnrollTitle">Proteger la cuenta con una aplicación autenticadora</h2>
+    <p>Escaneá el QR con Google Authenticator, Microsoft Authenticator o una aplicación TOTP compatible. Guardá el método de recuperación de tu cuenta antes de continuar.</p>
+    <img id="adminMfaQr" alt="Código QR para configurar la autenticación" width="190" height="190" hidden>
+    <p id="adminMfaManualSecret" class="admin-mfa-secret" hidden></p>
+    <label for="adminMfaEnrollCode">Código de 6 dígitos de la aplicación</label>
+    <input id="adminMfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+    <div class="admin-mfa-actions">
+      <button type="button" class="btn btn-primary" id="adminMfaEnrollVerify">Activar doble factor</button>
+      <button type="button" class="btn" id="adminMfaEnrollCancel">Cerrar</button>
+    </div>
+    <p id="adminMfaEnrollStatus" role="status"></p>
+  </section>
 
   <div class="admin-layout" id="mainAdmin" style="visibility: hidden;">
     <aside class="sidebar">
@@ -460,6 +482,7 @@
 
   <div class="status-banner" id="statusBanner" role="status"></div>
 
+  <script defer src="assets/js/admin-mfa.js"></script>
   <script defer src="assets/js/admin.js"></script>
   <script defer src="assets/js/home-admin.js"></script>
   <script defer src="assets/js/cancellations-admin.js"></script>
