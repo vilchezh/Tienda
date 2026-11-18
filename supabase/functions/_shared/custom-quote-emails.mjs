@@ -1,4 +1,4 @@
-import { firstRow, supabaseRequest, encodeFilter } from './supabase-rest.mjs';
+import { firstRow, supabaseRequest, encodeFilter, restHeaders } from './supabase-rest.mjs';
 import { constantTimeEqual } from './internal-auth.mjs';
 
 const response=(body,status)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
@@ -77,6 +77,34 @@ export async function dispatchQuoteEmails(env,fetchFn=fetch,limit=10){
  }
  return {configured:true,processed:Array.isArray(items)?items.length:0,sent,skipped,pending};
 }
+// Los borradores nunca enviados caducan a las 24 h. Sólo ellos se eliminan;
+// las solicitudes confirmadas y sus planos no se borran por esta tarea.
+export async function cleanupExpiredQuoteDrafts(env,fetchFn=fetch,limit=10){
+ const before=new Date().toISOString();
+ const drafts=await supabaseRequest(env,fetchFn,'custom_quote_requests?status=eq.draft&expires_at=lt.'+
+  encodeFilter(before)+'&select=id&order=expires_at.asc&limit='+Math.min(Math.max(Number(limit)||10,1),20));
+ let deleted=0,failed=0;
+ for(const q of Array.isArray(drafts)?drafts:[]){
+  const files=await supabaseRequest(env,fetchFn,'custom_quote_files?request_id=eq.'+encodeFilter(q.id)+'&select=storage_path');
+  let allRemoved=true;
+  for(const file of Array.isArray(files)?files:[]){
+   const response=await fetchFn(env.SUPABASE_URL+'/storage/v1/object/quote-reference-sandbox/'+file.storage_path,{
+    method:'DELETE',headers:restHeaders(env)
+   }).catch(()=>null);
+   if(response?.status!==200&&response?.status!==204&&response?.status!==404){
+    allRemoved=false;break;
+   }
+  }
+  if(!allRemoved){failed++;continue;}
+  await supabaseRequest(env,fetchFn,'custom_quote_requests?id=eq.'+encodeFilter(q.id)+
+   '&status=eq.draft&expires_at=lt.'+encodeFilter(before),{
+    method:'DELETE',headers:{Prefer:'return=minimal'}
+   });
+  deleted++;
+ }
+ return {deleted,failed};
+}
+
 export function quoteNotificationsHandler(env,fetchFn=fetch){
  return async request=>{
   if(request.method!=='POST')return response({error:'method_not_allowed'},405);
@@ -84,7 +112,13 @@ export function quoteNotificationsHandler(env,fetchFn=fetch){
       !constantTimeEqual(env.ORDER_NOTIFICATION_DISPATCH_SECRET,request.headers.get('x-dispatch-secret')))
    return response({error:'not_authorized'},401);
   if(env.SUPABASE_URL!=='https://pacyytbscnlklyrhsshp.supabase.co')return response({error:'sandbox_only'},503);
-  try{return response({ok:true,...await dispatchQuoteEmails(env,fetchFn,10)},200);}
+  try{
+   const emails=await dispatchQuoteEmails(env,fetchFn,10);
+   let maintenance={deleted:0,failed:0};
+   try{maintenance=await cleanupExpiredQuoteDrafts(env,fetchFn,10);}
+   catch{console.error('quote_draft_cleanup_failed');}
+   return response({ok:true,...emails,maintenance},200);
+  }
   catch {console.error('quote_notifications_failure');return response({error:'dispatch_failed'},503);}
  };
 }
