@@ -201,7 +201,7 @@ const urlParams = new URLSearchParams(window.location.search);
         const checkoutUrl = Store.checkoutURL(result.checkout_url);
         if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace válido.');
         Store.recordCheckoutOrder(attempt.requestId, result.order_id);
-        status.textContent = 'Redirigiendo al entorno de prueba de Mercado Pago…';
+        status.textContent = 'Redirigiendo de forma segura a Mercado Pago…';
         window.location.assign(checkoutUrl);
       } catch (error) {
         status.textContent = error.message || 'No pudimos iniciar el checkout. Intentá nuevamente.';
