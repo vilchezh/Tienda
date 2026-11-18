@@ -1,4 +1,5 @@
 import { constantTimeEqual } from './internal-auth.mjs';
+import { deploymentConfig } from './deployment-config.mjs';
 import { supabaseRequest } from './supabase-rest.mjs';
 
 function json(body, status) {
@@ -17,6 +18,7 @@ export function processMaintenanceHandler(env, fetchFn = fetch) {
       return json({ error: 'not_authorized' }, 401);
     }
     try {
+      deploymentConfig(env);
       const purged = await supabaseRequest(env, fetchFn, 'rpc/checkout_purge_expired_customer_data', {
         method: 'POST',
         body: '{}',
