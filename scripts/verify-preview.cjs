@@ -21,6 +21,10 @@ assert.equal(config.supabaseAnonKey, process.env.STORE_PREVIEW_SUPABASE_ANON_KEY
 assert.equal(products.length, 1);
 assert.equal(products[0].id, 'pieza-sandbox-001');
 assert.doesNotMatch(configSource, /ivyagavbhsyzvikzhmhe|5491164598478/);
+const securityHeaders=readFileSync(resolve(root,'dist-preview/_headers'),'utf8');
+assert.match(securityHeaders,/X-Content-Type-Options: nosniff/);
+assert.match(securityHeaders,/X-Frame-Options: DENY/);
+assert.match(securityHeaders,/Content-Security-Policy-Report-Only:/);
 for (const page of ['privacidad.html', 'terminos.html', 'arrepentimiento.html', 'presupuesto.html']) {
   assert.match(readFileSync(resolve(root, 'dist-preview', page), 'utf8'), /<!doctype html>/i);
 }
