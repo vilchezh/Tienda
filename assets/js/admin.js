@@ -1152,6 +1152,14 @@ const h = Store.escapeHTML;
     }
 
     async function uploadToSupabase(file, folder) {
+      const extension=String(file?.name||'').split('.').pop().toLowerCase();
+      const allowedFolders=new Set(['portadas','fotos','texturas','modelos']);
+      const imageMime={'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp'};
+      const isModel=folder==='modelos';
+      const valid=allowedFolders.has(folder)&&file&&file.size>0&&
+        (isModel?(extension==='glb'&&file.size<=30*1024*1024):
+          (imageMime[extension]&&file.type===imageMime[extension]&&file.size<=4*1024*1024));
+      if(!valid){alert('Archivo no permitido: solo imágenes JPG/PNG/WebP (máx. 4 MB) o modelos GLB (máx. 30 MB).');return null;}
       let uploadBlob = file;
       if (file.name && file.name.toLowerCase().endsWith('.glb')) {
         try {
@@ -1170,7 +1178,7 @@ const h = Store.escapeHTML;
 
       const { error } = await supabaseClient.storage
         .from('tienda')
-        .upload(filePath, uploadBlob, { upsert: true, contentType: file.name.endsWith('.glb') ? 'model/gltf-binary' : file.type });
+        .upload(filePath, uploadBlob, { upsert: false, contentType: isModel ? 'model/gltf-binary' : imageMime[extension] });
 
       if (error) {
         alert("Error al subir archivo: " + error.message);
@@ -1246,7 +1254,7 @@ const h = Store.escapeHTML;
     }
 
     function enhanceInputs() {
-      attachUploadButton(document.getElementById("inpGlb"), ".glb,.gltf", "modelos");
+      attachUploadButton(document.getElementById("inpGlb"), ".glb", "modelos");
       attachUploadButton(document.getElementById("inpImagen"), "image/*", "portadas");
       document.querySelectorAll("#photosList input.mono-input").forEach(inp => {
         attachUploadButton(inp, "image/*", "fotos");
