@@ -5,6 +5,10 @@ Implementación nueva en el PR #2, rama feat/checkout-pro-orders-test. No se mod
 ## Experiencia
 - Inicio → A medida → presupuesto.html.
 - Tres pasos: proyecto, medidas/materiales/cantidad; fotos o planos opcionales; contacto y entrega.
+- El Paso 1 permite materiales metálicos y maderas seleccionables en paralelo, cada uno con «Otro (escribir)». Los colores y acabados del metal, y el tono y acabado de la madera son campos independientes, con opción personalizada.
+- La categoría «Accesorio» sustituye «Parrilla» en el formulario; las parrillas se mencionan dentro de «Estructura». Los pedidos existentes de tipo parrilla conservan su valor histórico.
+- Administración → Pedidos → Presupuestos a medida → Configurar materiales, colores y acabados: seis listas editables (una opción por línea) con permisos RLS. Las solicitudes anteriores conservan sus preferencias aunque se modifique el catálogo.
+- El campo presupuesto máximo en mente permanece opcional y no determina el precio final; «Envío con instalación» está visible como no disponible y el servidor rechaza esa opción.
 - Código COT-AAAA-NNNNNN y enlace privado con secreto en fragmento URL. Token de 256 bits y sólo hash SHA-256 en la base.
 - Administración → Pedidos → Presupuestos a medida: filtros, datos, descargas privadas, estado, notas e importe presupuestado. No genera cobro.
 - Resend envía confirmación y aviso al taller sin adjuntar documentos, con logo 80 × 80 a la derecha.
