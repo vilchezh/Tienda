@@ -88,8 +88,8 @@ export async function cleanupExpiredQuoteDrafts(env,fetchFn=fetch,limit=10){
   const files=await supabaseRequest(env,fetchFn,'custom_quote_files?request_id=eq.'+encodeFilter(q.id)+'&select=storage_path');
   let allRemoved=true;
   for(const file of Array.isArray(files)?files:[]){
-   const response=await fetchFn(env.SUPABASE_URL+'/storage/v1/object/quote-reference-sandbox/'+file.storage_path,{
-    method:'DELETE',headers:restHeaders(env)
+   const response=await fetchFn(env.SUPABASE_URL+'/storage/v1/object/quote-reference-sandbox',{
+    method:'DELETE',headers:restHeaders(env),body:JSON.stringify({prefixes:[file.storage_path]})
    }).catch(()=>null);
    if(response?.status!==200&&response?.status!==204&&response?.status!==404){
     allRemoved=false;break;
