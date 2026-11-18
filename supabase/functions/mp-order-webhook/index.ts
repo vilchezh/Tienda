@@ -10,6 +10,10 @@ const env = Object.fromEntries([
   'ORDER_EMAIL_FROM',
   'ORDER_NOTIFICATION_TO',
   'STORE_BASE_URL',
+  'STORE_DEPLOYMENT_MODE',
+  'STORE_EXPECTED_SUPABASE_REF',
+  'MP_ACCESS_TOKEN_LIVE',
+  'MP_WEBHOOK_SECRET_LIVE',
 ].map(key => [key, Deno.env.get(key) || '']));
 
 Deno.serve(webhookHandler(env));
