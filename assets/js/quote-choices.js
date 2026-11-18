@@ -14,6 +14,9 @@
   wood_tone:'quoteWoodTone',wood_finish:'quoteWoodFinish'
  };
  const values={...defaults};
+ let touched=false;
+ document.getElementById('quoteForm').addEventListener('input',()=>{touched=true;});
+ document.getElementById('quoteForm').addEventListener('change',()=>{touched=true;});
  const selectable=[['metal_color','metal_colors'],['metal_finish','metal_finishes'],
    ['wood_tone','wood_tones'],['wood_finish','wood_finishes']];
  const elements={};
@@ -120,7 +123,7 @@
    const data=await response.json();
    const options=Array.isArray(data)?data[0]:null;
    if(!options)return;
-   if(document.getElementById('quoteDescription').value||document.querySelector('[data-quote-group]:checked'))return;
+   if(touched)return;
    render(options);
   }catch { /* Si el servidor no está disponible, usar las opciones seguras de respaldo. */ }
  }
