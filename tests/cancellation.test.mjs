@@ -118,3 +118,26 @@ test('cancellation email uses the exact approved purchase email logo, size and p
  assert.ok(html.includes(expected),'Cancellation email logo must match purchase email markup byte-for-byte');
  assert.equal(html.match(/email-pangolin-708c76-sharp\.png/g)?.length,1);
 });
+
+
+test('cancellation rate limiting ignores forged x-forwarded-for and uses Cloudflare client IP',async()=>{
+ const ipHashes=[];
+ const handler=cancellationRequestHandler(env,async(url,init)=>{
+  const u=String(url);
+  if(u.includes('rpc/checkout_register_cancellation')){
+   ipHashes.push(JSON.parse(init.body).p_ip_hash);
+   return reply([{request_code:'ARR-2026-000032',request_status:'received',registered_at:'2026-11-18T02:00:00Z'}]);
+  }
+  throw Error('Unexpected request '+u);
+ });
+ for(const spoofed of ['203.0.113.10','198.51.100.250']){
+  const req=new Request(env.SUPABASE_URL+'/functions/v1/cancellation-request',{
+   method:'POST',headers:{origin:env.STORE_BASE_URL,'content-type':'application/json',
+    'cf-connecting-ip':'198.51.100.45','x-forwarded-for':spoofed},
+   body:JSON.stringify(sample)
+  });
+  assert.equal((await handler(req)).status,200);
+ }
+ assert.equal(ipHashes.length,2);
+ assert.equal(ipHashes[0],ipHashes[1], 'Forged forwarding header must not bypass shared IP quota');
+});
