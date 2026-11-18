@@ -35,7 +35,7 @@ if (preview) {
 rmSync(outputDirectory, { recursive: true, force: true });
 mkdirSync(outputDirectory, { recursive: true });
 
-for (const file of ['index.html', 'admin.html', 'producto.html', 'pago.html', 'privacidad.html', 'terminos.html', 'arrepentimiento.html']) {
+for (const file of ['index.html', 'admin.html', 'producto.html', 'pago.html', 'privacidad.html', 'terminos.html', 'arrepentimiento.html', 'presupuesto.html']) {
   cpSync(resolve(projectRoot, file), resolve(outputDirectory, file));
 }
 cpSync(resolve(projectRoot, preview ? 'supabase/test/productos-preview.json' : 'productos.json'),
