@@ -329,6 +329,7 @@
         catalogUnavailable = true;
       }
       renderCatalogAndPromos();
+      window.dispatchEvent(new CustomEvent('storefront:products', { detail: { products: allProducts, checkoutConfig } }));
     }
 
     buildCategoriesBar();

@@ -31,17 +31,19 @@
     </nav>
   </header>
 
+  <div id="homeSections">
+  <div id="heroGroup">
   <section class="hero" aria-labelledby="heroTitle">
     <div class="hero-copy">
-      <p class="eyebrow">ACERO FIRME. MADERA VIVA.</p>
+      <p class="eyebrow" id="heroEyebrow">ACERO FIRME. MADERA VIVA.</p>
       <h1 id="heroTitle">Diseño que<br>deja <em>huella.</em></h1>
-      <p class="hero-description">Piezas de carácter industrial para darle identidad a tu espacio. Elegí los materiales, explorá cada detalle y hacela tuya.</p>
+      <p class="hero-description" id="heroDescription">Piezas de carácter industrial para darle identidad a tu espacio. Elegí los materiales, explorá cada detalle y hacela tuya.</p>
       <a class="button button-light" href="#catalogo">Explorar la colección <span class="arrow-icon" aria-hidden="true"></span></a>
       <div class="hero-notes"><span>01 / Elegí tu pieza</span><span>02 / Dale tu impronta</span></div>
     </div>
     <div class="hero-materials" aria-label="Identidad de Acero y Escamas, acero y madera">
       <div class="material-caption"><span>MATERIA & CARÁCTER</span><span>AYE / 01</span></div>
-      <img src="assets/img/email-pangolin-708c76-sharp.png" alt="Emblema del pangolín de Acero y Escamas" width="192" height="192" fetchpriority="high">
+      <img id="heroImage" src="assets/img/email-pangolin-708c76-sharp.png" alt="Emblema del pangolín de Acero y Escamas" width="192" height="192" fetchpriority="high">
       <div class="material-footer"><span>La fuerza del acero.<br>La calidez de la madera.</span><span class="arrow-icon" aria-hidden="true"></span></div>
     </div>
   </section>
@@ -49,6 +51,13 @@
     <span>Estética industrial</span><span>Materiales a elección</span><span>Explorá en 3D</span>
   </div>
 
+  </div>
+
+  <section id="featuredSection" class="home-featured" aria-labelledby="featuredHeading" hidden>
+    <div class="featured-heading"><div><p class="eyebrow">SELECCIÓN DEL TALLER</p><h2 id="featuredHeading">Piezas destacadas</h2></div><div class="featured-controls"><button type="button" id="featuredPrevious" aria-label="Destacados anteriores">←</button><button type="button" id="featuredNext" aria-label="Destacados siguientes">→</button></div></div>
+    <div id="featuredTrack" class="featured-track" aria-label="Productos seleccionados"></div>
+  </section>
+  <div id="catalogSection">
   <!-- BARRA DE CATEGORÍAS CON DESPLEGABLES POP -->
   <section class="nav-container" id="catalogo" aria-labelledby="sectionTitle">
     <div class="collection-heading"><div><p class="eyebrow">DEL TALLER A TU ESPACIO</p><h2 class="section-heading" id="sectionTitle">Piezas con carácter</h2></div><span class="collection-note">Encontrá tu próxima pieza.</span></div>
@@ -78,13 +87,16 @@
     </section>
   </main>
 
+  </div>
   <section class="custom-section" id="a-medida" aria-labelledby="customTitle">
     <p class="eyebrow">TU IDEA, TU ESPACIO</p>
     <h2 id="customTitle">Cada detalle puede ser tuyo.</h2>
     <p>Explorá una pieza, combiná madera y terminaciones y contanos qué necesitás. Las medidas especiales se coordinan por consulta.</p>
     <a class="button button-outline" href="#catalogo">Elegir una pieza para personalizar <span aria-hidden="true">↑</span></a>
   </section>
+  </div>
   <footer class="site-footer"><span>ACERO Y ESCAMAS</span><span>Diseño industrial · Hecho con carácter</span><nav aria-label="Información legal"><a href="terminos.html">Términos y compras</a><a href="privacidad.html">Privacidad</a><a href="arrepentimiento.html">BOTÓN DE ARREPENTIMIENTO</a><a href="mailto:acero.y.escamas@gmail.com?subject=Consulta%20a%20Acero%20y%20Escamas">Contacto y reclamos</a></nav></footer>
+  <script defer src="assets/js/home.js"></script>
   <script defer src="assets/js/catalog.js"></script>
 </body>
 </html>
