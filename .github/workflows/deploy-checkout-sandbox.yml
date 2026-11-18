@@ -46,6 +46,7 @@ jobs:
           STORE_PREVIEW_SUPABASE_URL: https://pacyytbscnlklyrhsshp.supabase.co
           STORE_PREVIEW_SITE_URL: https://tienda-checkout-sandbox.acero-y-escamas.workers.dev
           STORE_PREVIEW_SUPABASE_ANON_KEY: ${{ secrets.STORE_PREVIEW_SUPABASE_ANON_KEY }}
+          STORE_PREVIEW_TURNSTILE_SITE_KEY: ${{ secrets.STORE_PREVIEW_TURNSTILE_SITE_KEY }}
         run: npm run build:preview
 
       - name: Verificar destino, datos y configuración antes del deploy
