@@ -44,9 +44,16 @@ test('presupuesto en tres pasos: fotos/PDF, datos, número y seguimiento sin pag
  await page.route('**/rest/v1/custom_quote_options*',route=>route.fulfill({json:[optionRow]}));
  await page.goto('/presupuesto.html');
  await expect(page.locator('.quote-step[data-step="1"]')).toBeVisible();
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
+ await expect(page.locator('#quoteWoodSummary')).toHaveText('Sin preferencia');
+ await page.locator('[data-material-dropdown="metal_materials"] summary').click();
  await expect(page.locator('#quoteMetalMaterials')).toContainText('Caño estructural 50×50 mm');
  await page.locator('input[data-quote-group="metal_materials"][value="Caño estructural 50×50 mm"]').check();
+ await page.locator('input[data-quote-group="metal_materials"][value="Perfil L 30×30 mm"]').check();
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Caño estructural 50×50 mm, Perfil L 30×30 mm');
+ await page.locator('[data-material-dropdown="wood_materials"] summary').click();
  await page.locator('input[data-quote-group="wood_materials"][value="Pino 30 mm"]').check();
+ await expect(page.locator('#quoteWoodSummary')).toHaveText('Pino 30 mm');
  await expect(page.locator('#quoteMetalFinishing')).toBeVisible();
  await expect(page.locator('#quoteWoodFinishing')).toBeVisible();
  await page.locator('#quoteMetalColor').selectOption('Rojo');
@@ -71,7 +78,7 @@ test('presupuesto en tres pasos: fotos/PDF, datos, número y seguimiento sin pag
  expect(requests.map(r=>r.action)).toEqual(['start','upload','finish']);
  expect(requests[0].description).toContain('mesa industrial');
  expect(requests[0].choices).toEqual({
-  metal_materials:['Caño estructural 50×50 mm'],wood_materials:['Pino 30 mm'],
+  metal_materials:['Caño estructural 50×50 mm','Perfil L 30×30 mm'],wood_materials:['Pino 30 mm'],
   metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'
  });
  await page.locator('#quotePrivateLink').click();
@@ -134,7 +141,10 @@ test('presupuesto permite escribir material y color personalizados, y bloquea in
  await page.locator('#quoteDescription').fill('Necesito un accesorio metálico a medida para mi taller de herrería.');
  await page.locator('input[name="project_type"][value="accesorio"]').check();
  await expect(page.locator('.type-option:has(input:checked)')).toContainText('Accesorio');
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
+ await page.locator('[data-material-dropdown="metal_materials"] summary').click();
  await page.locator('#quoteOtherMetalToggle').check();
+ await expect(page.locator('#quoteOtherMetal')).toBeVisible();
  await page.locator('#quoteOtherMetal').fill('Estructural 70×70 especial');
  await expect(page.locator('#quoteMetalFinishing')).toBeVisible();
  await page.locator('#quoteMetalColor').selectOption('__custom__');
@@ -181,5 +191,47 @@ test('administrador agrega y quita opciones que aparecerán en nuevas cotizacion
  expect(saved[0].wood_tones).toEqual(['Nogal','Wengué','Roble oscuro']);
  expect(state.orderWrites).toHaveLength(0);
  expect(state.checkoutRequests).toHaveLength(0);
+ expect(state.errors).toEqual([]);
+});
+
+
+test('dropdowns: Sin preferencia inicial, varios materiales, Otro y restablecer sin perder valores',async({page})=>{
+ const state=await setup(page,{rows:[sampleProduct]});
+ const data={
+  id:'default',metal_materials:['Caño estructural 20×20 mm','Caño estructural 50×50 mm','Chapa lisa'],
+  wood_materials:['Pino 30 mm','Eucalipto 20 mm'],metal_colors:['Negro','Rojo'],
+  metal_finishes:['Mate','Satinado','Brillante'],wood_tones:['Nogal'],
+  wood_finishes:['Mate','Satinado','Brillante']
+ };
+ await page.route('**/rest/v1/custom_quote_options*',route=>route.fulfill({json:[data]}));
+ await page.goto('/presupuesto.html');
+ await expect(page.locator('#quoteMetalMaterials')).toContainText('Caño estructural 50×50 mm');
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
+ await expect(page.locator('#quoteWoodSummary')).toHaveText('Sin preferencia');
+ expect(await page.evaluate(()=>window.QuoteChoices.collect())).toMatchObject({
+  metal_materials:[],wood_materials:[],metal_color:'',wood_tone:''
+ });
+ await page.locator('[data-material-dropdown="metal_materials"] summary').click();
+ await page.locator('input[data-quote-group="metal_materials"][value="Caño estructural 20×20 mm"]').check();
+ await page.locator('input[data-quote-group="metal_materials"][value="Caño estructural 50×50 mm"]').check();
+ await page.locator('#quoteOtherMetalToggle').check();
+ await page.locator('#quoteOtherMetal').fill('Estructural 70×70 especial');
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('3 materiales seleccionados');
+ expect((await page.evaluate(()=>window.QuoteChoices.collect())).metal_materials).toEqual([
+  'Caño estructural 20×20 mm','Caño estructural 50×50 mm','Estructural 70×70 especial'
+ ]);
+ await page.locator('[data-material-dropdown="wood_materials"] summary').click();
+ await page.locator('input[data-quote-group="wood_materials"][value="Pino 30 mm"]').check();
+ await page.locator('input[data-quote-group="wood_materials"][value="Eucalipto 20 mm"]').check();
+ await expect(page.locator('#quoteWoodSummary')).toContainText('Pino 30 mm');
+ await page.locator('[data-clear-materials="wood_materials"]').click();
+ await expect(page.locator('#quoteWoodSummary')).toHaveText('Sin preferencia');
+ expect((await page.evaluate(()=>window.QuoteChoices.collect())).wood_materials).toEqual([]);
+ await page.locator('[data-material-dropdown="metal_materials"] summary').click();
+ await page.locator('[data-clear-materials="metal_materials"]').click();
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
+ await expect(page.locator('#quoteMetalFinishing')).toBeHidden();
+ await expect(page.locator('#quoteWoodFinishing')).toBeHidden();
+ expect((await page.evaluate(()=>window.QuoteChoices.collect())).metal_materials).toEqual([]);
  expect(state.errors).toEqual([]);
 });
