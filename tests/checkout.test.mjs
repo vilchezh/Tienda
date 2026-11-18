@@ -78,7 +78,7 @@ test('shipping without a final quote is rejected by server before Mercado Pago',
   };
   const request=new Request(env.SUPABASE_URL+'/functions/v1/create-mp-order',{
     method:'POST',headers:{Origin:env.STORE_BASE_URL,'Content-Type':'application/json'},
-    body:JSON.stringify({product_id:product.id,client_request_id, ...selection,customer:{...customer,delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000'}})
+    body:JSON.stringify({product_id:product.id,client_request_id:clientRequestId, ...selection,customer:{...customer,delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000'}})
   });
   const response=await createOrderHandler(env,mock)(request);
   assert.equal(response.status,409);
