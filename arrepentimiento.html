@@ -27,6 +27,7 @@
   [hidden]{display:none!important}
  </style>
  <script defer src="assets/js/config.js"></script>
+ <script defer src="assets/js/turnstile-forms.js"></script>
  <script defer src="assets/js/cancellation.js"></script>
 </head>
 <body>
@@ -43,6 +44,7 @@
    <label for="cancellationMessage">Mensaje adicional (opcional)</label>
    <textarea id="cancellationMessage" name="message" maxlength="500" placeholder="Si querés, agregá información para identificar tu compra"></textarea>
    <p class="small">No incluyas contraseñas, números completos de tarjetas ni documentos. Los datos se usan para tramitar la solicitud. <a href="privacidad.html">Ver privacidad</a>.</p>
+   <div id="cancellationTurnstile" hidden aria-label="Verificación antibots"></div>
    <button id="cancellationSubmit" type="submit">Registrar solicitud</button>
    <p id="cancellationStatus" class="status" role="status" aria-live="polite"></p>
   </form>
