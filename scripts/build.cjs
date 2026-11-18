@@ -46,6 +46,8 @@ cpSync(resolve(projectRoot, 'assets'), resolve(outputDirectory, 'assets'), {
 });
 
 if (preview) {
+  // Cloudflare Workers serves static assets with _headers from the built directory.
+  cpSync(resolve(projectRoot, 'security/headers-sandbox.txt'), resolve(outputDirectory, '_headers'));
   writeFileSync(resolve(outputDirectory, 'assets/js/config.js'),
     `// Configuración pública del proyecto ficticio de pruebas.\nwindow.STORE_CONFIG = Object.freeze(${JSON.stringify(previewConfig)});\n`);
 }
