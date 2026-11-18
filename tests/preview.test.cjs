@@ -27,6 +27,9 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   const products = JSON.parse(readFileSync(resolve(root, 'dist-preview/productos.json'), 'utf8'));
   assert.equal(products.length, 1);
   assert.equal(products[0].id, 'pieza-sandbox-001');
+  for (const page of ['privacidad.html', 'terminos.html', 'arrepentimiento.html']) {
+    assert.match(readFileSync(resolve(root, 'dist-preview', page), 'utf8'), /<!doctype html>/i);
+  }
   assert.equal(productionConfig(), original);
   const verified = spawnSync('node', ['scripts/verify-preview.cjs'], {
     cwd: root, encoding: 'utf8', env: { ...process.env, STORE_PREVIEW_SUPABASE_ANON_KEY: publicKey('pacyytbscnlklyrhsshp') },
