@@ -34,7 +34,9 @@ test('default runtime stays sandbox and rejects other project or hostname',()=>{
   {...sandbox,STORE_DEPLOYMENT_MODE:'other'},
   {...sandbox,STORE_DEPLOYMENT_MODE:'production'},
   {...production,STORE_EXPECTED_SUPABASE_REF:'otherprojectotherone'},
-  {...production,QUOTE_STORAGE_BUCKET:'quote-reference-sandbox'}
+  {...production,QUOTE_STORAGE_BUCKET:'quote-reference-sandbox'},
+  {...production,QUOTE_STORAGE_BUCKET:'tienda'},
+  {...production,STORE_ALLOWED_ORIGINS:'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev'}
  ])assert.throws(()=>deploymentConfig(broken));
 });
 test('production only operates on explicit paired project, private bucket and HTTPS site',()=>{
