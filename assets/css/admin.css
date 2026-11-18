@@ -160,3 +160,38 @@
 .cancellation-detail button{margin:16px 0 8px}
 .cancellation-detail .small{font-size:12px;color:var(--text-muted)}
 @media(max-width:900px){.cancellation-workspace{grid-template-columns:1fr}}
+
+/* Presupuestos a medida: pestaña separada dentro de Pedidos. */
+.quote-admin-tabs{display:flex;gap:9px;margin:0 0 22px;flex-wrap:wrap}
+.quote-admin-tabs .btn{min-height:40px}
+.orders-admin .orders-toolbar[hidden],.orders-admin .orders-pagination[hidden],
+.orders-admin .orders-workspace[hidden],.orders-admin #ordersStatus[hidden]{display:none!important}
+.custom-quotes-admin[hidden]{display:none!important}
+.quote-admin-heading{display:flex;gap:14px;align-items:start;justify-content:space-between;flex-wrap:wrap;margin:12px 0 22px}
+.quote-admin-heading h2{font-size:clamp(20px,3vw,30px);margin:9px 0}
+.quote-admin-heading p{font-size:13px;color:var(--text-muted)}
+.quote-admin-filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.quote-admin-filters label{font-size:12px;display:flex;flex-direction:column;gap:6px}
+.quote-admin-filters input,.quote-admin-filters select{background:var(--bg-input);color:var(--cream-light);padding:10px;min-height:44px;border:1px solid var(--sage-main);min-width:min(100%,220px)}
+.quote-admin-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,38%);gap:18px;align-items:start}
+.quote-admin-table-wrap{max-width:100%;overflow-x:auto}
+.quote-admin-table-wrap .orders-table{width:100%}
+.quote-admin-table-wrap .orders-table tbody tr{cursor:pointer}
+.quote-admin-table-wrap .orders-table tbody tr:focus-visible{outline:3px solid #e9bd85;outline-offset:-3px}
+.quote-admin-detail{background:var(--bg-panel);border:1px solid var(--sage-muted);padding:18px;overflow-wrap:anywhere}
+.quote-admin-detail[hidden]{display:none!important}
+.quote-admin-detail h3{font-size:20px;margin-bottom:16px;color:#dbe8d7}
+.quote-admin-detail h4{font-size:15px;margin:20px 0 9px}
+.quote-admin-facts{display:grid;gap:7px;font-size:12px}
+.quote-admin-facts>div{display:grid;grid-template-columns:minmax(100px,34%) 1fr;gap:10px;padding-bottom:7px;border-bottom:1px solid #39503f}
+.quote-admin-facts strong{color:#9eb5a0}
+.quote-admin-facts span{white-space:pre-wrap;overflow-wrap:anywhere}
+.quote-admin-detail label{display:block;font-weight:700;font-size:12px;margin:16px 0 7px}
+.quote-admin-detail input,.quote-admin-detail select,.quote-admin-detail textarea{width:100%;background:var(--bg-input);color:var(--cream-light);padding:10px;border:1px solid var(--sage-main);font:inherit}
+.quote-admin-detail textarea{resize:vertical}
+.quote-admin-warning{padding:11px;background:#354033;border-left:3px solid #d3b37c;font-size:12px;line-height:1.6;color:#e1d8c4}
+.quote-admin-files{display:grid;gap:9px;list-style:none;padding:0;margin:10px 0}
+.quote-admin-files li{overflow-wrap:anywhere;font-size:12px}
+.quote-admin-files .btn{max-width:100%;white-space:normal;line-height:1.4;text-align:left}
+#customQuoteSaveStatus,#customQuotesListStatus{font-size:13px;padding:9px 0;line-height:1.6}
+@media(max-width:920px){.quote-admin-workspace{grid-template-columns:1fr}}
