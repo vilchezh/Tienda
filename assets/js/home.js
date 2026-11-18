@@ -15,7 +15,7 @@
       const item=products.find(p=>p.id===id && p.activo===true);
       if(!item)continue;
       const link=document.createElement('a');link.className='featured-card';link.href='producto.html?id='+encodeURIComponent(item.id);
-      const picture=safeImage(item.imagen);
+      const picture=Store.assetURL(item.imagen);
       if(picture){const img=document.createElement('img');img.src=picture;img.loading='lazy';img.alt=String(item.nombre||'Pieza destacada');link.appendChild(img);}
       const name=document.createElement('strong');name.textContent=String(item.nombre||'Pieza destacada');link.appendChild(name);
       if(checkoutConfig)try{

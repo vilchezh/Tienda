@@ -802,6 +802,7 @@ const h = Store.escapeHTML;
 
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainAdmin').style.visibility = 'visible';
+      document.getElementById('mainAdmin').hidden = false;
       await loadCheckoutSettings();
 
       if (!data || data.length === 0) {
