@@ -1,9 +1,12 @@
 // Cloudflare Turnstile verification. The feature is opt-in until keys are set
 // in the sandbox Edge Function and the matching public site key is deployed.
 const VERIFY_ENDPOINT='https://challenges.cloudflare.com/turnstile/v0/siteverify';
-const EXPECTED_HOST='tienda-checkout-sandbox.acero-y-escamas.workers.dev';
+import { deploymentConfig } from './deployment-config.mjs';
 export async function verifyTurnstile(env,request,token,fetchFn=fetch) {
+ const config=deploymentConfig(env);
  const secret=String(env.TURNSTILE_SECRET||'');
+ // No admitir formularios públicos en producción sin el secreto del captcha.
+ if(config.mode==='production'&&!secret)return {configured:false,ok:false};
  if(!secret)return {configured:false,ok:true};
  if(typeof token!=='string'||token.length<20||token.length>2048||
     !/^[A-Za-z0-9._-]+$/.test(token))return {configured:true,ok:false};
@@ -20,6 +23,6 @@ export async function verifyTurnstile(env,request,token,fetchFn=fetch) {
   });
   if(!response.ok)return {configured:true,ok:false};
   const data=await response.json();
-  return {configured:true,ok:data?.success===true&&data.hostname===EXPECTED_HOST};
+  return {configured:true,ok:data?.success===true&&data.hostname===new URL(config.siteUrl).hostname};
  }catch {return {configured:true,ok:false};}
 }
