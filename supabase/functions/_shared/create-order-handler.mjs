@@ -5,6 +5,7 @@ import {
   safeCheckoutUrl,
 } from './checkout-core.mjs';
 import { corsHeaders } from './cors.mjs';
+import { mercadoPagoSecrets } from './deployment-config.mjs';
 import { normalizeCheckoutCustomer } from './customer-data.mjs';
 import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
 
@@ -28,8 +29,8 @@ function publicError(error, headers) {
 }
 
 async function mercadoPagoRequest(env, fetchFn, path, init = {}) {
-  const token = env.MP_ACCESS_TOKEN_TEST;
-  if (!token) throw new CheckoutError('Falta MP_ACCESS_TOKEN_TEST.', 503, 'checkout_not_configured');
+  const {token} = mercadoPagoSecrets(env);
+  if (!token) throw new CheckoutError('Falta credencial Mercado Pago para este entorno.', 503, 'checkout_not_configured');
   const response = await fetchFn(`${MERCADO_PAGO_API}${path}`, {
     ...init,
     headers: {
