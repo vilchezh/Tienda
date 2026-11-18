@@ -9,5 +9,7 @@ const env = Object.fromEntries([
   'ORDER_NOTIFICATION_TO',
   'ORDER_NOTIFICATION_DISPATCH_SECRET',
   'STORE_BASE_URL',
+  'STORE_DEPLOYMENT_MODE',
+  'STORE_EXPECTED_SUPABASE_REF',
 ].map(key => [key, Deno.env.get(key) || '']));
 Deno.serve(processNotificationsHandler(env));
