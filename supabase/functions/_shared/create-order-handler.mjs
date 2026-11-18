@@ -160,6 +160,11 @@ export function createOrderHandler(env, fetchFn = fetch) {
       if (existing) {
         await assertExistingMatches(env, fetchFn, existing, product, priced, customer, settings.commission_percent);
       }
+      // No aceptar pagos incompletos cuando el envío aún requiere cotización.
+      // Esta verificación es del lado servidor y ocurre antes de recuperar el checkout.
+      if (customer.delivery_method === 'delivery') {
+        throw new CheckoutError('El envío necesita cotización del importe total antes de pagar.', 409, 'shipping_quote_required');
+      }
       if (existing?.mp_checkout_url) {
         const checkoutUrl = safeCheckoutUrl(existing.mp_checkout_url);
         if (checkoutUrl) return json({ order_id: existing.id, checkout_url: checkoutUrl, reused: true }, 200, cors);

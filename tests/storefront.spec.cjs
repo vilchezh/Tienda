@@ -20,6 +20,19 @@ test('catalog shows final sandbox price with commission even while checkout is d
   expect(state.checkoutRequests).toHaveLength(0);
 });
 
+test('shipping selection blocks direct checkout until complete shipping quote',async({page})=>{
+ const state=await setup(page,{rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:true}});
+ await page.goto('/producto.html?id=pieza-sandbox-001');
+ await expect(page.locator('#btnComprar')).toBeEnabled();
+ await page.locator('#checkoutDeliveryMethod').selectOption('delivery');
+ await expect(page.locator('#btnComprar')).toBeDisabled();
+ await expect(page.locator('#checkoutStatus')).toContainText('requiere cotización');
+ await expect(page.locator('#checkoutDeliveryFields')).toBeVisible();
+ await page.locator('#checkoutDeliveryMethod').selectOption('pickup');
+ await expect(page.locator('#btnComprar')).toBeEnabled();
+ expect(state.checkoutRequests).toHaveLength(0);
+ expect(state.errors).toEqual([]);
+});
 test('product final price follows selected extras with checkout disabled',async({page})=>{
   const state=await setup(page,{rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
   await page.goto('/producto.html?id=pieza-sandbox-001');

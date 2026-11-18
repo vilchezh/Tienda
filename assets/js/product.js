@@ -115,6 +115,10 @@ const urlParams = new URLSearchParams(window.location.search);
         status.textContent = 'La compra online está temporalmente deshabilitada. Podés consultarnos antes de encargar.';
         return;
       }
+      if (document.getElementById('checkoutDeliveryMethod').value === 'delivery') {
+        status.textContent = 'El envío a domicilio requiere cotización del costo total antes de pagar. Consultanos para coordinarlo.';
+        return;
+      }
       if (document.getElementById('customNotes').value.trim()) {
         status.textContent = 'Las modificaciones a medida se coordinan por WhatsApp antes de pagar.';
         return;
@@ -408,7 +412,7 @@ const urlParams = new URLSearchParams(window.location.search);
     }
 
     document.getElementById('customNotes').addEventListener('input', updateUI);
-    document.getElementById('checkoutDeliveryMethod').addEventListener('change', syncDeliveryFields);
+    document.getElementById('checkoutDeliveryMethod').addEventListener('change', () => { syncDeliveryFields(); updateUI(); });
     syncDeliveryFields();
     document.getElementById('btnComprar').addEventListener('click', startCheckout);
 

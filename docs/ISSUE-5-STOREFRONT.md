@@ -3,6 +3,7 @@
 Estado: **preparado en el PR #2, NO publicado en sandbox ni en producción**. Las rutas legales son borradores que necesitan completar información comercial y revisión de un profesional en derecho del consumidor.
 
 ## Cambios preparados
+- Para **envíos a domicilio sin costo total confirmado**, el navegador bloquea compra directa y el servidor rechaza incluso solicitudes manuales (`shipping_quote_required`) antes de crear o reutilizar una orden Mercado Pago. Se conserva retiro a coordinar y consulta de envío. Antes de habilitar delivery directo habrá que implementar cotización firme de envío incluida en el total servidor.
 - Precio final únicamente en catálogo y producto, incluidos materiales, extras y comisión según la configuración seleccionada. El administrador conserva el detalle de fórmula y el servidor sigue recalculando la orden, sin confiar en un total enviado por el navegador.
 - Logo del pangolín con fondo transparente aprobado, en portada, encabezado y ficha.
 - Barra de precio sticky en el configurador, con precio visible durante la elección de materiales. Revisar en 320 px, 390 px y escritorio antes de publicar.

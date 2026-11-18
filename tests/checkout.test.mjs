@@ -65,6 +65,27 @@ test('commission is applied server-side and always rounded up to $1,000', () => 
   assert.throws(() => priceSelection({ ...product, checkout_habilitado: false }, selection, 7.5));
 });
 
+test('shipping without a final quote is rejected by server before Mercado Pago',async()=>{
+  let mpCalls=0;
+  const mock=async url=>{
+    const value=String(url);
+    if(value.endsWith('/rpc/checkout_take_rate_slot'))return Response.json(true);
+    if(value.includes('checkout_settings?'))return Response.json([{commission_percent:7.5,payments_enabled:true}]);
+    if(value.includes('checkout_orders?client_request_id='))return Response.json([]);
+    if(value.includes('productos?'))return Response.json([product]);
+    if(value.includes('api.mercadopago.com')){mpCalls++;throw Error('Should not contact MP');}
+    throw Error('Unexpected endpoint '+value);
+  };
+  const request=new Request(env.SUPABASE_URL+'/functions/v1/create-mp-order',{
+    method:'POST',headers:{Origin:env.STORE_BASE_URL,'Content-Type':'application/json'},
+    body:JSON.stringify({product_id:product.id,client_request_id, ...selection,customer:{...customer,delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000'}})
+  });
+  const response=await createOrderHandler(env,mock)(request);
+  assert.equal(response.status,409);
+  assert.equal((await response.json()).error,'shipping_quote_required');
+  assert.equal(mpCalls,0);
+});
+
 test('only HTTPS Mercado Pago checkout URLs are accepted', () => {
   assert.equal(safeCheckoutUrl('https://www.mercadopago.com.ar/checkout/v1/redirect?id=1').startsWith('https://'), true);
   for (const value of ['javascript:alert(1)', 'https://mercadopago.com.ar.evil.test/x', 'http://mercadopago.com.ar/x']) {
