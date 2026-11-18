@@ -1,0 +1,17 @@
+-- PLANTILLA, NO EJECUTAR DIRECTAMENTE.
+-- Reemplazar __PRODUCTION_QUOTE_BUCKET__ por el ID PRIVADO definitivo
+-- y revisar policies existentes antes de desplegar en producción.
+-- NO copiar la base de datos ni archivos del sandbox.
+begin;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+ values('__PRODUCTION_QUOTE_BUCKET__','__PRODUCTION_QUOTE_BUCKET__',false,5242880,
+  array['image/jpeg','image/png','image/webp','application/pdf'])
+ on conflict(id) do nothing;
+
+create policy "Admin lee referencias privadas de presupuestos producción"
+ on storage.objects for select to authenticated
+ using(bucket_id='__PRODUCTION_QUOTE_BUCKET__'
+   and (select tienda_security.is_admin()));
+-- No permitir carga pública: solo la Edge Function autenticada internamente
+-- puede subir archivos con la clave service/secret y comprobación de token.
+commit;
