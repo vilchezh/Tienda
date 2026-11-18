@@ -70,7 +70,7 @@ async function uploadStorage(env,fetchFn,path,mime,bytes){
 }
 async function deleteStorage(env,fetchFn,path){
  try{
-  const response=await fetchFn(SUPA+'/storage/v1/object/'+BUCKET+'/'+path,{method:'DELETE',headers:restHeaders(env)});
+  const response=await fetchFn(SUPA+'/storage/v1/object/'+BUCKET,{method:'DELETE',headers:restHeaders(env),body:JSON.stringify({prefixes:[path]})});
   if(!response.ok)console.error('quote_storage_cleanup_failed');
  }catch{console.error('quote_storage_cleanup_failed');}
 }
