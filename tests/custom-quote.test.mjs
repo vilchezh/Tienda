@@ -102,7 +102,7 @@ test('PDF upload validates signature, saves privately and registers file metadat
  assert.ok(calls.some(c=>c.key.includes('/rpc/custom_quote_add_file')));
 });
 test('quote email escapes customer text, contains paid-email logo and never attaches user files',()=>{
- const content=quoteEmailTemplate(sample,'seller',2);
+ const content=quoteEmailTemplate(sample,'seller',2,env);
  assert.match(content.html,/email-pangolin-708c76-sharp\.png/);
  assert.match(content.html,/width="80" height="80" align="right"/);
  assert.doesNotMatch(content.html,/<script>alert/);
@@ -161,7 +161,7 @@ test('quote email lists wood tone separately from wood finish and metal color se
  const mail=quoteEmailTemplate({...sample,project_type:'accesorio',quote_preferences:{
   metal_materials:['Caño estructural 20×20 mm'],wood_materials:['Eucalipto 20 mm'],
   metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'
- }},'customer');
+ }},'customer',0,env);
  for(const phrase of ['Accesorio','Caño estructural 20×20 mm','Eucalipto 20 mm',
   'Color del metal','Rojo','Acabado del metal','Satinado','Tono de madera','Nogal','Acabado de madera','Mate']){
   assert.ok(mail.text.includes(phrase),phrase);
