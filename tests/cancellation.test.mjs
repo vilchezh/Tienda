@@ -91,3 +91,30 @@ test('scheduled email dispatch rejects missing secret and never emails unapprove
  assert.equal(statusChanges[0].last_error,'sandbox_customer_not_allowlisted');
  assert.equal(urlHits.filter(x=>x.includes('api.resend.com')).length,0);
 });
+
+
+test('cancellation email uses the exact approved purchase email logo, size and position',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const paidSource=readFileSync(new URL('../supabase/functions/_shared/email-notifications.mjs',import.meta.url),'utf8');
+ const expected=paidSource.match(/<img src=\\?"https:\/\/tienda-checkout-sandbox\.acero-y-escamas\.workers\.dev\/assets\/img\/email-pangolin-708c76-sharp\.png.*?>/s)?.[0]?.replace(/\\"/g,'"');
+ assert.ok(expected,'Missing paid email logo source');
+ assert.match(expected,/width="80" height="80" align="right"/);
+ assert.match(expected,/float:right;width:80px;height:80px;margin:15px 0 0 8px/);
+
+ let html='';
+ const configured={...env,RESEND_API_KEY:'test',ORDER_EMAIL_FROM:'taller@example.invalid',ORDER_NOTIFICATION_TO:'seller@example.invalid'};
+ const result=await dispatchCancellationEmails(configured,async(url,init)=>{
+  const target=String(url);
+  if(target.includes('rpc/checkout_claim_cancellation_emails'))return reply([{email_id:'3',req_id:'4',kind:'seller',attempt:1}]);
+  if(target.includes('checkout_cancellation_requests?'))return reply([{id:'4',code:'ARR-2026-000009',customer_email:'buyer@example.invalid',status:'received',created_at:'2026-11-18T02:00:00Z'}]);
+  if(target==='https://api.resend.com/emails'){
+   html=JSON.parse(init.body).html;
+   return reply({id:'fake-resend-message-1'});
+  }
+  if(init?.method==='PATCH')return new Response(null,{status:204});
+  throw Error('Unexpected request '+target);
+ },10);
+ assert.equal(result.sent,1);
+ assert.ok(html.includes(expected),'Cancellation email logo must match purchase email markup byte-for-byte');
+ assert.equal(html.match(/email-pangolin-708c76-sharp\.png/g)?.length,1);
+});
