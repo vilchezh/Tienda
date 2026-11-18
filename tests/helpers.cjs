@@ -7,7 +7,7 @@ const session = { access_token: `${Buffer.from('{}').toString('base64url')}.${Bu
 async function setup(page, options = {}) {
   const state = {
     rows: structuredClone(options.rows ?? [product]), writes: [], settingsWrites: [], orderWrites: [], uploads: [], reads: [],
-    checkoutRequests: [], statusRequests: [], orderQueries: [], backups: 0, errors: [],
+    checkoutRequests: [], statusRequests: [], orderQueries: [], homeWrites: [], backups: 0, errors: [],
     checkoutSettings: structuredClone(options.checkoutSettings ?? { id:'default', commission_percent:0, payments_enabled:false }),
     orders: structuredClone(options.orders ?? [])
   };
@@ -45,6 +45,23 @@ async function setup(page, options = {}) {
           } else state.rows.push(...incoming);
         }
         return route.fulfill({status:201,json:[]});
+      }
+      if (url.pathname.includes('/rest/v1/rpc/storefront_admin_authorized')) {
+        return route.fulfill({json:options.adminAuthorized!==false});
+      }
+      if (url.pathname.includes('/rest/v1/storefront_content')) {
+        if(req.method()==='GET'){
+          if(options.homeFailure)return route.fulfill({status:403,json:{message:'not authorized'}});
+          const data=options.homeContent||null;
+          const one=(req.headers().accept||'').includes('application/vnd.pgrst.object');
+          if(!data&&one)return route.fulfill({status:406,json:{message:'missing row'}});
+          return route.fulfill({json:one?data:(data?[data]:[])});
+        }
+        const update=req.postDataJSON();
+        state.homeWrites.push({method:req.method(),data:update});
+        if(options.homeFailure)return route.fulfill({status:403,json:{message:'not authorized'}});
+        Object.assign(options.homeContent||{},update);
+        return route.fulfill({status:204});
       }
       if (url.pathname.includes('/rest/v1/checkout_settings')) {
         if (req.method() === 'GET') {

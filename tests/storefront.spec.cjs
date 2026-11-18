@@ -346,3 +346,17 @@ for (const width of [320,390,1280]) test('payment page adapts at '+width+'px',as
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   expect(state.errors).toEqual([]);
 });
+
+test('public homepage uses safe content, controls sections, and shows manual featured',async({page})=>{
+ const content={id:'home',hero_eyebrow:'DEL TALLER',hero_title:'<img src=x onerror=alert(1)>',hero_description:'Trabajo a medida',hero_image:'assets/img/email-pangolin-708c76-sharp.png',section_order:['custom','featured','catalog','hero'],sections_visible:{hero:true,featured:true,catalog:true,custom:false},featured_product_ids:[product.id]};
+ const state=await setup(page,{rows:[product],homeContent:content});
+ await page.goto('/');
+ await expect(page.locator('#heroTitle')).toHaveText('<img src=x onerror=alert(1)>');
+ await expect(page.locator('#a-medida')).toBeHidden();
+ await expect(page.locator('#featuredTrack .featured-card')).toHaveCount(1);
+ await expect(page.locator('#featuredTrack')).toContainText(product.nombre);
+ expect(await page.evaluate(()=>document.querySelectorAll('[onerror]').length)).toBe(0);
+ const order=await page.locator('#homeSections').evaluate(el=>Array.from(el.children,x=>x.id));
+ expect(order).toEqual(['a-medida','featuredSection','catalogSection','heroGroup']);
+ expect(state.errors).toEqual([]);
+});

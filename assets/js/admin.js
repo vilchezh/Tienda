@@ -354,14 +354,19 @@ const h = Store.escapeHTML;
 
     function setAdminView(view) {
       const catalogView = view === 'catalog';
+      const ordersView = view === 'orders';
+      const homeView = view === 'home';
       document.getElementById('mainAdmin').hidden = !catalogView;
-      document.getElementById('ordersAdmin').hidden = catalogView;
+      document.getElementById('ordersAdmin').hidden = !ordersView;
+      document.getElementById('homeAdmin').hidden = !homeView;
       document.querySelectorAll('.catalog-action').forEach(element => { element.hidden = !catalogView; });
-      document.getElementById('btnViewCatalog').classList.toggle('btn-primary', catalogView);
-      document.getElementById('btnViewOrders').classList.toggle('btn-primary', !catalogView);
-      document.getElementById('btnViewCatalog').setAttribute('aria-pressed', String(catalogView));
-      document.getElementById('btnViewOrders').setAttribute('aria-pressed', String(!catalogView));
-      if (!catalogView) loadOrders();
+      for(const [id,selected] of [['btnViewCatalog',catalogView],['btnViewOrders',ordersView],['btnViewHome',homeView]]) {
+        document.getElementById(id).classList.toggle('btn-primary',selected);
+        document.getElementById(id).setAttribute('aria-pressed',String(selected));
+      }
+      if(ordersView)loadOrders();
+      if(homeView)window.StorefrontEditor?.open();
+      else window.StorefrontEditor?.close();
     }
 
     function hexToRgbArray(hex) {
@@ -776,6 +781,21 @@ const h = Store.escapeHTML;
     }
 
     async function loadCatalogFromSupabase() {
+      showToast("Verificando permisos de administración...");
+      let permission;
+      try { permission=await supabaseClient.rpc('storefront_admin_authorized'); }
+      catch { permission={error:true}; }
+      if(permission.error||permission.data!==true) {
+        document.getElementById('mainAdmin').style.visibility='hidden';
+        document.getElementById('mainAdmin').hidden=true;
+        document.getElementById('ordersAdmin').hidden=true;
+        document.getElementById('homeAdmin').hidden=true;
+        document.getElementById('loginScreen').style.display='block';
+        const error=document.getElementById('loginError');
+        error.textContent='Esta cuenta no está autorizada como administradora o falta la migración del Issue #5.';
+        error.style.display='block';
+        return;
+      }
       showToast("Conectando con Supabase...");
       const { data, error } = await supabaseClient.from('productos').select('*').order('nombre').abortSignal(AbortSignal.timeout(8000));
       if (error) { alert("Error al leer Supabase: " + error.message); return; }
@@ -794,6 +814,7 @@ const h = Store.escapeHTML;
       }
 
       catalog = data.map(normalizeProduct);
+      window.StorefrontAdminProducts=catalog;
 
       const richestMetals = catalog.reduce((best, item) =>
         (item.colores_metal && item.colores_metal.length > best.length) ? item.colores_metal : best
@@ -825,6 +846,7 @@ const h = Store.escapeHTML;
 
     document.getElementById('btnViewCatalog').addEventListener('click', () => setAdminView('catalog'));
     document.getElementById('btnViewOrders').addEventListener('click', () => setAdminView('orders'));
+    document.getElementById('btnViewHome').addEventListener('click', () => setAdminView('home'));
     document.getElementById('btnRefreshOrders').addEventListener('click', () => loadOrders(true));
     document.getElementById('orderSearch').addEventListener('input', () => {
       clearTimeout(orderSearchTimer);

@@ -257,3 +257,35 @@ test('admin keeps commission editable, test-only checkout global switch and per-
  expect(state.writes[0].data[0].checkout_habilitado).toBe(true);
  expect(state.errors).toEqual([]);
 });
+
+test('authenticated but unauthorized users cannot open the admin dashboard',async({page})=>{
+ const state=await setup(page,{authenticated:true,adminAuthorized:false,rows:[sandboxProduct]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#loginError')).toContainText('no está autorizada');
+ await expect(page.locator('#mainAdmin')).not.toBeVisible();
+ expect(state.writes).toHaveLength(0);
+});
+test('admin saves homepage copy and section order through narrow API',async({page})=>{
+ const home={id:'home',hero_eyebrow:'DEL TALLER',hero_title:'Piezas con carácter',hero_description:'Original',hero_image:'assets/img/email-pangolin-708c76-sharp.png',section_order:['hero','featured','catalog','custom'],sections_visible:{hero:true,featured:true,catalog:true,custom:true},featured_product_ids:[]};
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],homeContent:home});
+ page.on('dialog',dialog=>dialog.accept());
+ await page.goto('/admin.html');
+ await page.locator('#btnViewHome').click();
+ await expect(page.locator('#homeTitle')).toHaveValue('Piezas con carácter');
+ await page.locator('#homeTitle').fill('Nuevo título de prueba');
+ await page.getByRole('button',{name:'Subir Colección'}).click();
+ await page.locator('#btnSaveHome').click();
+ await expect.poll(()=>state.homeWrites.length).toBe(1);
+ expect(state.homeWrites[0].data.hero_title).toBe('Nuevo título de prueba');
+ expect(state.homeWrites[0].data.section_order).toEqual(['hero','catalog','featured','custom']);
+ expect(state.homeWrites[0].data.payments_enabled).toBeUndefined();
+ expect(state.errors).toEqual([]);
+});
+test('home editor does not allow publishing without the schema or authorization',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],homeFailure:true});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewHome').click();
+ await expect(page.locator('#btnSaveHome')).toBeDisabled();
+ await expect(page.locator('#homeEditorStatus')).toContainText('no está disponible');
+ expect(state.homeWrites).toHaveLength(0);
+});
