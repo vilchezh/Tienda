@@ -27,6 +27,9 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   const products = JSON.parse(readFileSync(resolve(root, 'dist-preview/productos.json'), 'utf8'));
   assert.equal(products.length, 1);
   assert.equal(products[0].id, 'pieza-sandbox-001');
+  assert.match(readFileSync(resolve(root, 'dist-preview/arrepentimiento.html'),'utf8'), /id="cancellationForm"/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/cancellation.js'),'utf8'), /cancellation-request/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/admin.html'),'utf8'), /id="cancellationsAdmin"/);
   for (const page of ['privacidad.html', 'terminos.html', 'arrepentimiento.html']) {
     assert.match(readFileSync(resolve(root, 'dist-preview', page), 'utf8'), /<!doctype html>/i);
   }
