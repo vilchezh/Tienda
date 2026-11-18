@@ -1,5 +1,6 @@
 import { firstRow, supabaseRequest, encodeFilter } from './supabase-rest.mjs';
 import { constantTimeEqual } from './internal-auth.mjs';
+import { deploymentConfig,allowCustomerEmail,emailVisuals } from './deployment-config.mjs';
 
 const json=(body,status)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const htmlEscape=value=>String(value??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -11,6 +12,8 @@ async function changeStatus(env,fetchFn,item,patch) {
 }
 
 export async function dispatchCancellationEmails(env,fetchFn=fetch,limit=10){
+ const visuals=emailVisuals(env);
+ const sandbox=visuals.tag!=='';
  if(!env.RESEND_API_KEY||!env.ORDER_EMAIL_FROM||!env.ORDER_NOTIFICATION_TO)
   return {configured:false,processed:0};
  const claimed=await supabaseRequest(env,fetchFn,'rpc/checkout_claim_cancellation_emails',{
@@ -22,23 +25,22 @@ export async function dispatchCancellationEmails(env,fetchFn=fetch,limit=10){
   if(!row){await changeStatus(env,fetchFn,item,{status:'rejected',last_error:'missing_request',lease_until:null});rejected++;continue;}
   // Sandbox: jamás enviar a un correo arbitrario ingresado por un visitante.
   // El cliente sólo recibe correo real si coincide con una dirección de pruebas permitida.
-  const customerAllowed=String(env.CANCELLATION_SANDBOX_CUSTOMER_EMAIL||env.ORDER_NOTIFICATION_TO||'').trim().toLowerCase();
-  if(item.kind==='customer'&&row.customer_email!==customerAllowed){
+  if(item.kind==='customer'&&!allowCustomerEmail(env,row.customer_email,'cancellation')){
    await changeStatus(env,fetchFn,item,{status:'rejected',last_error:'sandbox_customer_not_allowlisted',lease_until:null});
    rejected++;continue;
   }
   const to=item.kind==='seller'?env.ORDER_NOTIFICATION_TO:row.customer_email;
   const isSeller=item.kind==='seller';
-  const subject=isSeller?'Nueva solicitud de arrepentimiento (SANDBOX) · '+row.code:
-    'Acero y Escamas · Solicitud registrada '+row.code+' (PRUEBA)';
-  const intro=isSeller?'Se registró una solicitud en el entorno de pruebas. Revisala desde el panel administrador.':
-    'Recibimos tu solicitud de prueba. Guardá el siguiente código de registro para cualquier consulta.';
+  const subject=isSeller?'Nueva solicitud de arrepentimiento'+visuals.tag+' · '+row.code:
+    'Acero y Escamas · Solicitud registrada '+row.code+visuals.tag;
+  const intro=isSeller?(sandbox?'Se registró una solicitud en el entorno de pruebas.':'Se registró una solicitud de arrepentimiento.')+' Revisala desde el panel administrador.':
+    'Recibimos tu solicitud. Guardá el siguiente código de registro para cualquier consulta.';
   const status='Recibida, pendiente de revisión. Este correo no confirma un reembolso.';
   const text=[subject,'',intro,'','Código: '+row.code,'Registrada: '+row.created_at,
     isSeller?'Correo indicado: '+row.customer_email:'',
     isSeller?'Pedido indicado: '+(row.order_reference||'No indicado'):'',
-    status,'','Acero y Escamas · ENTORNO DE PRUEBAS'].filter(Boolean).join('\n');
-  const html='<!doctype html><html lang="es"><meta charset="utf-8"><body style="margin:0;padding:24px;background:#eef1ec;font-family:Arial,sans-serif;color:#25342d"><main style="max-width:560px;margin:auto;background:#fff;border:1px solid #c9d8cd;padding:28px"><header style="background:#0f3d2e;color:#f6f5ec;padding:24px 28px;min-height:145px;box-sizing:border-box"><img src="https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-708c76-sharp.png" alt="Logo de Acero y Escamas" width="80" height="80" align="right" style="display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;"><strong>ACERO Y ESCAMAS</strong><p style="font-size:12px">SOLICITUD DE ARREPENTIMIENTO · SANDBOX</p></header><h1 style="font-size:24px;color:#274c36">Solicitud registrada</h1><p>'+htmlEscape(intro)+'</p><p style="padding:14px;background:#e7f1e8;font-size:24px;font-weight:bold">'+htmlEscape(row.code)+'</p><p>'+htmlEscape(status)+'</p>'+(isSeller?'<p>Correo indicado: '+htmlEscape(row.customer_email)+'</p><p>Referencia: '+htmlEscape(row.order_reference||'Sin referencia')+'</p>':'')+'<p style="font-size:12px">No se realizó ninguna devolución automática de dinero.</p></main></body></html>';
+    status,'',sandbox?'Acero y Escamas · ENTORNO DE PRUEBAS':'Acero y Escamas'].filter(Boolean).join('\n');
+  const html='<!doctype html><html lang="es"><meta charset="utf-8"><body style="margin:0;padding:24px;background:#eef1ec;font-family:Arial,sans-serif;color:#25342d"><main style="max-width:560px;margin:auto;background:#fff;border:1px solid #c9d8cd;padding:28px"><header style="background:#0f3d2e;color:#f6f5ec;padding:24px 28px;min-height:145px;box-sizing:border-box"><img src="'+htmlEscape(visuals.logoUrl)+'" alt="Logo de Acero y Escamas" width="80" height="80" align="right" style="display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;"><strong>ACERO Y ESCAMAS</strong><p style="font-size:12px">SOLICITUD DE ARREPENTIMIENTO'+(sandbox?' · SANDBOX':'')+'</p></header><h1 style="font-size:24px;color:#274c36">Solicitud registrada</h1><p>'+htmlEscape(intro)+'</p><p style="padding:14px;background:#e7f1e8;font-size:24px;font-weight:bold">'+htmlEscape(row.code)+'</p><p>'+htmlEscape(status)+'</p>'+(isSeller?'<p>Correo indicado: '+htmlEscape(row.customer_email)+'</p><p>Referencia: '+htmlEscape(row.order_reference||'Sin referencia')+'</p>':'')+'<p style="font-size:12px">No se realizó ninguna devolución automática de dinero.</p></main></body></html>';
   let response,payload;
   try {
    response=await fetchFn('https://api.resend.com/emails',{
@@ -70,7 +72,7 @@ export function processCancellationNotificationsHandler(env,fetchFn=fetch){
   if(request.method!=='POST')return json({error:'method_not_allowed'},405);
   const valid=env.ORDER_NOTIFICATION_DISPATCH_SECRET&&constantTimeEqual(env.ORDER_NOTIFICATION_DISPATCH_SECRET,request.headers.get('x-dispatch-secret'));
   if(!valid)return json({error:'not_authorized'},401);
-  if(!env.SUPABASE_URL?.includes('pacyytbscnlklyrhsshp.supabase.co'))return json({error:'sandbox_only'},503);
+  try{deploymentConfig(env);}catch{return json({error:'environment_not_configured'},503);}
   try{return json({ok:true,...await dispatchCancellationEmails(env,fetchFn,10)},200);}
   catch{console.error('cancellation_email_dispatch_failed');return json({error:'dispatch_failed'},503);}
  };
