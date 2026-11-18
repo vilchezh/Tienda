@@ -127,3 +127,43 @@ test('quote notification dispatch requires secret and blocks emails to non-allow
  });
  assert.equal(results.skipped,1);assert.equal(providerCalls,0);
 });
+
+
+test('quote v2 accepts accessory and saves structured metal/wood/color/finish separately',async()=>{
+ const calls=[];
+ const handler=customQuoteHandler(env,async(url,init)=>{
+  calls.push({url:String(url),payload:JSON.parse(init.body)});
+  return reply([{quote_id:uuid,quote_code:'COT-2026-000009',quote_status:'draft'}]);
+ });
+ const choices={metal_materials:['Caño estructural 50×50 mm'],wood_materials:['Pino 30 mm'],
+  metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'};
+ const res=await handler(post({...draft,project_type:'accesorio',choices,delivery:'retiro'}));
+ assert.equal(res.status,200);
+ assert.match(calls[0].url,/rpc\/custom_quote_create_v2/);
+ assert.deepEqual(calls[0].payload.p_choices,choices);
+ assert.match(calls[0].payload.p_materials,/Pino 30 mm/);
+ assert.match(calls[0].payload.p_finish,/Color metal: Rojo/);
+ assert.match(calls[0].payload.p_finish,/Acabado madera: Mate/);
+});
+
+test('quote API forbids installation and refuses malformed material choices',async()=>{
+ let hits=0;
+ const handler=customQuoteHandler(env,async()=>{hits++;return reply([]);});
+ const choices={metal_materials:['Caño estructural 20×20 mm'],wood_materials:[],
+  metal_color:'Negro',metal_finish:'Mate',wood_tone:'',wood_finish:''};
+ assert.equal((await handler(post({...draft,delivery:'instalacion',choices}))).status,400);
+ assert.equal((await handler(post({...draft,choices:{...choices,metal_materials:'no array'}}))).status,400);
+ assert.equal((await handler(post({...draft,choices:{...choices,metal_color:'X'.repeat(71)}}))).status,400);
+ assert.equal(hits,0);
+});
+
+test('quote email lists wood tone separately from wood finish and metal color separately from finish',()=>{
+ const mail=quoteEmailTemplate({...sample,project_type:'accesorio',quote_preferences:{
+  metal_materials:['Caño estructural 20×20 mm'],wood_materials:['Eucalipto 20 mm'],
+  metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'
+ }},'customer');
+ for(const phrase of ['Accesorio','Caño estructural 20×20 mm','Eucalipto 20 mm',
+  'Color del metal','Rojo','Acabado del metal','Satinado','Tono de madera','Nogal','Acabado de madera','Mate']){
+  assert.ok(mail.text.includes(phrase),phrase);
+ }
+});
