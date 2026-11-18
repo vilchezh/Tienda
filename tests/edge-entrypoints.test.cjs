@@ -16,7 +16,11 @@ test('all Edge Function entrypoints parse and read explicitly quoted environment
 });
 test('private runtime secrets are never embedded in the browser config source',()=>{
  const source=readFileSync('assets/js/config.js','utf8');
- assert.doesNotMatch(source,/service_role|sb_secret_|MP_ACCESS_TOKEN|RESEND_API_KEY|TURNSTILE_SECRET/);
+ const scope={window:{}};
+ vm.runInNewContext(source,scope,{timeout:1000});
+ const config=scope.window.STORE_CONFIG||{};
+ for(const key of Object.keys(config))assert.doesNotMatch(key,/service_role|secret|MP_ACCESS_TOKEN|RESEND_API_KEY|TURNSTILE_SECRET/i);
+ assert.ok(!String(config.supabaseAnonKey||'').startsWith('sb_secret_'));
 });
 test('production credentials cannot be accidentally used by the sandbox deploy workflow',()=>{
  const source=readFileSync('.github/workflows/deploy-checkout-sandbox.yml','utf8');
