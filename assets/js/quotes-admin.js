@@ -28,8 +28,18 @@
   line(info,'Tipo de proyecto',row.project_type);
   line(info,'Descripción',row.description);
   line(info,'Medidas',row.measurements||'Por definir');
-  line(info,'Materiales',row.materials||'Por definir');
-  line(info,'Acabado',row.finish||'Por definir');
+  const prefs=row.quote_preferences;
+  if(prefs&&Array.isArray(prefs.metal_materials)&&Array.isArray(prefs.wood_materials)){
+   line(info,'Materiales metálicos',prefs.metal_materials.join(', ')||'Sin preferencia');
+   line(info,'Maderas',prefs.wood_materials.join(', ')||'Sin preferencia');
+   line(info,'Color del metal',prefs.metal_color||'Sin preferencia');
+   line(info,'Acabado del metal',prefs.metal_finish||'Sin preferencia');
+   line(info,'Tono de madera',prefs.wood_tone||'Sin preferencia');
+   line(info,'Acabado de madera',prefs.wood_finish||'Sin preferencia');
+  }else{
+   line(info,'Materiales',row.materials||'Por definir');
+   line(info,'Terminación',row.finish||'Por definir');
+  }
   line(info,'Cantidad',row.quantity);
   line(info,'Presupuesto orientativo',asMoney(row.budget_ars));
   line(info,'Fecha deseada',row.desired_date||'A coordinar');
@@ -94,7 +104,7 @@
    if(current!==loadVersion)return;
    if(authError||authorized!==true)throw Error('no_admin');
    const {data,error}=await client.from('custom_quote_requests')
-    .select('id,code,status,full_name,email,phone,city,project_type,description,measurements,materials,finish,quantity,desired_date,budget_ars,delivery,admin_note,quoted_amount,created_at,custom_quote_files(id,storage_path,original_name,mime_type,byte_size)')
+    .select('id,code,status,full_name,email,phone,city,project_type,description,measurements,materials,finish,quote_preferences,quantity,desired_date,budget_ars,delivery,admin_note,quoted_amount,created_at,custom_quote_files(id,storage_path,original_name,mime_type,byte_size)')
     .order('created_at',{ascending:false}).limit(100);
    if(current!==loadVersion)return;
    if(error||!Array.isArray(data))throw Error('fetch_failed');
@@ -135,7 +145,8 @@
   for(const [id,chosen] of [['btnOrdersShowPurchases',!active],['btnOrdersShowQuotes',active]]){
    const button=by(id);button.classList.toggle('btn-primary',chosen);button.setAttribute('aria-pressed',String(chosen));
   }
-  if(active)open();else{loadVersion++;selected=null;detail.hidden=true;}
+  if(active){open();window.CustomQuoteOptions?.open();}
+  else{loadVersion++;selected=null;detail.hidden=true;}
  }
  by('btnOrdersShowPurchases').addEventListener('click',()=>selectTab('purchases'));
  by('btnOrdersShowQuotes').addEventListener('click',()=>selectTab('quotes'));
