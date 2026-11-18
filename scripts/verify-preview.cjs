@@ -21,7 +21,7 @@ assert.equal(config.supabaseAnonKey, process.env.STORE_PREVIEW_SUPABASE_ANON_KEY
 assert.equal(products.length, 1);
 assert.equal(products[0].id, 'pieza-sandbox-001');
 assert.doesNotMatch(configSource, /ivyagavbhsyzvikzhmhe|5491164598478/);
-for (const page of ['privacidad.html', 'terminos.html', 'arrepentimiento.html']) {
+for (const page of ['privacidad.html', 'terminos.html', 'arrepentimiento.html', 'presupuesto.html']) {
   assert.match(readFileSync(resolve(root, 'dist-preview', page), 'utf8'), /<!doctype html>/i);
 }
 
