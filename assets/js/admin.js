@@ -786,6 +786,7 @@ const h = Store.escapeHTML;
     }
 
     async function loadCatalogFromSupabase() {
+      if (window.AdminMFA && !(await window.AdminMFA.check(supabaseClient, loadCatalogFromSupabase))) return;
       showToast("Verificando permisos de administración...");
       let permission;
       try { permission=await supabaseClient.rpc('storefront_admin_authorized'); }
