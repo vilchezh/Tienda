@@ -230,8 +230,48 @@ test('dropdowns: Sin preferencia inicial, varios materiales, Otro y restablecer 
  await page.locator('[data-material-dropdown="metal_materials"] summary').click();
  await page.locator('[data-clear-materials="metal_materials"]').click();
  await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
- await expect(page.locator('#quoteMetalFinishing')).toBeHidden();
- await expect(page.locator('#quoteWoodFinishing')).toBeHidden();
+ await expect(page.locator('#quoteMetalFinishing')).toBeVisible();
+ await expect(page.locator('#quoteWoodFinishing')).toBeVisible();
  expect((await page.evaluate(()=>window.QuoteChoices.collect())).metal_materials).toEqual([]);
+ expect(state.errors).toEqual([]);
+});
+
+
+test('metal y madera sin preferencia permiten elegir colores, tono y acabados independientes',async({page})=>{
+ const state=await setup(page,{rows:[sampleProduct]});
+ const optionRow={
+  id:'default',metal_materials:['Caño 20×20 mm','Caño 50×50 mm'],
+  wood_materials:['Pino 30 mm','Eucalipto 20 mm'],
+  metal_colors:['Negro','Rojo'],metal_finishes:['Mate','Satinado','Brillante'],
+  wood_tones:['Nogal','Wengué'],wood_finishes:['Mate','Satinado','Brillante']
+ };
+ await page.route('**/rest/v1/custom_quote_options*',route=>route.fulfill({json:[optionRow]}));
+ await page.goto('/presupuesto.html');
+ await expect(page.locator('#quoteMetalSummary')).toHaveText('Sin preferencia');
+ await expect(page.locator('#quoteWoodSummary')).toHaveText('Sin preferencia');
+ await expect(page.locator('#quoteMetalFinishing')).toBeVisible();
+ await expect(page.locator('#quoteWoodFinishing')).toBeVisible();
+ await page.locator('#quoteMetalColor').selectOption('Rojo');
+ await page.locator('#quoteMetalFinish').selectOption('Satinado');
+ await page.locator('#quoteWoodTone').selectOption('Nogal');
+ await page.locator('#quoteWoodFinish').selectOption('Mate');
+ const withoutMaterials=await page.evaluate(()=>window.QuoteChoices.collect());
+ expect(withoutMaterials).toEqual({
+  metal_materials:[],wood_materials:[],
+  metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'
+ });
+ // Agregar y luego quitar un material no debe limpiar ni ocultar colores o acabados.
+ await page.locator('[data-material-dropdown="metal_materials"] summary').click();
+ await page.locator('input[data-quote-group="metal_materials"][value="Caño 20×20 mm"]').check();
+ await page.locator('[data-clear-materials="metal_materials"]').click();
+ expect(await page.evaluate(()=>window.QuoteChoices.collect())).toEqual(withoutMaterials);
+ await expect(page.locator('#quoteMetalFinishing')).toBeVisible();
+ await expect(page.locator('#quoteWoodFinishing')).toBeVisible();
+ // "Otro" también debe poder utilizarse sin materiales.
+ await page.locator('#quoteMetalColor').selectOption('__custom__');
+ await page.locator('#quoteCustomMetalColor').fill('Azul especial');
+ const custom=await page.evaluate(()=>window.QuoteChoices.collect());
+ expect(custom.metal_color).toBe('Azul especial');
+ expect(custom.metal_materials).toEqual([]);
  expect(state.errors).toEqual([]);
 });
