@@ -70,13 +70,8 @@
   clear.setAttribute('aria-pressed',String(empty));
  }
  function updateVisibility(){
-  const metalSelected=selectedGroup('metal_materials').length>0 ||
-    document.getElementById('quoteOtherMetalToggle').checked;
-  const woodSelected=selectedGroup('wood_materials').length>0 ||
-    document.getElementById('quoteOtherWoodToggle').checked;
-  document.getElementById('quoteMetalFinishing').hidden=!metalSelected;
-  document.getElementById('quoteWoodFinishing').hidden=!woodSelected;
-  document.getElementById('quoteNoFinishSelection').hidden=metalSelected||woodSelected;
+  // Los colores y acabados son independientes de los materiales seleccionados.
+  // Únicamente se actualiza el resumen de ambos desplegables.
   syncMaterialDropdown('metal_materials');
   syncMaterialDropdown('wood_materials');
  }
@@ -129,17 +124,17 @@
   const choices={
    metal_materials:metal,
    wood_materials:wood,
-   metal_color:metal.length?getSingle('metal_color'):'',
-   metal_finish:metal.length?getSingle('metal_finish'):'',
-   wood_tone:wood.length?getSingle('wood_tone'):'',
-   wood_finish:wood.length?getSingle('wood_finish'):''
+   metal_color:getSingle('metal_color'),
+   metal_finish:getSingle('metal_finish'),
+   wood_tone:getSingle('wood_tone'),
+   wood_finish:getSingle('wood_finish')
   };
   const all=[...metal,...wood,choices.metal_color,choices.metal_finish,choices.wood_tone,choices.wood_finish];
   if(all.some(s=>s.length>70))throw Error('Usá como máximo 70 caracteres por material, color o acabado.');
   if(metal.length>8||wood.length>8)throw Error('Elegí hasta 8 materiales por grupo.');
   for(const key of ['metal_color','metal_finish','wood_tone','wood_finish']){
    const el=elements[key],select=document.getElementById(names[key]);
-   if(!select.closest('.quote-pref-card').hidden&&select.value==='__custom__'&&!choices[key])
+   if(select.value==='__custom__'&&!choices[key])
     throw Error('Completá la opción «Otro» o elegí «Sin preferencia».');
   }
   for(const key of ['metal_materials','wood_materials']){
