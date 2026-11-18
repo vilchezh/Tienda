@@ -1,0 +1,2 @@
+-- Permitimos ejecutar el validador de opciones durante UPDATE, sin dar permisos de edición a visitantes.
+grant execute on function public.custom_quote_option_list_valid(text[]) to authenticated,service_role;
