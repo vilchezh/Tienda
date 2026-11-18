@@ -1,4 +1,5 @@
 import { corsHeaders } from './cors.mjs';
+import { verifyTurnstile } from './turnstile-check.mjs';
 import { firstRow, supabaseRequest, encodeFilter, serviceKey } from './supabase-rest.mjs';
 
 const JSON_HEADERS = { 'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff' };
@@ -52,6 +53,8 @@ export function cancellationRequestHandler(env, fetchFn=fetch) {
    if(!UUID_RE.test(data.submission_id||'')||!TOKEN_RE.test(data.status_token||'')||
       email.length>254||!EMAIL_RE.test(email)||reference.length>120||message.length>500)
     return respond({error:'invalid_request',message:'Revisá el correo y los campos ingresados.'},400,cors);
+   const proof=await verifyTurnstile(env,request,data.turnstile_token,fetchFn);
+   if(!proof.ok)return respond({error:'bot_check_failed',message:'Completá la verificación de seguridad y volvé a intentar.'},403,cors);
    const secret=serviceKey(env);
    const ip=String(request.headers.get('cf-connecting-ip')||'unknown').slice(0,80);
    const tokenHash=await sha256(data.status_token);
