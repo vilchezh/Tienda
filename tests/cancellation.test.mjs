@@ -96,7 +96,8 @@ test('scheduled email dispatch rejects missing secret and never emails unapprove
 test('cancellation email uses the exact approved purchase email logo, size and position',async()=>{
  const {readFileSync}=await import('node:fs');
  const paidSource=readFileSync(new URL('../supabase/functions/_shared/email-notifications.mjs',import.meta.url),'utf8');
- const expected=paidSource.match(/<img src=\\?"https:\/\/tienda-checkout-sandbox\.acero-y-escamas\.workers\.dev\/assets\/img\/email-pangolin-708c76-sharp\.png.*?>/s)?.[0]?.replace(/\\"/g,'"');
+ assert.match(paidSource,/emailVisuals\(env\)\.logoUrl/);
+ const expected='<img src="'+env.STORE_BASE_URL+'/assets/img/email-pangolin-708c76-sharp.png" alt="Logo de Acero y Escamas" width="80" height="80" align="right" style="display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;">';
  assert.ok(expected,'Missing paid email logo source');
  assert.match(expected,/width="80" height="80" align="right"/);
  assert.match(expected,/float:right;width:80px;height:80px;margin:15px 0 0 8px/);
