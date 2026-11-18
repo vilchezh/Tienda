@@ -269,6 +269,10 @@
   </section>
 
   <section id="ordersAdmin" class="orders-admin" aria-labelledby="ordersTitle" hidden>
+    <nav class="quote-admin-tabs" aria-label="Tipos de pedidos">
+      <button type="button" id="btnOrdersShowPurchases" class="btn btn-primary" aria-pressed="true">Compras</button>
+      <button type="button" id="btnOrdersShowQuotes" class="btn" aria-pressed="false">Presupuestos a medida</button>
+    </nav>
     <div class="orders-toolbar">
       <div>
         <span class="brand-sub">OPERACIÓN DEL TALLER</span>
@@ -349,6 +353,50 @@
         <p>Seleccioná un pedido para ver sus datos y gestionar la fabricación.</p>
       </aside>
     </div>
+    <div id="customQuotesAdmin" class="custom-quotes-admin" hidden>
+      <div class="quote-admin-heading">
+        <div><span class="brand-sub">DISEÑOS Y ESTRUCTURAS A PEDIDO</span><h2>Solicitudes de presupuesto</h2><p>Consultas y presupuestos: no se cuentan como ventas ni activan Mercado Pago.</p></div>
+        <button id="btnRefreshCustomQuotes" type="button" class="btn">Actualizar</button>
+      </div>
+      <div class="quote-admin-filters">
+        <label>Buscar por cliente, correo o código
+          <input type="search" id="customQuoteSearch" placeholder="COT-2026-000001 o nombre">
+        </label>
+        <label>Estado
+          <select id="customQuoteStatusFilter">
+            <option value="all">Todos</option><option value="new">Nuevas</option><option value="reviewing">En revisión</option>
+            <option value="need_info">Falta información</option><option value="quoted">Presupuestadas</option>
+            <option value="accepted">Aceptadas</option><option value="declined">Cerradas</option>
+          </select>
+        </label>
+      </div>
+      <p role="status" id="customQuotesListStatus">Elegí la pestaña de presupuestos para consultar solicitudes.</p>
+      <div class="quote-admin-workspace">
+        <div class="quote-admin-table-wrap">
+          <table class="orders-table"><thead><tr><th>Fecha</th><th>Solicitud</th><th>Cliente</th><th>Estado</th></tr></thead><tbody id="customQuotesRows"></tbody></table>
+        </div>
+        <aside id="customQuoteDetail" class="quote-admin-detail" hidden>
+          <h3 id="customQuoteDetailCode"></h3>
+          <div id="customQuoteDetailInfo" class="quote-admin-facts"></div>
+          <section><h4>Referencias y planos privados</h4><p class="quote-admin-warning">Los PDF no se escanean. Descargalos solo si confiás en el archivo; no se abrirán automáticamente.</p>
+            <ul id="customQuoteFiles" class="quote-admin-files"></ul>
+          </section>
+          <label for="customQuoteState">Estado de la solicitud</label>
+          <select id="customQuoteState">
+            <option value="new">Nueva</option><option value="reviewing">En revisión</option>
+            <option value="need_info">Falta información</option><option value="quoted">Presupuestado</option>
+            <option value="accepted">Aceptado</option><option value="declined">Descartado</option>
+          </select>
+          <label for="customQuotePrice">Importe presupuestado (ARS, opcional)</label>
+          <input id="customQuotePrice" type="number" min="0" max="999999999" step="1000" placeholder="Ej.: 150000">
+          <label for="customQuoteNote">Notas internas</label>
+          <textarea id="customQuoteNote" maxlength="2000" rows="5" placeholder="Cálculos, materiales y próximos pasos. Solo los administradores pueden ver estas notas."></textarea>
+          <button id="btnSaveCustomQuote" type="button" class="btn btn-primary">Guardar presupuesto</button>
+          <p role="status" id="customQuoteSaveStatus"></p>
+          <p class="action-note">Guardar un presupuesto no lo envía al cliente ni cobra dinero. Coordiná el envío final antes de tomar pagos.</p>
+        </aside>
+      </div>
+    </div>
   </section>
 
   <section id="cancellationsAdmin" class="cancellations-admin" aria-labelledby="cancellationsAdminTitle" hidden>
@@ -386,5 +434,6 @@
   <script defer src="assets/js/admin.js"></script>
   <script defer src="assets/js/home-admin.js"></script>
   <script defer src="assets/js/cancellations-admin.js"></script>
+  <script defer src="assets/js/quotes-admin.js"></script>
 </body>
 </html>
