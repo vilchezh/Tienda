@@ -22,7 +22,7 @@ async function setup(page, options = {}) {
       const req = route.request();
       if (url.pathname.includes('/auth/v1/token')) return route.fulfill({json: options.loginFailure ? {msg:'Invalid login credentials'} : session, status: options.loginFailure ? 400 : 200});
       if (url.pathname.includes('/auth/v1/logout')) return route.fulfill({status:204});
-      if (url.pathname==='/auth/v1/factors') return route.fulfill({json:{all:[],totp:[],phone:[]}});
+      if (url.pathname==='/auth/v1/user') return route.fulfill({json:{...user,factors:options.mfaFactors||[]}});
       if (url.pathname.startsWith('/storage/v1/object/tienda/')) {
         state.uploads.push({path:url.pathname,method:req.method(),bytes:req.postDataBuffer()?.length || 0});
         return route.fulfill({status:200,json:{Key:url.pathname.split('/object/')[1]}});
