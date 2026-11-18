@@ -51,12 +51,12 @@ export async function dispatchCancellationEmails(env,fetchFn=fetch,limit=10){
    await changeStatus(env,fetchFn,item,{status:'sent',sent_at:new Date().toISOString(),provider_message_id:String(payload.id).slice(0,200),last_error:null,lease_until:null});
    sent++;continue;
   }
-  const status=Number(response?.status||0);
-  const permanent=[400,401,403,404,422].includes(status)||Number(item.attempt)>=4;
+  const httpStatus=Number(response?.status||0);
+  const permanent=[400,401,403,404,422].includes(httpStatus)||Number(item.attempt)>=4;
   const backoff=Math.min(60,5*Math.pow(2,Math.max(0,Number(item.attempt)-1)));
   await changeStatus(env,fetchFn,item,{
    status:permanent?'rejected':'pending',
-   last_error:status?'provider_http_'+status:'provider_outcome_uncertain',
+   last_error:httpStatus?'provider_http_'+httpStatus:'provider_outcome_uncertain',
    next_attempt_at:new Date(Date.now()+backoff*60000).toISOString(),
    lease_until:null
   });
