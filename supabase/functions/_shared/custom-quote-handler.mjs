@@ -1,10 +1,8 @@
 import { corsHeaders } from './cors.mjs';
 import { verifyTurnstile } from './turnstile-check.mjs';
+import { deploymentConfig } from './deployment-config.mjs';
 import { firstRow, supabaseRequest, encodeFilter, serviceKey, restHeaders } from './supabase-rest.mjs';
 
-const BUCKET='quote-reference-sandbox';
-const ORIGIN='https://tienda-checkout-sandbox.acero-y-escamas.workers.dev';
-const SUPA='https://pacyytbscnlklyrhsshp.supabase.co';
 const MAX_BYTES=5*1024*1024,MAX_REQUEST=MAX_BYTES+16384;
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const TOKEN=/^[A-Za-z0-9_-]{43}$/;
@@ -60,18 +58,16 @@ function sniff(bytes){
  if(ascii(0,5)==='%PDF-'&&ascii(Math.max(0,bytes.length-2048),Math.min(2048,bytes.length)).includes('%%EOF'))return 'application/pdf';
  return null;
 }
-function validServer(env){
- return env.SUPABASE_URL===SUPA&&env.STORE_BASE_URL===ORIGIN;
-}
 async function uploadStorage(env,fetchFn,path,mime,bytes){
- const url=SUPA+'/storage/v1/object/'+BUCKET+'/'+path;
+ const cfg=deploymentConfig(env);
+ const url=cfg.supabaseUrl+'/storage/v1/object/'+cfg.bucket+'/'+path;
  const headers=restHeaders(env,{'Content-Type':mime,'x-upsert':'false','cache-control':'no-store'});
  const response=await fetchFn(url,{method:'POST',headers,body:bytes});
  if(!response.ok)throw Error('storage_failed');
 }
 async function deleteStorage(env,fetchFn,path){
  try{
-  const response=await fetchFn(SUPA+'/storage/v1/object/'+BUCKET,{method:'DELETE',headers:restHeaders(env),body:JSON.stringify({prefixes:[path]})});
+  const response=await fetchFn(deploymentConfig(env).supabaseUrl+'/storage/v1/object/'+deploymentConfig(env).bucket,{method:'DELETE',headers:restHeaders(env),body:JSON.stringify({prefixes:[path]})});
   if(!response.ok)console.error('quote_storage_cleanup_failed');
  }catch{console.error('quote_storage_cleanup_failed');}
 }
@@ -116,7 +112,7 @@ export function customQuoteHandler(env,fetchFn=fetch){
   if(!cors)return respond({error:'origin_not_allowed'},403);
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...cors,'Cache-Control':'no-store'}});
   if(request.method!=='POST')return respond({error:'method_not_allowed'},405,cors);
-  if(!validServer(env))return respond({error:'sandbox_only'},503,cors);
+  try{deploymentConfig(env);}catch{return respond({error:'environment_not_configured'},503,cors);}
   try{
    if(new URL(request.url).searchParams.get('action')==='upload')return await uploadAction(env,request,fetchFn,cors);
    const data=await jsonBody(request);
