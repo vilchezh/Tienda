@@ -28,6 +28,9 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   assert.equal(products.length, 1);
   assert.equal(products[0].id, 'pieza-sandbox-001');
   assert.match(readFileSync(resolve(root, 'dist-preview/presupuesto.html'), 'utf8'), /id="quoteForm"/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/presupuesto.html'), 'utf8'), /quote-choices\.js/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quote-choices.js'), 'utf8'), /custom_quote_options/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quote-options-admin.js'), 'utf8'), /custom_quote_options/);
   assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quote.js'), 'utf8'), /custom-quote-request/);
   assert.match(readFileSync(resolve(root, 'dist-preview/admin.html'), 'utf8'), /id="customQuotesAdmin"/);
   assert.match(readFileSync(resolve(root, 'dist-preview/arrepentimiento.html'),'utf8'), /id="cancellationForm"/);
