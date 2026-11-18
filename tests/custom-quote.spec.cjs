@@ -164,7 +164,8 @@ test('administrador agrega y quita opciones que aparecerán en nuevas cotizacion
    const patch=req.postDataJSON();saved.push(patch);Object.assign(current,patch);
    return route.fulfill({json:current});
   }
-  return route.fulfill({json:[current]});
+  const single=(req.headers().accept||'').includes('application/vnd.pgrst.object');
+  return route.fulfill({json:single?current:[current]});
  });
  await page.goto('/admin.html');
  await page.locator('#btnViewOrders').click();
