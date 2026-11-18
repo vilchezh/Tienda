@@ -102,8 +102,8 @@ test('Checkout Pro test mode sends selections without trusting a client total an
   const state=await setup(page,{rows:[directProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:true}});
   await page.goto('/producto.html?id='+product.id);
   await expect(page.locator('#btnComprar')).toBeEnabled();
-  await expect(page.locator('#checkoutStatus')).toContainText('$199.000');
-  await expect(page.locator('#checkoutStatus')).toContainText('7,5%');
+  await expect(page.locator('#checkoutStatus')).toContainText('199.000 ARS');
+  await expect(page.locator('#checkoutStatus')).not.toContainText('7,5%');
   await page.locator('#btnComprar').click();
   expect(state.checkoutRequests).toHaveLength(0);
   await expect(page.locator('#checkoutStatus')).toContainText('datos obligatorios');
