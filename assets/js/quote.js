@@ -126,7 +126,9 @@
   try{
    message('Registrando tu proyecto…');
    if(!draft.quote_id){
-    const result=await api('start',{...payload,submission_id:draft.submission_id,token:draft.token});
+    const proof=window.StoreTurnstile?.response()||'';
+    if(window.StoreTurnstile?.enabled()&&!proof)throw Error('Completá la verificación de seguridad antes de enviar.');
+    const result=await api('start',{...payload,submission_id:draft.submission_id,token:draft.token,turnstile_token:proof});
     if(!result?.quote_id||!result.code)throw Error('No recibimos un número de solicitud.');
     draft.quote_id=result.quote_id;draft.code=result.code;saveDraft();
    }
@@ -148,6 +150,7 @@
    if(draft.status==='draft')throw Error('La solicitud todavía no está confirmada.');
    finished(draft);
   }catch(error){
+   if(!draft?.quote_id)window.StoreTurnstile?.reset();
    message(error?.message||'Hubo un problema. Podés volver a enviar sin duplicar la solicitud.',true);
   }finally{disabled(false);}
  });
