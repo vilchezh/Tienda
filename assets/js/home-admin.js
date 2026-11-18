@@ -60,6 +60,29 @@
       setStatus('El editor no está disponible: primero se debe aplicar la migración del Issue #5 en el sandbox.');
     }
   }
+  document.getElementById('homeHeroUpload').addEventListener('change', async event=>{
+    if(!current){event.target.value='';return;}
+    const file=event.target.files?.[0];
+    if(!file)return;
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size<=0||file.size>4*1024*1024){
+      setStatus('La imagen debe ser PNG, JPG o WebP y pesar menos de 4 MB.');event.target.value='';return;
+    }
+    const extensions={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'};
+    const target='home/hero-'+crypto.randomUUID()+'.'+extensions[file.type];
+    const input=event.target;
+    input.disabled=true;setStatus('Subiendo imagen al almacenamiento del sandbox…');
+    try{
+      const client=Store.createClient();
+      const {error}=await client.storage.from('tienda').upload(target,file,{upsert:false,contentType:file.type});
+      if(error)throw error;
+      const {data}=client.storage.from('tienda').getPublicUrl(target);
+      if(!data?.publicUrl||!Store.assetURL(data.publicUrl))throw Error('url');
+      document.getElementById('homeImage').value=data.publicUrl;
+      setStatus('Imagen subida. Para usarla, pulsá «Guardar inicio».');
+    }catch{
+      setStatus('No se pudo subir la imagen. Verificá que la cuenta tenga permisos de Storage.');
+    }finally{input.disabled=false;input.value='';}
+  });
   document.getElementById('btnSaveHome').addEventListener('click',async()=>{
     if(!current)return;
     const values={};
