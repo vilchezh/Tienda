@@ -366,7 +366,8 @@ const h = Store.escapeHTML;
         document.getElementById(id).classList.toggle('btn-primary',selected);
         document.getElementById(id).setAttribute('aria-pressed',String(selected));
       }
-      if(ordersView)loadOrders();
+      if(ordersView){if(window.CustomQuotesAdmin?.active())window.CustomQuotesAdmin.open();else loadOrders();}
+       else window.CustomQuotesAdmin?.close();
        if(cancellationView)window.CancellationAdmin?.open();
        else window.CancellationAdmin?.close();
       if(homeView)window.StorefrontEditor?.open();
