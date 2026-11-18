@@ -43,18 +43,18 @@
    const item=document.createElement('option');item.value=option;item.textContent=option;select.appendChild(item);
   }
   const other=document.createElement('option');other.value='__custom__';other.textContent='Otro (escribir)';select.appendChild(other);
-  select.addEventListener('change',()=>{
+  select.onchange=()=>{
    const custom=elements[id];
    custom.hidden=select.value!=='__custom__';
    if(!custom.hidden)custom.focus();else custom.value='';
-  });
+  };
  }
  function selectedGroup(key){
   const selected=[...document.querySelectorAll('[data-quote-group="'+key+'"]:checked')].map(x=>x.value);
   const toggle=document.querySelector('[data-other-toggle="'+key+'"]');
   const other=document.querySelector('[data-other-value="'+key+'"]');
   if(toggle?.checked&&clean(other?.value))selected.push(clean(other.value));
-  return [...new Set(selected)].slice(0,8);
+  return [...new Set(selected)];
  }
  function updateVisibility(){
   const metalSelected=selectedGroup('metal_materials').length>0 ||
