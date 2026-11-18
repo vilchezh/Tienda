@@ -1,5 +1,6 @@
 import { dispatchDueOrderNotifications } from './email-notifications.mjs';
 import { constantTimeEqual } from './internal-auth.mjs';
+import { deploymentConfig } from './deployment-config.mjs';
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -16,6 +17,7 @@ export function processNotificationsHandler(env, fetchFn = fetch) {
       return json({ error: 'not_authorized' }, 401);
     }
     try {
+      deploymentConfig(env);
       const result = await dispatchDueOrderNotifications(env, fetchFn, 25);
       return json({ ok: true, ...result }, 200);
     } catch (error) {
