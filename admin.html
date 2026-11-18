@@ -358,6 +358,35 @@
         <div><span class="brand-sub">DISEÑOS Y ESTRUCTURAS A PEDIDO</span><h2>Solicitudes de presupuesto</h2><p>Consultas y presupuestos: no se cuentan como ventas ni activan Mercado Pago.</p></div>
         <button id="btnRefreshCustomQuotes" type="button" class="btn">Actualizar</button>
       </div>
+      <details id="customQuoteOptionsPanel" class="quote-options-editor">
+        <summary>⚙️ Configurar materiales, colores y acabados del formulario</summary>
+        <p class="quote-options-help">Podés agregar, editar o quitar opciones. Escribí una opción por línea, sin precios. Siempre aparecerá «Otro (escribir)» para el cliente. Los cambios se reflejan en nuevas solicitudes, no en las ya recibidas.</p>
+        <div class="quote-options-grid">
+          <label for="optionMetalMaterials">Materiales metálicos (caños, perfiles, chapas)
+            <textarea id="optionMetalMaterials" data-option-key="metal_materials" rows="7" spellcheck="false" placeholder="Caño estructural 20×20 mm&#10;Caño estructural 50×50 mm"></textarea>
+          </label>
+          <label for="optionWoodMaterials">Tipos de madera y espesores
+            <textarea id="optionWoodMaterials" data-option-key="wood_materials" rows="7" spellcheck="false" placeholder="Pino 30 mm&#10;Eucalipto 20 mm"></textarea>
+          </label>
+          <label for="optionMetalColors">Colores de metal
+            <textarea id="optionMetalColors" data-option-key="metal_colors" rows="5" spellcheck="false" placeholder="Negro&#10;Rojo"></textarea>
+          </label>
+          <label for="optionMetalFinishes">Acabados de metal
+            <textarea id="optionMetalFinishes" data-option-key="metal_finishes" rows="5" spellcheck="false" placeholder="Mate&#10;Satinado&#10;Brillante"></textarea>
+          </label>
+          <label for="optionWoodTones">Tonos de madera
+            <textarea id="optionWoodTones" data-option-key="wood_tones" rows="5" spellcheck="false" placeholder="Nogal&#10;Wengué&#10;Roble oscuro"></textarea>
+          </label>
+          <label for="optionWoodFinishes">Acabados de madera
+            <textarea id="optionWoodFinishes" data-option-key="wood_finishes" rows="5" spellcheck="false" placeholder="Mate&#10;Satinado&#10;Brillante"></textarea>
+          </label>
+        </div>
+        <div class="quote-options-actions">
+          <button id="btnSaveQuoteOptions" type="button" class="btn btn-primary">Guardar opciones del formulario</button>
+          <button id="btnReloadQuoteOptions" type="button" class="btn">Descartar cambios y recargar</button>
+        </div>
+        <p id="quoteOptionsStatus" role="status" aria-live="polite"></p>
+      </details>
       <div class="quote-admin-filters">
         <label>Buscar por cliente, correo o código
           <input type="search" id="customQuoteSearch" placeholder="COT-2026-000001 o nombre">
@@ -434,6 +463,7 @@
   <script defer src="assets/js/admin.js"></script>
   <script defer src="assets/js/home-admin.js"></script>
   <script defer src="assets/js/cancellations-admin.js"></script>
+  <script defer src="assets/js/quote-options-admin.js"></script>
   <script defer src="assets/js/quotes-admin.js"></script>
 </body>
 </html>
