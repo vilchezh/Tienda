@@ -34,6 +34,7 @@
   if(n===1&&document.getElementById('quoteDescription').value.trim().length<20){
    message('Describí tu idea con al menos 20 caracteres.',true);return false;
   }
+  if(n===1){try{window.QuoteChoices.collect();}catch(error){message(error.message,true);return false;}}
   return true;
  }
  function selectedFiles(){return [...filesInput.files];}
@@ -106,10 +107,13 @@
   const data=values();
   if(data.description?.trim().length<20){setStep(1);message('Contanos un poco más sobre tu proyecto.',true);return;}
   if(!document.getElementById('quotePrivacy').checked){message('Necesitamos tu aceptación de la política de privacidad.',true);return;}
+  let choices;
+  try{choices=window.QuoteChoices.collect();}
+  catch(error){setStep(1);message(error.message,true);return;}
   const payload={
    full_name:data.full_name,email:data.email,phone:data.phone,city:data.city,
    project_type:data.project_type,description:data.description,measurements:data.measurements||'',
-   materials:data.materials||'',finish:data.finish||'',quantity:Number(data.quantity),
+   choices,quantity:Number(data.quantity),
    desired_date:data.desired_date||null,budget_ars:data.budget_ars?Number(data.budget_ars):null,
    delivery:data.delivery
   };
