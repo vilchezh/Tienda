@@ -28,7 +28,9 @@ export function deploymentConfig(env){
  const expected=String(env.STORE_EXPECTED_SUPABASE_REF||'');
  const bucket=String(env.QUOTE_STORAGE_BUCKET||'');
  if(!REF.test(expected)||expected===SANDBOX_REF||ref!==expected||
-    siteUrl===SANDBOX_SITE||!BUCKET.test(bucket)||bucket===SANDBOX_BUCKET)
+    siteUrl===SANDBOX_SITE||!BUCKET.test(bucket)||!bucket.startsWith('quote-')||
+    bucket===SANDBOX_BUCKET||bucket==='tienda'||
+    String(env.STORE_ALLOWED_ORIGINS||'').includes(new URL(SANDBOX_SITE).hostname))
   throw Error('production_configuration_incomplete');
  return {mode,ref,supabaseUrl,siteUrl,bucket};
 }
