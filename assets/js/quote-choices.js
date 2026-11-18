@@ -56,6 +56,19 @@
   if(toggle?.checked&&clean(other?.value))selected.push(clean(other.value));
   return [...new Set(selected)];
  }
+ function syncMaterialDropdown(key){
+  const selected=selectedGroup(key);
+  const toggle=document.querySelector('[data-other-toggle="'+key+'"]');
+  const summary=document.getElementById(key==='metal_materials'?'quoteMetalSummary':'quoteWoodSummary');
+  const clear=document.querySelector('[data-clear-materials="'+key+'"]');
+  const empty=selected.length===0&&!toggle?.checked;
+  summary.textContent=empty?'Sin preferencia':
+   selected.length>2?selected.length+' materiales seleccionados':
+   selected.length?selected.join(', '):'Otro (escribir)';
+  summary.title=selected.join(', ')||'Sin preferencia';
+  clear.classList.toggle('is-active',empty);
+  clear.setAttribute('aria-pressed',String(empty));
+ }
  function updateVisibility(){
   const metalSelected=selectedGroup('metal_materials').length>0 ||
     document.getElementById('quoteOtherMetalToggle').checked;
@@ -64,6 +77,8 @@
   document.getElementById('quoteMetalFinishing').hidden=!metalSelected;
   document.getElementById('quoteWoodFinishing').hidden=!woodSelected;
   document.getElementById('quoteNoFinishSelection').hidden=metalSelected||woodSelected;
+  syncMaterialDropdown('metal_materials');
+  syncMaterialDropdown('wood_materials');
  }
  for(const [key] of selectable)elements[key]=document.querySelector('[data-choice-custom="'+key+'"]');
  for(const toggle of document.querySelectorAll('[data-other-toggle]')){
@@ -73,7 +88,30 @@
    if(toggle.checked)input.focus();else input.value='';
    updateVisibility();
   });
+  input.addEventListener('input',updateVisibility);
  }
+ for(const button of document.querySelectorAll('[data-clear-materials]')){
+  button.addEventListener('click',()=>{
+   const key=button.dataset.clearMaterials;
+   for(const option of document.querySelectorAll('[data-quote-group="'+key+'"]'))option.checked=false;
+   const toggle=document.querySelector('[data-other-toggle="'+key+'"]');
+   const input=document.querySelector('[data-other-value="'+key+'"]');
+   toggle.checked=false;input.value='';input.hidden=true;
+   updateVisibility();
+   button.closest('details').open=false;
+  });
+ }
+ const materialDropdowns=[...document.querySelectorAll('[data-material-dropdown]')];
+ for(const dropdown of materialDropdowns){
+  dropdown.addEventListener('toggle',()=>{
+   if(dropdown.open)for(const other of materialDropdowns)if(other!==dropdown)other.open=false;
+  });
+ }
+ document.addEventListener('pointerdown',event=>{
+  for(const dropdown of materialDropdowns){
+   if(dropdown.open&&!dropdown.contains(event.target))dropdown.open=false;
+  }
+ });
  function render(config){
   for(const key of Object.keys(defaults))values[key]=safeList(config?.[key],defaults[key]);
   materialOptions('metal_materials',values.metal_materials);
