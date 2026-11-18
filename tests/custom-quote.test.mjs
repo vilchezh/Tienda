@@ -167,3 +167,20 @@ test('quote email lists wood tone separately from wood finish and metal color se
   assert.ok(mail.text.includes(phrase),phrase);
  }
 });
+
+
+test('quote server stores metal and wood finishes with no selected material',async()=>{
+ const calls=[];
+ const handler=customQuoteHandler(env,async(url,init)=>{
+  calls.push({url:String(url),payload:JSON.parse(init.body)});
+  return reply([{quote_id:uuid,quote_code:'COT-2026-000011',quote_status:'draft'}]);
+ });
+ const choices={metal_materials:[],wood_materials:[],
+  metal_color:'Rojo',metal_finish:'Satinado',wood_tone:'Nogal',wood_finish:'Mate'};
+ const response=await handler(post({...draft,choices}));
+ assert.equal(response.status,200);
+ assert.match(calls[0].url,/rpc\/custom_quote_create_v2/);
+ assert.deepEqual(calls[0].payload.p_choices,choices);
+ assert.match(calls[0].payload.p_finish,/Color metal: Rojo/);
+ assert.match(calls[0].payload.p_finish,/Acabado madera: Mate/);
+});
