@@ -53,7 +53,7 @@ export function cancellationRequestHandler(env, fetchFn=fetch) {
       email.length>254||!EMAIL_RE.test(email)||reference.length>120||message.length>500)
     return respond({error:'invalid_request',message:'Revisá el correo y los campos ingresados.'},400,cors);
    const secret=serviceKey(env);
-   const ip=(request.headers.get('x-forwarded-for')||request.headers.get('cf-connecting-ip')||'unknown').split(',').at(-1).trim().slice(0,80);
+   const ip=String(request.headers.get('cf-connecting-ip')||'unknown').slice(0,80);
    const tokenHash=await sha256(data.status_token);
    const slot=(Math.floor(Date.now()/900000)).toString();
    const [ipHash,emailHash]=await Promise.all([
