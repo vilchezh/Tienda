@@ -32,6 +32,7 @@
     <div class="top-actions">
       <button type="button" class="btn btn-primary" id="btnViewCatalog" aria-pressed="true">Catálogo</button>
       <button type="button" class="btn" id="btnViewOrders" aria-pressed="false">Pedidos</button>
+       <button type="button" class="btn" id="btnViewCancellations" aria-pressed="false">Arrepentimientos</button>
       <button type="button" class="btn" id="btnViewHome" aria-pressed="false">Inicio</button>
       <button type="button" class="btn catalog-action" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
       <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn catalog-action">👁️ Ver en Tienda</a>
@@ -350,9 +351,40 @@
     </div>
   </section>
 
+  <section id="cancellationsAdmin" class="cancellations-admin" aria-labelledby="cancellationsAdminTitle" hidden>
+    <div class="card-header"><div><span class="brand-sub">ATENCIÓN AL CLIENTE</span><h1 id="cancellationsAdminTitle">Solicitudes de arrepentimiento</h1></div><button type="button" class="btn" id="btnRefreshCancellations">Actualizar</button></div>
+    <p role="status" id="cancellationsAdminStatus">Ingresá como administrador para consultar las solicitudes.</p>
+    <p class="cancellation-warning">Revisá cada caso antes de decidir. Cambiar el estado aquí NO realiza devoluciones de dinero ni modifica Mercado Pago.</p>
+    <div class="cancellation-workspace">
+      <div class="cancellation-table-wrap"><table class="orders-table" aria-label="Solicitudes recibidas">
+        <thead><tr><th>Fecha</th><th>Trámite</th><th>Correo indicado</th><th>Estado</th></tr></thead>
+        <tbody id="cancellationsTableBody"></tbody>
+      </table></div>
+      <aside class="cancellation-detail" id="cancellationAdminDetail" hidden>
+        <h2 id="cancellationSelectedCode"></h2>
+        <p id="cancellationSelectedInfo"></p>
+        <p id="cancellationSelectedMessage"></p>
+        <p id="cancellationEmailInfo" class="small"></p>
+        <label for="cancellationAdminState">Estado del trámite</label>
+        <select id="cancellationAdminState">
+          <option value="received">Recibida</option>
+          <option value="reviewing">En revisión</option>
+          <option value="approved">Aprobada (sin reembolso automático)</option>
+          <option value="denied">Respuesta desfavorable</option>
+          <option value="closed">Cerrada</option>
+        </select>
+        <label for="cancellationAdminNote">Nota interna</label>
+        <textarea id="cancellationAdminNote" maxlength="1000" rows="5" placeholder="Información para el seguimiento interno"></textarea>
+        <button id="btnSaveCancellation" type="button" class="btn btn-primary">Guardar revisión</button>
+        <p role="status" id="cancellationSaveStatus"></p>
+      </aside>
+    </div>
+  </section>
+
   <div class="status-banner" id="statusBanner" role="status"></div>
 
   <script defer src="assets/js/admin.js"></script>
   <script defer src="assets/js/home-admin.js"></script>
+  <script defer src="assets/js/cancellations-admin.js"></script>
 </body>
 </html>
