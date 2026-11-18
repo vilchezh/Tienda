@@ -2,6 +2,7 @@ import { CheckoutError, paymentStatusFromOrder } from './checkout-core.mjs';
 import { dispatchOrderNotifications } from './email-notifications.mjs';
 import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
 import { verifyMercadoPagoSignature } from './webhook-signature.mjs';
+import { mercadoPagoSecrets } from './deployment-config.mjs';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -14,9 +15,10 @@ function json(body, status) {
 }
 
 async function fetchRealOrder(env, fetchFn, id) {
-  if (!env.MP_ACCESS_TOKEN_TEST) throw new CheckoutError('Falta MP_ACCESS_TOKEN_TEST.', 500, 'server_configuration');
+  const {token} = mercadoPagoSecrets(env);
+  if(!token) throw new CheckoutError('Falta credencial Mercado Pago para este entorno.',500,'server_configuration');
   const response = await fetchFn(`${MERCADO_PAGO_API}/v1/orders/${encodeURIComponent(id)}`, {
-    headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN_TEST}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new CheckoutError('No se pudo verificar la orden.', 502, 'provider_error');
@@ -34,7 +36,7 @@ export function webhookHandler(env, fetchFn = fetch) {
         signature: request.headers.get('x-signature'),
         requestId,
         dataId,
-        secret: env.MP_WEBHOOK_SECRET_TEST,
+        secret: mercadoPagoSecrets(env).webhookSecret,
       });
       if (!valid) return json({ error: 'invalid_signature' }, 401);
 
