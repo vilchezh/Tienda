@@ -3,7 +3,7 @@ import { constantTimeEqual } from './internal-auth.mjs';
 
 const response=(body,status)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const label={mueble:'Mueble',estructura:'Estructura',parrilla:'Parrilla',otro:'Otro proyecto'};
+const label={mueble:'Mueble',estructura:'Estructura (incluye parrillas)',parrilla:'Parrilla',accesorio:'Accesorio',otro:'Otro proyecto'};
 const LOGO='<img src="https://tienda-checkout-sandbox.acero-y-escamas.workers.dev/assets/img/email-pangolin-708c76-sharp.png" alt="Logo de Acero y Escamas" width="80" height="80" align="right" style="display:block;float:right;width:80px;height:80px;margin:15px 0 0 8px;border:0;outline:none;text-decoration:none;">';
 export function quoteEmailTemplate(row,kind,filesCount=0){
  const seller=kind==='seller';
@@ -11,13 +11,22 @@ export function quoteEmailTemplate(row,kind,filesCount=0){
  const headline=seller?'Nueva solicitud de presupuesto':'¡Recibimos tu proyecto!';
  const intro=seller?'Ingresá en Administración → Pedidos → Presupuestos a medida para revisar la propuesta.':
    'Tu solicitud de presupuesto quedó registrada. Nuestro taller la revisará y te contactará para conversar los detalles.';
+ const preferences=row.quote_preferences||{};
+ const hasSeparated=Array.isArray(preferences.metal_materials)&&Array.isArray(preferences.wood_materials);
+ const separated=hasSeparated?[
+  ['Materiales metálicos',preferences.metal_materials.join(', ')||'Sin preferencia'],
+  ['Maderas',preferences.wood_materials.join(', ')||'Sin preferencia'],
+  ['Color del metal',preferences.metal_color||'Sin preferencia'],
+  ['Acabado del metal',preferences.metal_finish||'Sin preferencia'],
+  ['Tono de madera',preferences.wood_tone||'Sin preferencia'],
+  ['Acabado de madera',preferences.wood_finish||'Sin preferencia']
+ ]:[['Materiales',row.materials||'A definir'],['Terminación',row.finish||'A definir']];
  const details=[
   ['Número de solicitud',row.code],
   ['Proyecto',label[row.project_type]||'Proyecto a medida'],
   ['Descripción',row.description],
   ['Medidas',row.measurements||'A definir'],
-  ['Materiales',row.materials||'A definir'],
-  ['Terminación',row.finish||'A definir'],
+  ...separated,
   ['Cantidad',row.quantity],
   ['Localidad',row.city],
   ['Entrega',row.delivery],
@@ -43,7 +52,7 @@ export async function dispatchQuoteEmails(env,fetchFn=fetch,limit=10){
  let sent=0,skipped=0,pending=0;
  for(const job of Array.isArray(items)?items:[]){
   const row=await firstRow(env,fetchFn,'custom_quote_requests?id=eq.'+encodeFilter(job.quote_id)+
-   '&select=id,code,full_name,email,phone,city,project_type,description,measurements,materials,finish,quantity,delivery,status&limit=1');
+   '&select=id,code,full_name,email,phone,city,project_type,description,measurements,materials,finish,quote_preferences,quantity,delivery,status&limit=1');
   if(!row||row.status==='draft'||row.status==='expired'){
    await patch(env,fetchFn,job.email_id,{status:'rejected',last_error:'quote_not_submitted',lease_until:null});skipped++;continue;
   }
