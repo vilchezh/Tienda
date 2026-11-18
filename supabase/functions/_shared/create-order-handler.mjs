@@ -115,6 +115,7 @@ export function createOrderHandler(env, fetchFn = fetch) {
     if (!cors) return json({ error: 'origin_not_allowed' }, 403);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, cors);
+    try{mercadoPagoSecrets(env);}catch{return json({ error:'environment_not_configured' },503,cors);}
 
     try {
       const slot = await supabaseRequest(env, fetchFn, 'rpc/checkout_take_rate_slot', { method: 'POST', body: '{}' });
