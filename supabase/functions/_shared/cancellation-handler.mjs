@@ -1,5 +1,6 @@
 import { corsHeaders } from './cors.mjs';
 import { verifyTurnstile } from './turnstile-check.mjs';
+import { deploymentConfig } from './deployment-config.mjs';
 import { firstRow, supabaseRequest, encodeFilter, serviceKey } from './supabase-rest.mjs';
 
 const JSON_HEADERS = { 'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff' };
@@ -36,7 +37,7 @@ export function cancellationRequestHandler(env, fetchFn=fetch) {
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...cors,'Cache-Control':'no-store'}});
   if(request.method!=='POST')return respond({error:'method_not_allowed'},405,cors);
   try {
-   if(!env.SUPABASE_URL?.includes('pacyytbscnlklyrhsshp.supabase.co'))return respond({error:'sandbox_only'},503,cors);
+   deploymentConfig(env);
    const data=await readBody(request);
    if(data.action==='status'){
     if(typeof data.code!=='string'||!CODE_RE.test(data.code)||typeof data.status_token!=='string'||!TOKEN_RE.test(data.status_token))
