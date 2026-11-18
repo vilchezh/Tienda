@@ -60,3 +60,6 @@
 .quote-dropdown-panel>input[data-other-value][hidden]{display:none!important}
 .quote-dropdown-hint{margin:8px 2px 2px;color:#b6cbb9;font-size:11px;line-height:1.4}
 @media(max-width:670px){.quote-dropdown-panel{max-height:min(370px,60vh)}.quote-material-dropdown>summary{min-height:48px}}
+
+.quote-step .quote-dropdown-panel .quote-material-chip{margin:0!important}
+.quote-dropdown-panel .quote-multi-options .quote-material-chip{max-width:none}
