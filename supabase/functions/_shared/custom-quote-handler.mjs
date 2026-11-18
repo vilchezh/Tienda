@@ -1,4 +1,5 @@
 import { corsHeaders } from './cors.mjs';
+import { verifyTurnstile } from './turnstile-check.mjs';
 import { firstRow, supabaseRequest, encodeFilter, serviceKey, restHeaders } from './supabase-rest.mjs';
 
 const BUCKET='quote-reference-sandbox';
@@ -159,6 +160,8 @@ export function customQuoteHandler(env,fetchFn=fetch){
       (date&&!/^\d{4}-\d{2}-\d{2}$/.test(date))||
       clean(data.measurements,250).length>250||clean(data.materials,250).length>250||clean(data.finish,180).length>180)
      return respond({error:'invalid_form',message:'Revisá los datos marcados antes de continuar.'},400,cors);
+    const proof=await verifyTurnstile(env,request,data.turnstile_token,fetchFn);
+    if(!proof.ok)return respond({error:'bot_check_failed',message:'Completá la verificación de seguridad y volvé a intentar.'},403,cors);
     const key=serviceKey(env);
     const hour=Math.floor(Date.now()/3600000);
     const ip=clean(request.headers.get('cf-connecting-ip')||'unknown',80);
