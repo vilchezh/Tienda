@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="assets/css/quote.css">
 <script defer src="assets/js/config.js"></script>
 <script defer src="assets/js/quote-choices.js"></script>
+<script defer src="assets/js/turnstile-forms.js"></script>
 <script defer src="assets/js/quote.js"></script>
 </head>
 <body>
@@ -122,6 +123,7 @@
       <label class="quote-check"><input id="quotePrivacy" type="checkbox" required><span>Acepto que se usen estos datos para responder a mi solicitud. <a href="privacidad.html" target="_blank" rel="noopener noreferrer">Ver política de privacidad</a>.</span></label>
       <p class="field-tip">En este entorno de pruebas los emails automáticos al cliente se limitan a direcciones autorizadas.</p>
      </fieldset>
+     <div id="quoteTurnstile" hidden aria-label="Verificación antibots"></div>
      <div class="quote-controls">
       <button id="quotePrev" type="button" class="quote-ghost" hidden>← Volver</button>
       <button id="quoteNext" type="button" class="quote-primary">Continuar →</button>
