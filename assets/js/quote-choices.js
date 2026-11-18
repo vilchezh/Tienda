@@ -117,7 +117,7 @@
   if(!config?.supabaseUrl||!config.supabaseAnonKey)return;
   try{
    const response=await fetch(config.supabaseUrl.replace(/\/$/,'')+'/rest/v1/custom_quote_options?select=*&id=eq.default&limit=1',{
-    headers:{apikey:config.supabaseAnonKey},cache:'no-store',signal:AbortSignal.timeout(8000)
+    headers:{apikey:config.supabaseAnonKey,Authorization:'Bearer '+config.supabaseAnonKey},cache:'no-store',signal:AbortSignal.timeout(8000)
    });
    if(!response.ok)return;
    const data=await response.json();
