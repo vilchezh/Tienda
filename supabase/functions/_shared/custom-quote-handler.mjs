@@ -124,14 +124,37 @@ export function customQuoteHandler(env,fetchFn=fetch){
     const phone=clean(data.phone,30),city=clean(data.city,100);
     const description=typeof data.description==='string'?data.description.trim():'';
     const type=data.project_type,delivery=data.delivery;
+    const incoming=data.choices;
+    const structured=incoming!=null;
+    const validStringArray=list=>Array.isArray(list)&&list.length<=8&&
+      list.every(x=>typeof x==='string'&&x.trim().length>=1&&x.trim().length<=70);
+    let choices=null;
+    if(structured){
+     if(!incoming||typeof incoming!=='object'||Array.isArray(incoming)||
+        !validStringArray(incoming.metal_materials)||!validStringArray(incoming.wood_materials))
+      return respond({error:'invalid_materials',message:'Revisá las opciones de materiales.'},400,cors);
+     const fields=['metal_color','metal_finish','wood_tone','wood_finish'];
+     if(fields.some(key=>typeof incoming[key]!=='string'||incoming[key].trim().length>70))
+      return respond({error:'invalid_finish',message:'Revisá los colores, tonos y acabados.'},400,cors);
+     choices={
+      metal_materials:incoming.metal_materials.map(x=>x.trim()),
+      wood_materials:incoming.wood_materials.map(x=>x.trim()),
+      metal_color:incoming.metal_color.trim(),
+      metal_finish:incoming.metal_finish.trim(),
+      wood_tone:incoming.wood_tone.trim(),
+      wood_finish:incoming.wood_finish.trim()
+     };
+     if(encoder.encode(JSON.stringify(choices)).length>1800)
+      return respond({error:'material_choices_too_large'},400,cors);
+    }
     const quantity=Number(data.quantity);
     const budget=data.budget_ars==null||data.budget_ars===''?null:Number(data.budget_ars);
     const date=data.desired_date?String(data.desired_date):null;
     if(!UUID.test(data.submission_id||'')||!TOKEN.test(data.token||'')||
       name.length<2||name.length>120||!EMAIL.test(email)||email.length>254||
       phone.length<7||!/^[+0-9() .-]{7,30}$/.test(phone)||city.length<2||city.length>100||
-      !['mueble','estructura','parrilla','otro'].includes(type)||description.length<20||description.length>2000||
-      !['retiro','envio','instalacion','a_coordinar'].includes(delivery)||!Number.isInteger(quantity)||quantity<1||quantity>100||
+      !['mueble','estructura','parrilla','accesorio','otro'].includes(type)||description.length<20||description.length>2000||
+      !['retiro','envio','a_coordinar'].includes(delivery)||!Number.isInteger(quantity)||quantity<1||quantity>100||
       (budget!==null&&(!Number.isSafeInteger(budget)||budget<0||budget>999999999))||
       (date&&!/^\d{4}-\d{2}-\d{2}$/.test(date))||
       clean(data.measurements,250).length>250||clean(data.materials,250).length>250||clean(data.finish,180).length>180)
@@ -141,13 +164,24 @@ export function customQuoteHandler(env,fetchFn=fetch){
     const ip=clean(request.headers.get('cf-connecting-ip')||'unknown',80);
     const [tokenHash,ipHash,emailHash]=await Promise.all([
      hash(data.token),hmac('quote-ip:'+hour+':'+ip,key),hmac('quote-email:'+hour+':'+email,key)]);
-    const rows=await supabaseRequest(env,fetchFn,'rpc/custom_quote_create',{method:'POST',
-     body:JSON.stringify({
-      p_submission_id:data.submission_id,p_token_hash:tokenHash,p_ip_key:ipHash,p_email_key:emailHash,
-      p_name:name,p_email:email,p_phone:phone,p_city:city,p_project_type:type,p_description:description,
-      p_measurements:clean(data.measurements,250),p_materials:clean(data.materials,250),
-      p_finish:clean(data.finish,180),p_quantity:quantity,p_desired_date:date,p_budget:budget,p_delivery:delivery
-     })});
+    const materials=choices?
+       [...choices.metal_materials,...choices.wood_materials].join(', ').slice(0,250):
+       clean(data.materials,250);
+    const finishSummary=choices?
+       [choices.metal_color&&'Color metal: '+choices.metal_color,choices.metal_finish&&'Acabado metal: '+choices.metal_finish,
+        choices.wood_tone&&'Tono madera: '+choices.wood_tone,choices.wood_finish&&'Acabado madera: '+choices.wood_finish]
+       .filter(Boolean).join(' · ').slice(0,180):
+       clean(data.finish,180);
+    const rows=await supabaseRequest(env,fetchFn,structured?'rpc/custom_quote_create_v2':'rpc/custom_quote_create',{
+      method:'POST',
+      body:JSON.stringify({
+       p_submission_id:data.submission_id,p_token_hash:tokenHash,p_ip_key:ipHash,p_email_key:emailHash,
+       p_name:name,p_email:email,p_phone:phone,p_city:city,p_project_type:type,p_description:description,
+       p_measurements:clean(data.measurements,250),p_materials:materials,
+       p_finish:finishSummary,p_quantity:quantity,p_desired_date:date,p_budget:budget,p_delivery:delivery,
+       ...(structured?{p_choices:choices}:{})
+      })
+    });
     const row=Array.isArray(rows)?rows[0]:null;
     if(!row?.quote_id)return respond({error:'save_failed'},503,cors);
     return respond({ok:true,quote_id:row.quote_id,code:row.quote_code,status:row.quote_status},200,cors);
