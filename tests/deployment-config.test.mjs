@@ -81,14 +81,18 @@ test('release build refuses missing or sandbox credentials and accepts properly 
   STORE_PROD_SUPABASE_URL:production.SUPABASE_URL,
   STORE_PROD_SUPABASE_REF:'ivyagavbhsyzvikzhmhe',
   STORE_PROD_SITE_URL:production.STORE_BASE_URL,
-  STORE_PROD_TURNSTILE_SITE_KEY:'0xTESTfakePublicSiteKeyABCDEFGHIJ',
   STORE_PROD_SUPABASE_ANON_KEY:jwt([{alg:'HS256'},{ref:'ivyagavbhsyzvikzhmhe',role:'anon'}])
  });
  assert.equal(good.status,0,good.stderr);
  const config=readFileSync('dist/assets/js/config.js','utf8');
  assert.match(config,/ivyagavbhsyzvikzhmhe/);
+ assert.match(config,/0x4AAAAAAGJONVP8yIMQn-Tg/);
+ assert.doesNotMatch(config,/TURNSTILE_SECRET|sb_secret_|service_role/i);
  assert.doesNotMatch(config,/pacyytbscnlklyrhsshp|tienda-checkout-sandbox/);
  assert.match(readFileSync('dist/_headers','utf8'),/https:\/\/ivyagavbhsyzvikzhmhe\.supabase\.co/);
+ assert.match(readFileSync('dist/assets/js/turnstile-forms.js','utf8'),/STORE_CONFIG\?\.turnstileSiteKey/);
+ assert.match(readFileSync('dist/presupuesto.html','utf8'),/assets\/js\/turnstile-forms\.js/);
+ assert.match(readFileSync('dist/arrepentimiento.html','utf8'),/assets\/js\/turnstile-forms\.js/);
  const quoteHtml=readFileSync('dist/presupuesto.html','utf8');
  const cancellationHtml=readFileSync('dist/arrepentimiento.html','utf8');
  assert.match(quoteHtml,/guardá el código de solicitud/);
