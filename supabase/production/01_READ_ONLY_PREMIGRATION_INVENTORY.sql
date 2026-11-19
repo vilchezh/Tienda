@@ -131,10 +131,12 @@ SELECT pg_catalog.jsonb_pretty(pg_catalog.jsonb_build_object(
    SELECT jsonb_agg(jsonb_build_object(
      'table',r.schema_name||'.'||r.object_name,
      'name',t.tgname,'enabled',t.tgenabled,
-     'definition',pg_catalog.pg_get_triggerdef(t.oid)
+     'routine',n.nspname||'.'||p.proname
    ) ORDER BY r.schema_name,r.object_name,t.tgname)
    FROM relations r
    JOIN pg_catalog.pg_trigger t ON t.tgrelid=r.oid
+   JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid
+   JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
    WHERE NOT t.tgisinternal
  ),'[]'::jsonb)
 )) AS metadata_json;
