@@ -57,7 +57,7 @@
     }catch{
       current=null;orderBox.replaceChildren();featuredBox.replaceChildren();
       document.getElementById('btnSaveHome').disabled=true;
-      setStatus('El editor no está disponible: primero se debe aplicar la migración del Issue #5 en el sandbox.');
+      setStatus('El editor no está disponible. Revisá la sesión, los permisos y la configuración del inicio.');
     }
   }
   document.getElementById('homeHeroUpload').addEventListener('change', async event=>{
@@ -70,7 +70,7 @@
     const extensions={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'};
     const target='home/hero-'+crypto.randomUUID()+'.'+extensions[file.type];
     const input=event.target;
-    input.disabled=true;setStatus('Subiendo imagen al almacenamiento del sandbox…');
+    input.disabled=true;setStatus('Subiendo imagen al almacenamiento de la tienda…');
     try{
       const client=Store.createClient();
       const {error}=await client.storage.from('tienda').upload(target,file,{upsert:false,contentType:file.type});
@@ -91,7 +91,8 @@
     if(!values.hero_eyebrow||values.hero_eyebrow.length>80||!values.hero_title||values.hero_title.length>100||!values.hero_description||values.hero_description.length>420||!image||image.length>500||!(image.startsWith('assets/img/')||image.startsWith('https://'))||!Store.assetURL(image)){
       setStatus('Revisá los textos y la imagen: debe ser ruta assets/img/ o URL HTTPS válida.');return;
     }
-    if(!confirm('¿Publicar estos cambios en el inicio del sandbox?'))return;
+    const isSandbox=window.STORE_CONFIG?.siteUrl==='https://tienda-checkout-sandbox.acero-y-escamas.workers.dev';
+    if(!confirm('¿Guardar estos cambios en el inicio de '+(isSandbox?'la tienda de pruebas':'la tienda pública')+'?'))return;
     const button=document.getElementById('btnSaveHome');button.disabled=true;setStatus('Guardando…');
     const data={...values,section_order:current.section_order,sections_visible:current.sections_visible,featured_product_ids:current.featured_product_ids,updated_at:new Date().toISOString()};
     try{
