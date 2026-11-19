@@ -1,6 +1,6 @@
 # Etapa 4 — Edge Functions de producción · revisión 19/11/2026
 
-**Estado: DESPLEGADA A SUPABASE PRODUCCIÓN — pendiente de pruebas funcionales de credenciales, Turnstile y Resend.**
+**Estado: DESPLEGADA A SUPABASE PRODUCCIÓN; 17/17 pruebas HTTP negativas y de consultas inexistentes APROBADAS. Pendientes de validación positiva de Turnstile/Resend y flujos reales.**
 Proyecto original: `ivyagavbhsyzvikzhmhe`. Sandbox separado: `pacyytbscnlklyrhsshp`.
 Worker público original: `https://tienda.acero-y-escamas.workers.dev` (valor observado en `assets/js/config.js`; validar la URL efectiva antes de configurar).
 No modificar `main`, Worker `tienda` ni activar pagos hasta autorización específica.
@@ -79,3 +79,17 @@ Las etapas SQL 1, 2 y 3 de producción están instaladas. `quote-reference` es p
 - La protección de contraseñas filtradas continúa deshabilitada en el asesor de seguridad; no es una alerta nueva de esta etapa.
 
 **Próxima autorización requerida:** pruebas funcionales seguras y decisión sobre publicación del frontend. No activar `payments_enabled`, credenciales LIVE ni envíos automáticos sin autorización específica.
+
+## Pruebas HTTP productivas seguras — 19/11/2026
+
+**Ejecutadas desde GitHub Actions usando Node 22, sin secretos, pagos, archivos ni datos reales.**
+- Fuente: `scripts/prod-edge-smoke.mjs`; workflow `.github/workflows/production-edge-smoke.yml`, disparado solo al introducir/editar el archivo del workflow en la rama del PR.
+- Ejecución final: https://github.com/vilchezh/Tienda/actions/runs/44627421269 (commit `f7d4ce049adfa93bac46eca2480a3c674ab3f6a4`).
+- **Resultado: 17 PASS, 0 FAIL.** Se comprobó aceptación de preflight desde el origen real y rechazo de origen externo; ausencia de identificador y de pedido; rechazo de método GET en checkout; bloqueo de formularios sin captcha; lectura de estado con códigos/tokens ficticios inexistentes; firma HMAC inválida en webhook; y rechazos 401 sin secretos internos en tres procesadores de correos y en mantenimiento.
+- Verificación SQL *posterior*: `payments_enabled=false`, 0 productos habilitados para checkout; 0 pedidos, 0 presupuestos, 0 arrepentimientos, 0 correos pendientes en las tres colas, 0 archivos privados; 15 archivos originales `tienda` preservados. RLS continúa activada en tablas de datos de clientes, `quote-reference` permanece privado y solo tiene política de lectura de objetos para administradores autenticados.
+- No se probaron tokens Turnstile válidos porque requieren flujo real del widget; el rechazo de token **ausente** no comprueba que la clave/hostname del widget estén correctamente configurados.
+- No se hizo un envío real de Resend: el remitente temporal `onboarding@resend.dev` está limitado a destinatarios autorizados de prueba y no sirve para enviar a clientes de forma general.
+- No se probó un pago real ni se activaron `MP_ACCESS_TOKEN_LIVE`, `payments_enabled`, tareas Cron, frontend nuevo, Worker público, ni correos programados.
+- La prueba `create-mp-order` se restringió a preflight y rechazo GET, evitando tocar el contador de rate limiting que consume cualquier POST a ese endpoint. El flag de pagos apagados se confirmó por SQL.
+
+**Siguiente fase pendiente:** pruebas positivas en entorno aislado con Turnstile real, remetente de correo autorizado para clientes, validación MFA, política de retención y configuración independiente de Cron/Vault. El despliegue del frontend productivo y la activación de compras requieren autorización separada.
