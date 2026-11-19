@@ -89,4 +89,11 @@ test('release build refuses missing or sandbox credentials and accepts properly 
  assert.match(config,/ivyagavbhsyzvikzhmhe/);
  assert.doesNotMatch(config,/pacyytbscnlklyrhsshp|tienda-checkout-sandbox/);
  assert.match(readFileSync('dist/_headers','utf8'),/https:\/\/ivyagavbhsyzvikzhmhe\.supabase\.co/);
+ const quoteHtml=readFileSync('dist/presupuesto.html','utf8');
+ const cancellationHtml=readFileSync('dist/arrepentimiento.html','utf8');
+ assert.match(quoteHtml,/guardá el código de solicitud/);
+ assert.doesNotMatch(quoteHtml,/En este entorno de pruebas los emails automáticos/);
+ assert.match(cancellationHtml,/Guardá el enlace y el código/);
+ assert.doesNotMatch(cancellationHtml,/Entorno de pruebas:|En sandbox los correos/);
+
 });
