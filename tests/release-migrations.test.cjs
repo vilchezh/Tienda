@@ -21,6 +21,8 @@ test('production inventory is read-only SQL and reveals only metadata',()=>{
  const withoutComments=sql.replace(/\/\*[\s\S]*?\*\//g,'').replace(/--[^\n]*/g,'');
  assert.match(withoutComments,/\bWITH expected_relations\b/i);
  assert.match(withoutComments,/\bSELECT pg_catalog\.jsonb_pretty\b/i);
+ assert.match(withoutComments,/pg_catalog\.pg_event_trigger/);
+ assert.match(withoutComments,/pg_catalog\.pg_trigger/);
  const executableSql=withoutComments.replace(/'(?:''|[^'])*'/g,"''");
  assert.doesNotMatch(executableSql,/\b(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|COPY|DO|CALL|EXECUTE)\b/i);
  assert.doesNotMatch(withoutComments,/\bFROM\s+auth\.users\b|\bFROM\s+vault\.decrypted_secrets\b/i);
