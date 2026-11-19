@@ -1,0 +1,119 @@
+name: Publicación controlada · Worker tienda (producción)
+
+# El push que incorpora este archivo SOLO verifica el build. NO publica.
+# La publicación requiere el label específico en el PR original o
+# un workflow_dispatch explícito desde la rama auditada.
+on:
+  push:
+    branches: [feat/checkout-pro-orders-test]
+    paths:
+      - .github/workflows/deploy-production-controlled.yml
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribí PUBLICAR-TIENDA para permitir despliegue desde la rama PR #2'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tienda-prod-controlled
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    if: >-
+      github.repository == 'vilchezh/Tienda' && (
+      (github.event_name == 'push' && github.ref == 'refs/heads/feat/checkout-pro-orders-test') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == 'deploy-tienda-production' &&
+       github.event.pull_request.head.repo.full_name == 'vilchezh/Tienda' &&
+       github.event.pull_request.head.ref == 'feat/checkout-pro-orders-test' &&
+       github.event.pull_request.base.ref == 'main') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/feat/checkout-pro-orders-test' &&
+       inputs.confirm == 'PUBLICAR-TIENDA'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STORE_PROD_SUPABASE_URL: https://ivyagavbhsyzvikzhmhe.supabase.co
+      STORE_PROD_SUPABASE_REF: ivyagavbhsyzvikzhmhe
+      STORE_PROD_SITE_URL: https://tienda.acero-y-escamas.workers.dev
+      STORE_PROD_TURNSTILE_SITE_KEY: 0x4AAAAAAGJONVP8yIMQn-Tg
+      STORE_PROD_WHATSAPP_NUMBER: '5491164598478'
+    steps:
+      - name: Obtener exactamente el commit autorizado (sin GitHub write credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Instalar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Obtener la clave pública anon ya existente (nunca service_role)
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const source = fs.readFileSync('assets/js/config.js', 'utf8');
+          const match = source.match(/supabaseAnonKey:\s*'([^']+)'/);
+          if (!match || !/^(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_publishable_[\w-]{15,})$/.test(match[1])) {
+            throw Error('No se encontró la clave pública de Supabase en el código original');
+          }
+          fs.appendFileSync(process.env.GITHUB_ENV, 'STORE_PROD_SUPABASE_ANON_KEY=' + match[1] + '\n');
+          console.log('Clave pública de Supabase preparada, sin imprimir su contenido.');
+          NODE
+
+      - name: Instalar dependencias fijadas
+        run: npm ci
+
+      - name: Probar sin interactuar con datos productivos
+        run: npm run test:unit
+
+      - name: Generar paquete productivo y comprobarlo con Wrangler sin publicar
+        run: npm run check:release
+
+      - name: Comprobar Turnstile, WhatsApp y aislamiento del sandbox
+        run: node scripts/verify-production-release.cjs
+
+      - name: Comprobar autorización real de Cloudflare para Worker tienda
+        if: github.event_name != 'push'
+        env:
+          CF_PROD_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_PRODUCTION }}
+          CF_PROD_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID_PRODUCTION }}
+        run: |
+          if [ -z "$CF_PROD_TOKEN" ] || [ -z "$CF_PROD_ACCOUNT_ID" ]; then
+            echo "::error::No hay credenciales Cloudflare exclusivas de producción. Configurar CLOUDFLARE_API_TOKEN_PRODUCTION y CLOUDFLARE_ACCOUNT_ID_PRODUCTION en GitHub Secrets; nunca reutilizar credenciales del sandbox."
+            exit 1
+          fi
+          echo "Autorización de Cloudflare productiva presente; se conserva el Worker tienda."
+
+      - name: Publicar solamente el Worker tienda después de las pruebas
+        if: github.event_name != 'push'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_PRODUCTION }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID_PRODUCTION }}
+        run: npx wrangler deploy --config wrangler.jsonc
+
+      - name: Comprobar el frontend público sin enviar formularios
+        if: github.event_name != 'push'
+        run: |
+          node <<'NODE'
+          const url='https://tienda.acero-y-escamas.workers.dev/assets/js/config.js';
+          const response=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(15000)});
+          if(!response.ok)throw Error('La tienda publicada no respondió con el archivo de configuración');
+          const code=await response.text();
+          for(const marker of ['ivyagavbhsyzvikzhmhe','0x4AAAAAAGJONVP8yIMQn-Tg','5491164598478']){
+            if(!code.includes(marker))throw Error('Falta una configuración pública esperada tras el despliegue');
+          }
+          if(code.includes('pacyytbscnlklyrhsshp'))throw Error('El frontend contiene referencias a Supabase sandbox');
+          console.log('POSTDEPLOY OK: configuración publicada, Turnstile público y Worker original verificados.');
+          NODE
