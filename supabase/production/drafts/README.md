@@ -1,6 +1,6 @@
-# Plan de instalación SQL productiva — BORRADOR, SIN EJECUCIÓN
+# Plan de instalación SQL productiva — etapas 1 y 2 ejecutadas, etapa 3 pendiente
 
-**Proyecto destino:** `ivyagavbhsyzvikzhmhe` (`tienda/calculadora de taller`). **Origen del código:** PR #2, `feat/checkout-pro-orders-test`. Este plan **no autoriza** modificar Supabase ni Cloudflare producción.
+**Proyecto destino:** `ivyagavbhsyzvikzhmhe` (`tienda/calculadora de taller`). **Origen del código:** PR #2, `feat/checkout-pro-orders-test`. Las etapas 1 y 2 fueron ejecutadas con autorización expresa. **Este documento no autoriza etapas posteriores ni cambios en Cloudflare o pagos.**
 
 ## Ejecución de etapa 1 — 19/11/2026
 
@@ -14,7 +14,26 @@
 - Sandbox conservado e inspeccionado por lectura. **No se desplegaron Edge Functions, cron, Worker, frontend ni pagos.**
 - Se realizó la ejecución **sin respaldo completo recuperable**, por decisión expresa del propietario; esto no convierte el sandbox en respaldo de producción.
 
-**Próximas etapas:** SQL 02 y 03 siguen pendientes de revisión, límites y autorización. No volver a ejecutar la etapa 01 ni fusionar PR #2 a `main` como resultado de esta acción.
+**Próximas etapas (actualizado):** la etapa 02 se ejecutó después, según el registro siguiente; la etapa 03 sigue pendiente. No volver a ejecutar la etapa 01 ni fusionar PR #2 a `main` como resultado de estas acciones.
+
+---
+
+## Ejecución de etapa 2 — 19/11/2026
+
+**REALIZADA EN PRODUCCIÓN**, con el pedido expreso del propietario de avanzar a la etapa 2, sin disponer de respaldo completo. Se aplicó una única migración transaccional basada en `02_presupuestos_arrepentimiento_REQUIERE_LIMITES.sql` del commit `b2c6dc79588a57d116256990faf09de9abc553e1`, blob `a0acbf12bff20625e5f51fba1058b477cb622a9a`. Se reemplazaron solo los marcadores: `__QUOTE_MAX_DAILY__=10` (10 presupuestos/día) y `__QUOTE_STORAGE_MAX_BYTES__=209715200` (200 MiB). Se actualizaron comentarios para reflejar el entorno productivo. **No ejecutar el borrador original sin parámetros**.
+
+La operación `apply_migration` confirmó `success: true` y quedó registrada como `20261119192430 / production_stage2_cancellations_quotes_20261119`.
+
+**Verificación SQL posterior:**
+- Las 10 tablas de arrepentimientos, presupuestos y opciones existen con RLS activada; 0 arrepentimientos y 0 presupuestos reales, 0 adjuntos; 1 fila de opciones.
+- `custom_quote_create()` contiene límite global de 10 solicitudes/día; `custom_quote_add_file()` contiene límite de 209715200 bytes.
+- RPCs `checkout_register_cancellation`, `custom_quote_create`, `custom_quote_create_v2` y `custom_quote_add_file` no permiten ejecución `anon` o `authenticated`; sí al `service_role`. El validador de opciones tiene permisos de ejecución específicos para `authenticated`/`service_role`.
+- Se conservaron 5 productos, 1 administrador, 15 archivos `tienda` y la tabla `stock_taller`; `payments_enabled=false`, 0 productos con checkout activo y 0 pedidos reales.
+- Sandbox verificado solo por lectura: 1 producto, 15 pedidos de prueba, 3 presupuestos de prueba, pagos apagados.
+- Avisos del asesor de seguridad: las tablas de rate-limit y administradores carecen de políticas RLS públicas deliberadamente; protección contra contraseñas filtradas desactivada. No hubo hallazgos nuevos de exposición en los controles consultados, pero no equivale a una prueba de penetración.
+- Sin instalación de bucket privado, Cron, Edge Functions, Worker, frontend ni activación de compras.
+
+**Próximo paso:** etapa 03 (bucket privado `quote-reference`) requiere evaluación y autorización separada. Los formularios de arrepentimiento y presupuesto todavía **no están activos** para compradores. La ausencia de respaldo completo sigue siendo un riesgo aceptado, no resuelto. No volver a ejecutar las etapas 01 ni 02.
 
 ---
 
