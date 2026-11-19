@@ -48,3 +48,19 @@ En esta etapa se modificó **solo la compilación de producción** en `scripts/b
 - Modificación de código: `scripts/build.cjs` incorpora la clave pública como predeterminada **solo al ejecutar `--release`** y permite reemplazarla explícitamente si el widget se rota. La rama sandbox no adopta esta clave.
 - Test agregado en `tests/deployment-config.test.mjs` verifica que el build de producción contiene esa sitekey, nunca la clave privada, y que ambos formularios integran `turnstile-forms.js`.
 - **No se publicó el Worker** ni se ejecutó un desafío con un token válido en el dominio real. Esta prueba positiva sigue pendiente.
+
+## Publicación controlada — intento 19/11/2026
+
+Se añadió el script de verificación `scripts/verify-production-release.cjs` y el flujo de GitHub Actions `.github/workflows/deploy-production-controlled.yml`, con verificación de compilación en cada prueba, publicación solo ante evento expreso y control de credenciales específicas de producción. El workflow preserva el número de WhatsApp vigente y exige la sitekey pública de Turnstile.
+
+1. **Preflight inicial SIN publicar:** https://github.com/vilchezh/Tienda/actions/runs/44633506286 — `success`. Build release, tests unitarios, dry run de Wrangler y verificación de configuración.
+2. **Intento de publicación explícito en PR #2:** https://github.com/vilchezh/Tienda/actions/runs/44633772824 — `failure` porque faltan ambos secretos GitHub de Cloudflare **exclusivos de producción**. Pasaron correctamente todos los pasos previos. Los pasos `wrangler deploy` y verificación pública se marcaron `skipped`. **Worker original sin cambios**.
+3. El usuario debe crear en GitHub → repositorio `vilchezh/Tienda` → Settings → Secrets and variables → Actions → Repository secrets:
+   - `CLOUDFLARE_API_TOKEN_PRODUCTION`: token nuevo de Cloudflare con permiso mínimo para publicar el Worker `tienda`.
+   - `CLOUDFLARE_ACCOUNT_ID_PRODUCTION`: identificador de la cuenta Cloudflare que contiene el Worker `tienda`.
+   - **No usar ni borrar** `CLOUDFLARE_API_TOKEN_SANDBOX` ni `CLOUDFLARE_ACCOUNT_ID_SANDBOX`; el sandbox permanece separado. No enviar el token al chat ni agregarlo al repositorio.
+4. Cuando esos dos secrets estén guardados, se pueden **reintentar los jobs fallidos** de la ejecución `44633772824` sin nuevo commit ni fusión a main. La ejecución fallida fue iniciada con la etiqueta `deploy-tienda-production` del PR. No se habilitarán pagos, no se publicarán credenciales privadas y no se modificará SQL como parte de ese flujo.
+5. El resultado correcto se confirma únicamente cuando `wrangler deploy` y la comprobación posterior de `https://tienda.acero-y-escamas.workers.dev/assets/js/config.js` pasan con el proyecto Supabase original y Site Key de Turnstile. La prueba de Turnstile **válida** por navegador todavía deberá realizarse después.
+6. El despliegue reemplaza el **frontend completo** del Worker `tienda` por la versión del PR #2, sin fusionar `main`. Debe tratarse como publicación productiva y revisarse el sitio; revertirlo, de ser necesario, desde el historial de versiones de Cloudflare.
+
+Documentación Cloudflare: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
