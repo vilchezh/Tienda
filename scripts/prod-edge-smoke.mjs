@@ -41,6 +41,12 @@ await check('quote missing Turnstile','custom-quote-request','POST',{
  email:'qa@example.invalid',phone:'1111111111',city:'Ciudad de prueba',
  description:'Prueba controlada del bloqueo de CAPTCHA sin registrar ninguna solicitud.',
  project_type:'mueble',delivery:'retiro',quantity:1},expectedStatus:403,expectedError:'bot_check_failed',cors:true});
+await check('cancellation nonexistent secure token','cancellation-request','POST',{
+ body:{action:'status',code:'ARR-2026-999999',status_token:TOKEN},
+ expectedStatus:404,expectedError:'not_found',cors:true});
+await check('quote nonexistent secure token','custom-quote-request','POST',{
+ body:{action:'status',quote_id:NOT_FOUND_ID,token:TOKEN},
+ expectedStatus:404,expectedError:'not_found',cors:true});
 await check('webhook invalid signature','mp-order-webhook','POST',{body:{type:'order',data:{id:'11111'}},expectedStatus:401,expectedError:'invalid_signature'});
 for(const slug of ['process-order-notifications','process-cancellation-notifications','process-custom-quote-notifications']){
  await check(slug+' unauthorized',slug,'POST',{body:{},expectedStatus:401,expectedError:'not_authorized'});
