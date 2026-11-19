@@ -4,7 +4,7 @@
 
 ## Resultados comprobados
 - La rama `main` no incluye las migraciones del PR #2. Esto NO demuestra que la base productiva esté vacía; podría haberse creado manualmente.
-- El conector Supabase actualmente solo enumera `acero-y-escamas-test` (`pacyytbscnlklyrhsshp`). No tengo lectura autorizada del proyecto productivo desde esta conversación.
+- **Actualización 19/11/2026:** ambas organizaciones Supabase están conectadas y fueron auditadas en modo solo lectura. El proyecto original `ivyagavbhsyzvikzhmhe` conserva 5 productos activos, 1 administrador, 15 archivos `tienda` y la tabla `stock_taller`. Ver `../../docs/AUDITORIA-SUPABASE-PRODUCCION-2026-11-19.md`. Los scripts productivos en borrador están en `drafts/README.md`.
 - La consulta `01_READ_ONLY_PREMIGRATION_INVENTORY.sql` fue ejecutada con éxito en sandbox. Las 11 entidades principales comprobadas están presentes; hay metadata de historial, Cron y Vault.
 - El historial de `supabase_migrations.schema_migrations` en sandbox tiene timestamps de aplicación distintos a algunos nombres SQL de GitHub. **Nunca considerar el número de versión como prueba suficiente**: revisar la estructura y permisos reales.
 - En sandbox hay un **event trigger habilitado** llamado `ensure_rls` que ejecuta `public.rls_auto_enable()` al terminar operaciones DDL. El inventario incluye ahora event triggers y triggers de tablas: **verificar el comportamiento en producción antes de crear o alterar tablas**.
