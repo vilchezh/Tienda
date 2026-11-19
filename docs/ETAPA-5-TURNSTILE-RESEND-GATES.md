@@ -33,3 +33,10 @@ En esta etapa se modificó **solo la compilación de producción** en `scripts/b
 5. Mantener `payments_enabled=false`, todos los `checkout_habilitado=false`, y no programar jobs de correos o de limpieza todavía.
 
 **Sin compra de dominio ni gastos autorizados, el trabajo actual termina en validación de código, configuración pendiente y documentación.**
+
+## Verificación final de los cambios de esta etapa
+
+- La modificación de build `389acf26138e9e8e392dff46f7dc55c458d68a85` y su prueba de regresión `606bf43aa34efb356707adf8fc88b7293a88313a` superaron la batería `Tienda · regresiones`: https://github.com/vilchezh/Tienda/actions/runs/44628846471
+- El ensayo SQL aislado terminó con éxito: https://github.com/vilchezh/Tienda/actions/runs/44628846512
+- Lectura productiva posterior: `payments_enabled=false`, cero productos habilitados para checkout, cero pedidos/presupuestos/arrepentimientos, 15 activos conservados en `tienda`, bucket `quote-reference` privado.
+- El PR #2 sigue abierto, sin merge a `main`. No se ha realizado un despliegue del Worker ni un test de Turnstile válido en navegador. El sandbox sigue intacto.
