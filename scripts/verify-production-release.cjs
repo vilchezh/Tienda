@@ -14,6 +14,7 @@ assert.equal(cfg.siteUrl,'https://tienda.acero-y-escamas.workers.dev');
 assert.equal(cfg.supabaseUrl,'https://ivyagavbhsyzvikzhmhe.supabase.co');
 assert.equal(cfg.whatsappNumber,'5491164598478','El WhatsApp productivo no debe cambiarse');
 assert.equal(cfg.turnstileSiteKey,'0x4AAAAAAGJONVP8yIMQn-Tg');
+assert.equal(cfg.quoteStorageBucket,'quote-reference','Los archivos privados deben apuntar al depósito real');
 assert.match(cfg.supabaseAnonKey,/^(eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_publishable_[\w-]{15,})$/);
 assert.ok(!Object.keys(cfg).some(k=>/secret|service_role|access_token|password/i.test(k)),'No agregar secretos a STORE_CONFIG');
 assert.ok(!raw.includes('pacyytbscnlklyrhsshp'),'No debe aparecer el proyecto sandbox');
@@ -25,6 +26,9 @@ for (const file of forms){
  assert.match(body,/assets\/js\/turnstile-forms\.js/);
  assert.ok(!/Entorno de pruebas:|En sandbox los correos|En este entorno de pruebas los emails/.test(body));
 }
+const quoteAdmin=read('assets/js/quotes-admin.js');
+assert.match(quoteAdmin,/storage\.from\(bucket\)/,'Descarga de presupuestos debe usar el bucket del entorno');
+assert.doesNotMatch(quoteAdmin,/storage\.from\('quote-reference-sandbox'\)/,'No fijar almacenamiento de pruebas en la tienda real');
 const handler=read('assets/js/turnstile-forms.js');
 assert.match(handler,/window\.STORE_CONFIG\?\.turnstileSiteKey/);
 const headers=read('_headers');
