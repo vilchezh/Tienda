@@ -1,6 +1,6 @@
 # Preparación de migración — Acero y Escamas (solo trabajo en sandbox)
 
-**Actualización (solo lectura):** [Inventario SQL de pre-migración](../supabase/production/01_READ_ONLY_PREMIGRATION_INVENTORY.sql), [matriz de 16 migraciones](../supabase/production/migration-review.json) y [protocolo de conciliación](../supabase/production/README.md). El conector actual solo accede a Supabase sandbox: la base productiva NO ha sido inspeccionada y ninguna migración se considera aprobada hasta comparar su esquema real y autorizarla.
+**Actualización (solo lectura):** [Inventario SQL de pre-migración](../supabase/production/01_READ_ONLY_PREMIGRATION_INVENTORY.sql), [matriz de 16 migraciones](../supabase/production/migration-review.json) y [protocolo de conciliación](../supabase/production/README.md). **Actualización 19/11/2026:** ambas organizaciones de Supabase ya están conectadas y la base original fue auditada mediante consultas de solo lectura. Ver [auditoría comparativa](./AUDITORIA-SUPABASE-PRODUCCION-2026-11-19.md) y [etapas SQL preparadas](../supabase/production/drafts/README.md). Ninguna migración ha sido autorizada ni ejecutada en producción.
 
 Estado: preparación del PR #2. No fusionar a main ni publicar Worker o Supabase productivos sin autorización específica.
 
