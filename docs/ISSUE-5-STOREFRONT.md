@@ -1,6 +1,6 @@
 # Issue #5 — Tienda pública, inicio editable y legales
 
-Estado: **preparado en el PR #2, NO publicado en sandbox ni en producción**. Las rutas legales son borradores que necesitan completar información comercial y revisión de un profesional en derecho del consumidor.
+Estado verificado el 19/11/2026: **la migración de contenido de portada ya está aplicada en Supabase sandbox** (migración registrada como `20261118003315_storefront_home_editor`). La publicación del frontend del Issue #5 no fue verificada en esta revisión. **El editor manual queda pausado por decisión del propietario**; no desplegarlo ni volver a ejecutar la migración por rutina. Producción permanece fuera de alcance. Las rutas legales son borradores que necesitan completar información comercial y revisión de un profesional en derecho del consumidor.
 
 ## Cambios preparados
 - Para **envíos a domicilio sin costo total confirmado**, el navegador bloquea compra directa y el servidor rechaza incluso solicitudes manuales (`shipping_quote_required`) antes de crear o reutilizar una orden Mercado Pago. Se conserva retiro a coordinar y consulta de envío. Antes de habilitar delivery directo habrá que implementar cotización firme de envío incluida en el total servidor.
@@ -14,11 +14,11 @@ Estado: **preparado en el PR #2, NO publicado en sandbox ni en producción**. La
 ## Migración segura
 Archivo: `supabase/migrations/20261117235800_storefront_home_editor.sql`.
 
-**NO aplicarlo sin aprobación explícita para Supabase sandbox `pacyytbscnlklyrhsshp`.** La tabla no existe todavía y el admin nuevo no se puede publicar antes de aplicar la migración, ya que añade un chequeo obligatorio de rol. El frontend público tiene fallback al contenido estático; el administrador falla de forma segura si la RPC falta.
+**Ya aplicado en sandbox `pacyytbscnlklyrhsshp`: no volver a ejecutarlo.** La verificación de solo lectura del 19/11/2026 confirmó que existen `public.storefront_content` (RLS habilitada) y la RPC `public.storefront_admin_authorized()`. La tabla y la RPC aún no deben trasladarse a producción sin seguir el plan de migración, respaldo y autorización correspondiente. El frontend público mantiene el fallback al contenido estático y el administrador falla de forma segura cuando falta la RPC.
 
-Se verificó la sintaxis y RLS con una transacción **ROLLBACK** en sandbox: `anon` puede leer la fila pública, no escribir; `authenticated` sin rol admin no puede actualizar; `id` no puede editarse; la RPC de autorización está cerrada para anon. La tabla y la función siguen ausentes tras el ensayo.
+La verificación inicial con **ROLLBACK** probó que `anon` podía leer la fila pública sin escribir, que un usuario autenticado sin rol administrador no podía editar, que `id` no era editable y que la RPC no permitía acceso anónimo. **Esos resultados pertenecen al ensayo anterior**; el 19/11 se confirmó adicionalmente la existencia real de la tabla y la función, sin modificar datos. Antes de cualquier futura publicación del editor, repetir pruebas actuales de permisos.
 
-Orden recomendado: revisar PR y pruebas → autorizar y aplicar **solo** la migración en sandbox → repetir chequeos RLS/ACL → ejecutar workflow `deploy-checkout-sandbox` desde SHA exacta con aprobación → probar en /admin → Inicio y vista pública → mantener `payments_enabled=false`.
+Orden recomendado si se retoma el editor en el futuro: revisar PR y pruebas → repetir chequeos RLS/ACL del esquema ya instalado → obtener aprobación específica para ejecutar workflow `deploy-checkout-sandbox` desde SHA exacta → probar /admin → Inicio y vista pública → mantener `payments_enabled=false`. **Por ahora no ejecutar ese despliegue.**
 
 ## Legales: borrador no apto para ventas reales
 Archivos `privacidad.html`, `terminos.html` y `arrepentimiento.html`. Hay un enlace destacado al Botón de Arrepentimiento desde el primer acceso al inicio, sin necesidad de cuenta.
