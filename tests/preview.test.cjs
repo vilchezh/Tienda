@@ -24,6 +24,10 @@ test('preview build uses only a separate Supabase project and fictitious catalog
   assert.match(config, /pacyytbscnlklyrhsshp\.supabase\.co/);
   assert.doesNotMatch(config, /ivyagavbhsyzvikzhmhe/);
   assert.match(config, /"whatsappNumber":""/);
+  assert.match(config, /"quoteStorageBucket":"quote-reference-sandbox"/);
+  assert.doesNotMatch(config, /"quoteStorageBucket":"quote-reference"/);
+  assert.match(readFileSync(resolve(root, 'dist-preview/assets/js/quotes-admin.js'), 'utf8'), /storage\.from\(bucket\)/);
+
   const products = JSON.parse(readFileSync(resolve(root, 'dist-preview/productos.json'), 'utf8'));
   assert.equal(products.length, 1);
   assert.equal(products[0].id, 'pieza-sandbox-001');
