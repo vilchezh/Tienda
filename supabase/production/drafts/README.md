@@ -1,6 +1,6 @@
-# Plan de instalación SQL productiva — etapas 1 y 2 ejecutadas, etapa 3 pendiente
+# Plan de instalación SQL productiva — etapas 1, 2 y 3 ejecutadas
 
-**Proyecto destino:** `ivyagavbhsyzvikzhmhe` (`tienda/calculadora de taller`). **Origen del código:** PR #2, `feat/checkout-pro-orders-test`. Las etapas 1 y 2 fueron ejecutadas con autorización expresa. **Este documento no autoriza etapas posteriores ni cambios en Cloudflare o pagos.**
+**Proyecto destino:** `ivyagavbhsyzvikzhmhe` (`tienda/calculadora de taller`). **Origen del código:** PR #2, `feat/checkout-pro-orders-test`. Las etapas 1, 2 y 3 se ejecutaron siguiendo la autorización para continuar con la migración. **Este documento no autoriza etapas posteriores ni cambios en Cloudflare o pagos.**
 
 ## Ejecución de etapa 1 — 19/11/2026
 
@@ -34,6 +34,22 @@ La operación `apply_migration` confirmó `success: true` y quedó registrada co
 - Sin instalación de bucket privado, Cron, Edge Functions, Worker, frontend ni activación de compras.
 
 **Próximo paso:** etapa 03 (bucket privado `quote-reference`) requiere evaluación y autorización separada. Los formularios de arrepentimiento y presupuesto todavía **no están activos** para compradores. La ausencia de respaldo completo sigue siendo un riesgo aceptado, no resuelto. No volver a ejecutar las etapas 01 ni 02.
+
+---
+
+## Ejecución de etapa 3 — 19/11/2026
+
+**COMPLETADA EN PRODUCCIÓN**, siguiendo la indicación del propietario de continuar con el siguiente paso. Se instaló únicamente el bucket privado de presupuestos, sin ejecutar cambios en el bucket público de la tienda, usando el borrador auditado `03_storage_privado_NO_EJECUTAR.sql` (blob Git `8ba5364211781b41ec6ea9782f050a0331b05890`) con comentarios de ejecución actualizados. Operación `apply_migration` exitosa y registrada como `20261119193557 / production_stage3_private_quote_storage_20261119`.
+
+**Comprobaciones SQL posteriores (proyecto original):**
+- Bucket `quote-reference` creado con `public=false`, `file_size_limit=5242880` (5 MiB) y MIME permitidos `image/jpeg`, `image/png`, `image/webp`, `application/pdf`; 0 archivos iniciales.
+- Política `Admin lee referencias privadas de presupuestos producción`: lectura de objetos `quote-reference` para `authenticated` cuando `tienda_security.is_admin()`. No se detectaron políticas de SELECT público/anónimo que mencionen `quote-reference`.
+- Bucket `tienda` continúa público con 15 archivos sin modificaciones a su configuración; 5 productos y 1 admin permanecen.
+- `payments_enabled=false`, 0 productos con checkout activo, 0 pedidos productivos y 0 solicitudes de presupuestos.
+- No se desplegaron Edge Functions, ni Cron, ni Worker, ni frontend; no se realizaron pruebas con archivos reales. Los formularios siguen **sin habilitarse**.
+- El propietario aceptó previamente continuar sin respaldo completo; no se ha generado una restauración verificable. El sandbox es un entorno independiente, no un respaldo del original.
+
+**Próximo paso:** preparar y auditar despliegue de Edge Functions productivas, configuración separada de secretos, MFA y Turnstile, y pruebas negativas de privacidad. Requiere revisión/autorización específica antes de desplegar servicios productivos. **No repetir la etapa 03** ni hacer merge de PR #2 a `main` automáticamente.
 
 ---
 
