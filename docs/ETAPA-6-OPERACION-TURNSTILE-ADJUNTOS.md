@@ -40,3 +40,12 @@ No se tocaron tablas, solicitudes, correos ni buckets; se requiere un nuevo desp
 ## Limitaciones
 
 No se validó la descarga positiva de un adjunto porque el bucket `quote-reference` aún no tiene archivos; la corrección se comprobó por tests del build, con políticas RLS verificadas. Tampoco se han probado pagos reales ni entregas de Resend a clientes. Los pagos se mantienen apagados.
+
+## Publicación de la corrección — verificada
+
+- Se reactivó la etiqueta `deploy-tienda-production` del PR #2 tras comprobar que las pruebas de código `45732a87771a9644b5cb98a7882664503c68c7c9` y el ensayo SQL estaban aprobados. El commit de frontend publicado fue `462dbde05c6d2641da12506296ed738476340598`.
+- [Publicación controlada en GitHub Actions](https://github.com/vilchezh/Tienda/actions/runs/44640909560): **success**. Pruebas unitarias, release dry-run, `verify-production-release.cjs`, subida a Cloudflare, triggers del Worker y comprobación HTTP postdeploy exitosos.
+- Nuevo Worker Cloudflare `tienda`, **Version ID `1f27c7bf-613c-4748-9b10-8fa6b531fc59`**. El workflow `deploy-checkout-sandbox` fue **skipped**, sin publicación en pruebas; `main` sigue sin fusionarse.
+- El comprobador del paquete exige `quoteStorageBucket='quote-reference'` y que el JS del administrador descargue con `storage.from(bucket)` en lugar de utilizar un nombre de bucket sandbox fijo. El nuevo archivo público `config.js` fue comprobado por el paso postdeploy para Supabase original, Turnstile y WhatsApp. **No se efectuó descarga positiva de un archivo privado real** porque `quote-reference` aún no contiene adjuntos.
+- Lectura SQL posterior: `payments_enabled=false`, 0 productos con checkout, 0 pedidos, 1 presupuesto, 2 arrepentimientos, 15 archivos del catálogo conservados, 0 archivos de presupuestos; bucket `quote-reference` continúa privado.
+- Requiere atención manual: 1 presupuesto y 2 arrepentimientos están registrados. Se encontraron 6 notificaciones en estado `pending` (vendedor y cliente por cada solicitud), sin Cron ni remitente Resend para compradores. No suponer que llegaron emails. Revisar el panel administrador con una cuenta autorizada y contestar según corresponda.
