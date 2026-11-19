@@ -64,3 +64,15 @@ Se añadió el script de verificación `scripts/verify-production-release.cjs` y
 6. El despliegue reemplaza el **frontend completo** del Worker `tienda` por la versión del PR #2, sin fusionar `main`. Debe tratarse como publicación productiva y revisarse el sitio; revertirlo, de ser necesario, desde el historial de versiones de Cloudflare.
 
 Documentación Cloudflare: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+
+## Publicación de producción efectiva — 19/11/2026
+
+- El usuario confirmó que incorporó ambas credenciales de Cloudflare en **Repository Secrets** de GitHub.
+- Se reintentó el job fallido de [GitHub Actions 44633772824](https://github.com/vilchezh/Tienda/actions/runs/44633772824). **Último intento: SUCCESS**; pruebas unitarias, `check:release` (con Wrangler dry-run), `verify-production-release.cjs`, comprobación de credenciales Cloudflare, `wrangler deploy --config wrangler.jsonc` y verificación postdeploy aprobaron.
+- Cloudflare reportó `Uploaded tienda`, `Deployed tienda triggers`, URL `https://tienda.acero-y-escamas.workers.dev`; **Worker Version ID `32d05b95-df71-4018-9827-25b3e99ee191`**.
+- La comprobación postdeploy consultó el archivo público `/assets/js/config.js` y confirmó proyecto Supabase productivo `ivyagavbhsyzvikzhmhe`, Site Key pública Turnstile `0x4AAAAAAGJONVP8yIMQn-Tg` y WhatsApp configurado `5491164598478`, sin referencia al sandbox.
+- Se volvió a comprobar por SQL que `checkout_settings.payments_enabled=false` y 0 productos tienen checkout activo. Los cinco productos y 15 objetos originales siguen presentes; el bucket `quote-reference` continúa privado; no hay pedidos, presupuestos ni arrepentimientos nuevos en el momento del chequeo.
+- No se fusionó el PR #2 con `main`; el despliegue utilizó el commit autorizado `136c98c76e494de48532287e07bb00089335f8e1` de la rama del PR (el registro de documentación posterior no cambia el Worker desplegado).
+- **Aún pendiente:** comprobar desde un navegador humano un token Turnstile válido en los formularios y las vistas móviles, así como la entrega de correos a clientes. Resend continúa usando remitente de prueba limitado, por lo que no debe activarse Cron de notificaciones ni pagos LIVE antes de resolverlo. El servidor ya rechazó tokens faltantes e inválidos, pero esa prueba no equivale a una prueba positiva del widget.
+
+**Si se necesita rollback del frontend:** usar versiones de Worker en Cloudflare y restaurar una versión anterior de `tienda`; este documento no implica que se haya realizado un rollback ni un respaldo completo de Supabase.
