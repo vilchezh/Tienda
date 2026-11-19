@@ -12,6 +12,7 @@ test('all Edge Function entrypoints parse and read explicitly quoted environment
   const js=text.replace(/^import\s+.*;\s*$/gm,'');
   assert.doesNotThrow(()=>new vm.Script(js,{filename:name+'/index.ts'}),name);
   assert.match(js,/Deno\.env\.get\(/,name);
+  assert.match(text, /['\"]QUOTE_STORAGE_BUCKET['\"]/, name+' must pass private bucket to production deployment guard');
  }
 });
 test('private runtime secrets are never embedded in the browser config source',()=>{
