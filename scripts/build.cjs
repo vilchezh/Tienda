@@ -90,6 +90,29 @@ if (preview) {
 }
 
 if(release){
+ // Adaptar únicamente el texto de avisos de sandbox al compilar la versión real.
+ // No altera las páginas fuente de pruebas ni ejecuta servicios comerciales.
+ const { readFileSync } = require('node:fs');
+ const messages = [
+  ['presupuesto.html',
+   'En este entorno de pruebas los emails automáticos al cliente se limitan a direcciones autorizadas.',
+   'Al finalizar, guardá el código de solicitud. Las confirmaciones automáticas por correo a clientes todavía no están habilitadas.'],
+  ['arrepentimiento.html',
+   'Entorno de pruebas: acá se registra la solicitud, pero no se cancela una compra ni se devuelve dinero automáticamente.',
+   'Al enviar correctamente tu solicitud, recibirás un comprobante. No se cancela una compra ni se devuelve dinero automáticamente.'],
+  ['arrepentimiento.html',
+   'En sandbox los correos sólo se envían a destinatarios de prueba autorizados.',
+   'Guardá el enlace y el código; las confirmaciones automáticas por correo a clientes todavía no están habilitadas.']
+ ];
+ for (const [page,source,replacement] of messages) {
+  const file=resolve(outputDirectory,page);
+  const html=readFileSync(file,'utf8');
+  if (!html.includes(source)) throw new Error('Aviso de entorno esperado ausente en '+page);
+  writeFileSync(file,html.replace(source,replacement));
+ }
+}
+
+if(release){
  // Cabeceras equivalentes a las probadas en sandbox, con el endpoint productivo.
  const headers=require('node:fs').readFileSync(resolve(projectRoot,'security/headers-sandbox.txt'),'utf8')
   .replaceAll('https://pacyytbscnlklyrhsshp.supabase.co',releaseConfig.supabaseUrl);
