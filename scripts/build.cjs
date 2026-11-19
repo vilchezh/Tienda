@@ -35,7 +35,7 @@ if (preview) {
   if (turnstileSiteKey && !/^0x[A-Za-z0-9_-]{10,80}$/.test(turnstileSiteKey)) {
     throw new Error('La site key pública de Turnstile no es válida.');
   }
-  previewConfig = { siteUrl: site.origin, whatsappNumber: '', supabaseUrl: url.origin, supabaseAnonKey: rawKey, turnstileSiteKey };
+  previewConfig = { siteUrl: site.origin, whatsappNumber: '', supabaseUrl: url.origin, supabaseAnonKey: rawKey, turnstileSiteKey, quoteStorageBucket: 'quote-reference-sandbox' };
 }
 
 
@@ -70,7 +70,7 @@ if(release){
   catch{throw Error('Clave anon JWT productiva inválida.');}
   if(claims.ref!==ref||claims.role!=='anon')throw Error('La clave pública no corresponde al proyecto productivo.');
  }else throw Error('Usá una clave pública Supabase anon o publishable; jamás service_role.');
- releaseConfig={siteUrl:site.origin,whatsappNumber:rawPhone,supabaseUrl:url.origin,supabaseAnonKey:key,turnstileSiteKey};
+ releaseConfig={siteUrl:site.origin,whatsappNumber:rawPhone,supabaseUrl:url.origin,supabaseAnonKey:key,turnstileSiteKey,quoteStorageBucket:'quote-reference'};
 }
 
 rmSync(outputDirectory, { recursive: true, force: true });
