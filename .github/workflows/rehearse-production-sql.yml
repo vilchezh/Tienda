@@ -1,0 +1,47 @@
+name: Auditoría · ensayo SQL productivo aislado
+on:
+  pull_request:
+    paths:
+      - 'supabase/production/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/rehearse-production-sql.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres17-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-fixture-only
+          POSTGRES_DB: production_sql_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d production_sql_rehearsal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: local-fixture-only
+      PGDATABASE: production_sql_rehearsal
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar cliente PostgreSQL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Crear solo catálogo y administrador ficticios
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/production/fixtures/production-structure-rehearsal.sql
+      - name: Ejecutar etapa 01 en PostgreSQL 17 aislado
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/production/drafts/01_checkout_admin_NO_EJECUTAR.sql
+      - name: Comprobar compatibilidad, seguridad y conservación de datos
+        run: psql -X -v ON_ERROR_STOP=1 -f supabase/production/fixtures/verify-stage1-rehearsal.sql
