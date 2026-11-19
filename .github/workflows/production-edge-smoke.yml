@@ -25,3 +25,5 @@ jobs:
           node-version: '22'
       - name: Probar rechazos seguros y endpoints existentes (sin secretos)
         run: node scripts/prod-edge-smoke.mjs
+
+# Validación ampliada: consultas con tokens ficticios de presupuestos y arrepentimientos.
