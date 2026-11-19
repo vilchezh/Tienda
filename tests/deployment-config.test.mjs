@@ -87,6 +87,12 @@ test('release build refuses missing or sandbox credentials and accepts properly 
  const config=readFileSync('dist/assets/js/config.js','utf8');
  assert.match(config,/ivyagavbhsyzvikzhmhe/);
  assert.match(config,/0x4AAAAAAGJONVP8yIMQn-Tg/);
+ assert.match(config,/"quoteStorageBucket":"quote-reference"/);
+ assert.doesNotMatch(config,/"quoteStorageBucket":"quote-reference-sandbox"/);
+ const source=readFileSync('dist/assets/js/quotes-admin.js','utf8');
+ assert.match(source,/storage\.from\(bucket\)/);
+ assert.doesNotMatch(source,/storage\.from\('quote-reference-sandbox'\)/);
+
  assert.doesNotMatch(config,/TURNSTILE_SECRET|sb_secret_|service_role/i);
  assert.doesNotMatch(config,/pacyytbscnlklyrhsshp|tienda-checkout-sandbox/);
  assert.match(readFileSync('dist/_headers','utf8'),/https:\/\/ivyagavbhsyzvikzhmhe\.supabase\.co/);
