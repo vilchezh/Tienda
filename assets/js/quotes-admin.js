@@ -64,7 +64,10 @@
    const client=Store.createClient();
    const {data:permission,error:err}=await client.rpc('storefront_admin_authorized');
    if(err||permission!==true)throw Error('not_authorized');
-   const {data,error}=await client.storage.from('quote-reference-sandbox').download(file.storage_path);
+   // La clave del bucket es pública; los permisos reales se aplican con RLS.
+   const bucket=String(window.STORE_CONFIG?.quoteStorageBucket||'');
+   if(!['quote-reference','quote-reference-sandbox'].includes(bucket))throw Error('private_bucket_unconfigured');
+   const {data,error}=await client.storage.from(bucket).download(file.storage_path);
    if(error||!data)throw Error('download_failed');
    // Se obliga la descarga. No insertar el archivo en iframe, img, object o window.open.
    const blob=new Blob([data],{type:'application/octet-stream'});
