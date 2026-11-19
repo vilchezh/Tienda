@@ -7,6 +7,7 @@
 - El conector Supabase actualmente solo enumera `acero-y-escamas-test` (`pacyytbscnlklyrhsshp`). No tengo lectura autorizada del proyecto productivo desde esta conversación.
 - La consulta `01_READ_ONLY_PREMIGRATION_INVENTORY.sql` fue ejecutada con éxito en sandbox. Las 11 entidades principales comprobadas están presentes; hay metadata de historial, Cron y Vault.
 - El historial de `supabase_migrations.schema_migrations` en sandbox tiene timestamps de aplicación distintos a algunos nombres SQL de GitHub. **Nunca considerar el número de versión como prueba suficiente**: revisar la estructura y permisos reales.
+- En sandbox hay un **event trigger habilitado** llamado `ensure_rls` que ejecuta `public.rls_auto_enable()` al terminar operaciones DDL. El inventario incluye ahora event triggers y triggers de tablas: **verificar el comportamiento en producción antes de crear o alterar tablas**.
 
 ## Paso a paso cuando llegue la etapa productiva
 1. Identificar y confirmar el proyecto Supabase de la tienda original; **no cambiar secretos, datos ni funciones**.
