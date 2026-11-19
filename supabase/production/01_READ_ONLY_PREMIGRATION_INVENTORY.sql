@@ -117,7 +117,26 @@ SELECT pg_catalog.jsonb_pretty(pg_catalog.jsonb_build_object(
  'policies',coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.schemaname,p.tablename,p.policyname)
     FROM policies p),'[]'::jsonb),
  'buckets',coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.bucket_id)
-    FROM bucket_inventory b),'[]'::jsonb)
+    FROM bucket_inventory b),'[]'::jsonb),
+ 'event_triggers',coalesce((
+   SELECT jsonb_agg(jsonb_build_object(
+     'name',e.evtname,'event',e.evtevent,'enabled',e.evtenabled,
+     'routine',n.nspname||'.'||p.proname
+   ) ORDER BY e.evtname)
+   FROM pg_catalog.pg_event_trigger e
+   JOIN pg_catalog.pg_proc p ON p.oid=e.evtfoid
+   JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+ ),'[]'::jsonb),
+ 'business_triggers',coalesce((
+   SELECT jsonb_agg(jsonb_build_object(
+     'table',r.schema_name||'.'||r.object_name,
+     'name',t.tgname,'enabled',t.tgenabled,
+     'definition',pg_catalog.pg_get_triggerdef(t.oid)
+   ) ORDER BY r.schema_name,r.object_name,t.tgname)
+   FROM relations r
+   JOIN pg_catalog.pg_trigger t ON t.tgrelid=r.oid
+   WHERE NOT t.tgisinternal
+ ),'[]'::jsonb)
 )) AS metadata_json;
 
 -- Consultas COMPLEMENTARIAS OPCIONALES (solo si la tabla existe):
