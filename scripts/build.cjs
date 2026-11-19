@@ -45,7 +45,11 @@ if(release){
  const rawSite=process.env.STORE_PROD_SITE_URL||'';
  const expectedRef=String(process.env.STORE_PROD_SUPABASE_REF||'');
  const key=String(process.env.STORE_PROD_SUPABASE_ANON_KEY||'');
- const turnstileSiteKey=String(process.env.STORE_PROD_TURNSTILE_SITE_KEY||'');
+ // Public sitekey registered for the production Workers hostname.
+ // Not a secret: the private TURNSTILE_SECRET remains exclusively in Supabase.
+ // An explicit override supports controlled widget rotation.
+ const turnstileSiteKey=String(process.env.STORE_PROD_TURNSTILE_SITE_KEY||
+   '0x4AAAAAAGJONVP8yIMQn-Tg').trim();
  const rawPhone=String(process.env.STORE_PROD_WHATSAPP_NUMBER||'');
  let url,site;
  try{url=new URL(rawUrl);site=new URL(rawSite);}
