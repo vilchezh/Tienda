@@ -8,6 +8,7 @@ const env = Object.fromEntries([
   'SUPABASE_SECRET_KEYS',
   'SUPABASE_SERVICE_ROLE_KEY',
   'STORE_DEPLOYMENT_MODE',
+  'QUOTE_STORAGE_BUCKET',
   'STORE_EXPECTED_SUPABASE_REF',
   'MP_ACCESS_TOKEN_LIVE',
 ].map(key => [key, Deno.env.get(key) || '']));
