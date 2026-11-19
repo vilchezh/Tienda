@@ -2,7 +2,23 @@
 
 **Proyecto destino:** `ivyagavbhsyzvikzhmhe` (`tienda/calculadora de taller`). **Origen del código:** PR #2, `feat/checkout-pro-orders-test`. Este plan **no autoriza** modificar Supabase ni Cloudflare producción.
 
-## Estado de la autorización y bloqueo de respaldo (19/11/2026)
+## Ejecución de etapa 1 — 19/11/2026
+
+**REALIZADA EN PRODUCCIÓN, SIN RESPALDO COMPLETO, CON AUTORIZACIÓN EXPLÍCITA DEL PROPIETARIO** para aceptar ese riesgo. Se aplicó únicamente el archivo `01_checkout_admin_NO_EJECUTAR.sql` previamente revisado, por Supabase MCP `apply_migration`, con nombre `production_stage1_checkout_admin_20261119`. Supabase confirmó `success: true` y registró la versión `20261119191949`.
+
+**Verificación SQL posterior (producción `ivyagavbhsyzvikzhmhe`):**
+- 5 productos (5 activos), 1 admin, 15 objetos de Storage `tienda`; `stock_taller` conserva 0 filas.
+- `payments_enabled=false`, 0 productos con `checkout_habilitado=true`, 0 pedidos; comisión inicial 0.00.
+- 8 tablas de la etapa con RLS, `storefront_admin_authorized()` y `checkout_create_order(...)` presentes; la RPC de creación de órdenes solo es ejecutable por `service_role`, no por `anon` ni `authenticated`.
+- Los avisos de seguridad posteriores son: RLS sin políticas en `checkout_rate_windows` y `tienda_security.admins` (sin acceso público pretendido) y protección de contraseñas filtradas desactivada.
+- Sandbox conservado e inspeccionado por lectura. **No se desplegaron Edge Functions, cron, Worker, frontend ni pagos.**
+- Se realizó la ejecución **sin respaldo completo recuperable**, por decisión expresa del propietario; esto no convierte el sandbox en respaldo de producción.
+
+**Próximas etapas:** SQL 02 y 03 siguen pendientes de revisión, límites y autorización. No volver a ejecutar la etapa 01 ni fusionar PR #2 a `main` como resultado de esta acción.
+
+---
+
+## Estado original de la autorización y bloqueo de respaldo (histórico, previo a la ejecución)
 
 - El propietario autorizó la **etapa 1** (checkout y administración exclusivamente, con pagos desactivados), condicionada a poder restaurar la base y a un ensayo aislado.
 - El ensayo aislado de la etapa 1 se ejecutó con éxito en GitHub Actions: [PostgreSQL 17, datos falsos](https://github.com/vilchezh/Tienda/actions/runs/44463020354). Es un ensayo de compatibilidad; **no equivale a restaurar un respaldo real del proyecto**.
