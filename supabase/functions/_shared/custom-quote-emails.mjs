@@ -1,6 +1,6 @@
 import { firstRow, supabaseRequest, encodeFilter, restHeaders } from './supabase-rest.mjs';
 import { constantTimeEqual } from './internal-auth.mjs';
-import { deploymentConfig,allowCustomerEmail,emailVisuals } from './deployment-config.mjs';
+import { deploymentConfig,allowCustomerEmail,customerEmailsEnabled,emailVisuals } from './deployment-config.mjs';
 
 const response=(body,status)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -50,7 +50,7 @@ async function patch(env,fetchFn,emailId,data){
 export async function dispatchQuoteEmails(env,fetchFn=fetch,limit=10){
  const cfg=deploymentConfig(env);
  if(!env.RESEND_API_KEY||!env.ORDER_EMAIL_FROM||!env.ORDER_NOTIFICATION_TO)return {configured:false,processed:0};
- const items=await supabaseRequest(env,fetchFn,'rpc/custom_quote_claim_emails',{
+ const items=await supabaseRequest(env,fetchFn,(cfg.mode==='production'&&!customerEmailsEnabled(env)?'rpc/custom_quote_claim_seller_emails':'rpc/custom_quote_claim_emails'),{
   method:'POST',body:JSON.stringify({p_limit:Math.min(Math.max(Number(limit)||10,1),20)})
  });
  let sent=0,skipped=0,pending=0;
