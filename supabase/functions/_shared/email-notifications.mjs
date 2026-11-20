@@ -1,5 +1,5 @@
 import { encodeFilter, firstRow, supabaseRequest } from './supabase-rest.mjs';
-import { emailVisuals } from './deployment-config.mjs';
+import { emailVisuals,customerEmailsEnabled,deploymentConfig } from './deployment-config.mjs';
 
 const RESEND_API = 'https://api.resend.com/emails';
 
@@ -147,6 +147,8 @@ async function markDeliveryFailure(env, fetchFn, notification, errorCode, perman
 }
 
 export async function dispatchOrderNotifications(env, fetchFn, orderId) {
+  if (deploymentConfig(env).mode==='production'&&!customerEmailsEnabled(env))
+    return { configured:false, blocked:'customer_notifications_not_enabled', processed:0 };
   if (!env.RESEND_API_KEY || !env.ORDER_EMAIL_FROM) return { configured: false, processed: 0 };
   const claimed = await supabaseRequest(env, fetchFn, 'rpc/checkout_claim_notifications', {
     method: 'POST', body: JSON.stringify({ p_order_id: orderId }),
@@ -223,6 +225,8 @@ export async function dispatchOrderNotifications(env, fetchFn, orderId) {
 }
 
 export async function dispatchDueOrderNotifications(env, fetchFn, limit = 25) {
+  if (deploymentConfig(env).mode==='production'&&!customerEmailsEnabled(env))
+    return { configured:false, blocked:'customer_notifications_not_enabled', orders:0, processed:0 };
   if (!env.RESEND_API_KEY || !env.ORDER_EMAIL_FROM) return { configured: false, orders: 0, processed: 0 };
   await supabaseRequest(env, fetchFn, 'rpc/checkout_expire_uncertain_notifications', {
     method: 'POST', body: '{}',
