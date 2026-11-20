@@ -12,7 +12,7 @@ const env={
  STORE_EXPECTED_SUPABASE_REF:'ivyagavbhsyzvikzhmhe',
  QUOTE_STORAGE_BUCKET:'quote-reference',
  RESEND_API_KEY:'fake-test-resend-key',
- ORDER_NOTIFICATION_TO:'owner@example.invalid',
+ ORDER_NOTIFICATION_TO:'Owner@Example.Invalid',
  ORDER_EMAIL_FROM:'Acero y Escamas <onboarding@resend.dev>'
 };
 const bearer='Bearer '+('x'.repeat(60));
