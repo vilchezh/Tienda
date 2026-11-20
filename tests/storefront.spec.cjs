@@ -373,3 +373,45 @@ test('public homepage uses safe content, controls sections, and shows manual fea
  expect(order).toEqual(['a-medida','featuredSection','catalogSection','heroGroup']);
  expect(state.errors).toEqual([]);
 });
+
+test('home waits for selected logo and preserves huella typography after delayed settings',async({page})=>{
+  const homeContent={
+    id:'home',
+    hero_title:'Diseño que deja huella.',
+    hero_image:'assets/img/email-pangolin-303a39.png',
+    sections_visible:{hero:true,featured:true,catalog:true,custom:true},
+    section_order:['hero','featured','catalog','custom'],
+    featured_product_ids:[]
+  };
+  const state=await setup(page,{homeContent,homeDelayMs:800});
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/home-hydrating/);
+  await expect(page.locator('#heroTitle')).toBeHidden();
+  await expect(page.locator('#heroImage')).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/home-hydrating/,{timeout:6500});
+  await expect(page.locator('#heroTitle em')).toHaveText('huella.');
+  await expect(page.locator('#heroTitle em')).toHaveCSS('color','rgb(221, 193, 160)');
+  await expect(page.locator('#heroImage')).toHaveAttribute('src','assets/img/email-pangolin-303a39.png');
+  await expect(page.locator('#heroImage')).toBeVisible();
+  expect(state.errors).toEqual([]);
+});
+
+test('home shows original styled fallback if Supabase settings fail',async({page})=>{
+  const state=await setup(page,{homeFailure:true});
+  await page.goto('/');
+  await expect(page.locator('body')).not.toHaveClass(/home-hydrating/,{timeout:6500});
+  await expect(page.locator('#heroTitle em')).toHaveText('huella.');
+  await expect(page.locator('#heroImage')).toBeVisible();
+  await expect(page.locator('#heroImage')).toHaveAttribute('src','assets/img/email-pangolin-708c76-sharp.png');
+  expect(state.errors).toEqual([]);
+});
+
+test('home editor title stays plain text while safely emphasizing last word',async({page})=>{
+  const homeContent={id:'home',hero_title:'Piezas con identidad.',hero_image:'assets/img/email-pangolin-708c76-sharp.png'};
+  const state=await setup(page,{homeContent});
+  await page.goto('/');
+  await expect(page.locator('body')).not.toHaveClass(/home-hydrating/,{timeout:6500});
+  await expect(page.locator('#heroTitle')).toContainText('Piezas con identidad.');
+  await expect(page.locator('#heroTitle em')).toHaveText('identidad.');
+  expect(state.errors).toEqual([]);
+});
