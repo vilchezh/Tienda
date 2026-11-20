@@ -10,6 +10,9 @@ on:
       - supabase/functions/_shared/cancellation-emails.mjs
       - supabase/functions/_shared/email-notifications.mjs
       - tests/resend-diagnostic.test.mjs
+      - tests/seller-scheduler.test.mjs
+      - supabase/functions/_shared/seller-notification-scheduler.mjs
+      - supabase/functions/process-seller-notifications/index.ts
       - tests/deployment-config.test.mjs
       - tests/custom-quote.test.mjs
       - tests/cancellation.test.mjs
