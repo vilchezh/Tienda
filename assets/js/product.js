@@ -16,6 +16,8 @@ const urlParams = new URLSearchParams(window.location.search);
       roughness: 0.75
     };
     let productData = null;
+    let checkoutConfig = { loaded: false, paymentsEnabled: false, commissionPercent: 0 };
+    let checkoutBusy = false;
     const textureCache = {};
 
     async function sync3DMaterials() {
@@ -45,15 +47,20 @@ const urlParams = new URLSearchParams(window.location.search);
 
     function updateUI() {
       if (!productData) return;
-      let total = BASE_PRICE + woodDelta;
+      let extrasAmount = 0;
       let extrasSeleccionados = [];
 
       document.querySelectorAll('.extra-checkbox:checked').forEach(cb => {
-        total += parseInt(cb.dataset.price, 10) || 0;
+        extrasAmount += parseInt(cb.dataset.price, 10) || 0;
         extrasSeleccionados.push(cb.dataset.name);
       });
 
-      document.getElementById('priceDisplay').textContent = total.toLocaleString("es-AR");
+      let pricing = null;
+      try {
+        if (checkoutConfig.loaded) pricing = Store.priceBreakdown(BASE_PRICE, woodDelta, extrasAmount, checkoutConfig.commissionPercent);
+      } catch { /* No mostrar un importe incompleto. */ }
+      const money = value => `$${value.toLocaleString('es-AR')}`;
+      document.getElementById('priceDisplay').textContent = pricing ? pricing.total.toLocaleString('es-AR') : '—';
       document.getElementById('labelWoodType').textContent = state.woodType;
       document.getElementById('labelWoodStain').textContent = state.woodStain;
       document.getElementById('labelMetal').textContent = `${state.metalColor} · ${state.finish}`;
@@ -79,15 +86,129 @@ const urlParams = new URLSearchParams(window.location.search);
 "${notas}"
 `;
       }
-      text += `
-• Total estimado: $${total.toLocaleString("es-AR")} ARS`;
+      text += pricing ? `
+• Precio final: ${money(pricing.total)} ARS` : '\n• Precio final: a confirmar';
 
       Store.setContactLink(document.getElementById('btnWhatsapp'), text);
       document.getElementById('contactStatus').hidden = Boolean(Store.whatsappURL(text));
+      updateCheckoutAction(pricing);
       document.querySelectorAll('.btn-opt, .swatch-btn').forEach(button => {
         if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.classList.contains('active')));
       });
       sync3DMaterials().catch(reportTextureError);
+    }
+
+    function updateCheckoutAction(pricing) {
+      const button = document.getElementById('btnComprar');
+      const status = document.getElementById('checkoutStatus');
+      button.disabled = true;
+      if (checkoutBusy) return;
+      if (!productData?.checkoutHabilitado) {
+        status.textContent = 'Esta pieza se encarga por consulta; la compra directa no está disponible.';
+        return;
+      }
+      if (!checkoutConfig.loaded) {
+        status.textContent = 'La compra online no está disponible en este momento.';
+        return;
+      }
+      if (!checkoutConfig.paymentsEnabled) {
+        status.textContent = 'La compra online está temporalmente deshabilitada. Podés consultarnos antes de encargar.';
+        return;
+      }
+      if (document.getElementById('checkoutDeliveryMethod').value === 'delivery') {
+        status.textContent = 'El envío a domicilio requiere cotización del costo total antes de pagar. Consultanos para coordinarlo.';
+        return;
+      }
+      if (document.getElementById('customNotes').value.trim()) {
+        status.textContent = 'Las modificaciones a medida se coordinan por WhatsApp antes de pagar.';
+        return;
+      }
+      if (!pricing) {
+        status.textContent = 'No pudimos calcular el precio final. Reintentá más tarde.';
+        return;
+      }
+      button.disabled = false;
+      status.textContent = `Total de tu configuración: ${pricing.total.toLocaleString('es-AR')} ARS. El importe se verificará nuevamente antes de pagar.`;
+    }
+
+    function currentSelection() {
+      return {
+        product_id: productData.id,
+        wood_type: state.woodType,
+        wood_stain: state.woodStain,
+        metal_color: state.metalColor,
+        finish: state.finish,
+        extras: Array.from(document.querySelectorAll('.extra-checkbox:checked'), input => input.dataset.name),
+        custom_notes: document.getElementById('customNotes').value.trim(),
+      };
+    }
+
+    function currentCustomer() {
+      return {
+        full_name: document.getElementById('checkoutFullName').value,
+        email: document.getElementById('checkoutEmail').value,
+        phone: document.getElementById('checkoutPhone').value,
+        delivery_method: document.getElementById('checkoutDeliveryMethod').value,
+        address_line: document.getElementById('checkoutAddress').value,
+        city: document.getElementById('checkoutCity').value,
+        province: document.getElementById('checkoutProvince').value,
+        postal_code: document.getElementById('checkoutPostalCode').value,
+        delivery_notes: document.getElementById('checkoutDeliveryNotes').value,
+        privacy_accepted: document.getElementById('checkoutPrivacy').checked,
+      };
+    }
+
+    function syncDeliveryFields() {
+      const delivery = document.getElementById('checkoutDeliveryMethod').value === 'delivery';
+      document.getElementById('checkoutDeliveryFields').hidden = !delivery;
+      for (const id of ['checkoutAddress', 'checkoutCity', 'checkoutProvince', 'checkoutPostalCode']) {
+        document.getElementById(id).required = delivery;
+      }
+    }
+
+    async function startCheckout() {
+      if (checkoutBusy || document.getElementById('btnComprar').disabled) return;
+      const customerForm = document.getElementById('checkoutCustomerForm');
+      if (!customerForm.reportValidity()) {
+        document.getElementById('checkoutStatus').textContent = 'Completá los datos obligatorios de contacto y entrega antes de continuar.';
+        return;
+      }
+      checkoutBusy = true;
+      const button = document.getElementById('btnComprar');
+      const status = document.getElementById('checkoutStatus');
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      status.textContent = 'Preparando una orden segura en Mercado Pago…';
+      try {
+        const checkoutPayload = { ...currentSelection(), customer: currentCustomer() };
+        const attempt = await Store.checkoutAttempt(productData.id, checkoutPayload);
+        const response = await fetch(Store.edgeFunctionURL('create-mp-order'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: window.STORE_CONFIG.supabaseAnonKey,
+          },
+          body: JSON.stringify({ ...checkoutPayload, client_request_id: attempt.requestId }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (result.error === 'idempotency_mismatch') {
+            Store.clearCheckoutAttempt(null, productData.id);
+            throw new Error('La configuración cambió desde el intento anterior. Revisala y volvé a presionar Comprar para crear un intento nuevo.');
+          }
+          throw new Error(result.message || 'No pudimos iniciar el checkout.');
+        }
+        const checkoutUrl = Store.checkoutURL(result.checkout_url);
+        if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace válido.');
+        Store.recordCheckoutOrder(attempt.requestId, result.order_id);
+        status.textContent = 'Redirigiendo de forma segura a Mercado Pago…';
+        window.location.assign(checkoutUrl);
+      } catch (error) {
+        status.textContent = error.message || 'No pudimos iniciar el checkout. Intentá nuevamente.';
+        checkoutBusy = false;
+        button.removeAttribute('aria-busy');
+        updateUI();
+      }
     }
 
     function buildDynamicOptions(prod) {
@@ -291,6 +412,9 @@ const urlParams = new URLSearchParams(window.location.search);
     }
 
     document.getElementById('customNotes').addEventListener('input', updateUI);
+    document.getElementById('checkoutDeliveryMethod').addEventListener('change', () => { syncDeliveryFields(); updateUI(); });
+    syncDeliveryFields();
+    document.getElementById('btnComprar').addEventListener('click', startCheckout);
 
     async function initProductPage() {
       const errorPanel = document.getElementById('errorPanel');
@@ -317,7 +441,8 @@ const urlParams = new URLSearchParams(window.location.search);
         precioBase: data.precio_base !== undefined ? data.precio_base : data.precioBase,
         tonosMadera: data.tonos_madera || data.tonosMadera,
         coloresMetal: data.colores_metal || data.coloresMetal,
-        permitirNotaMedida: data.permitir_nota_medida !== undefined ? data.permitir_nota_medida : data.permitirNotaMedida
+        permitirNotaMedida: data.permitir_nota_medida !== undefined ? data.permitir_nota_medida : data.permitirNotaMedida,
+        checkoutHabilitado: data.checkout_habilitado === true
       };
       productData = prod;
       document.title = `${prod.nombre} | Acero y Escamas`;
@@ -328,6 +453,12 @@ const urlParams = new URLSearchParams(window.location.search);
       viewer.alt = `Vista 3D de ${prod.nombre}. Arrastrá para girar.`;
       if (!viewer.src) document.getElementById('mediaStatus').textContent = 'Esta pieza aún no tiene un modelo 3D disponible.';
       BASE_PRICE = Number(prod.precioBase || prod.precio_base) || 0;
+      try {
+        const settings = await Store.checkoutSettings(Store.createClient());
+        checkoutConfig = { loaded: true, ...settings };
+      } catch {
+        checkoutConfig = { loaded: false, paymentsEnabled: false, commissionPercent: 0 };
+      }
       buildDynamicOptions(prod);
       document.getElementById('mainShopLayout').style.display = 'grid';
       updateUI();

@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "source_ref": "feat/checkout-pro-orders-test",
+  "production_project_ref": "ivyagavbhsyzvikzhmhe",
+  "stage1": [
+    "20261114040000_checkout_pro_orders.sql",
+    "20261114204035_order_management.sql",
+    "20261115174702_improve_order_attempts_admin.sql",
+    "20261117210000_harden_checkout_privileges.sql",
+    "20261117235800_storefront_home_editor.sql"
+  ],
+  "stage2": [
+    "20261118022000_checkout_cancellation_requests.sql",
+    "20261118060000_custom_quote_requests.sql",
+    "20261118070000_custom_quote_global_quota.sql",
+    "20261118072000_custom_quote_storage_budget.sql",
+    "20261118082000_custom_quote_configurable_materials.sql",
+    "20261118083000_custom_quote_options_validator_grants.sql"
+  ],
+  "sources": [
+    {
+      "name": "20261114040000_checkout_pro_orders.sql",
+      "git_blob_sha": "30330a209ca38d4ed13f93316499478d1764b70b"
+    },
+    {
+      "name": "20261114204035_order_management.sql",
+      "git_blob_sha": "f2aeac7ad84e865e951cc925011ce3d5a983bc7d"
+    },
+    {
+      "name": "20261115174702_improve_order_attempts_admin.sql",
+      "git_blob_sha": "9d0fd52ca1a882a907e20d5eed577c4a5552ee97"
+    },
+    {
+      "name": "20261117210000_harden_checkout_privileges.sql",
+      "git_blob_sha": "a15722a8f8f2d563b3e24504c660cb040111e229"
+    },
+    {
+      "name": "20261117235800_storefront_home_editor.sql",
+      "git_blob_sha": "428ba9224d97cbc895d7edde8c05bae985c40e51"
+    },
+    {
+      "name": "20261118022000_checkout_cancellation_requests.sql",
+      "git_blob_sha": "9afa3ea586c1c6815bd8a9dad7d861dcd13c9a77"
+    },
+    {
+      "name": "20261118060000_custom_quote_requests.sql",
+      "git_blob_sha": "93b3716abfc025de7b5817ac174e597e07baeeb1"
+    },
+    {
+      "name": "20261118070000_custom_quote_global_quota.sql",
+      "git_blob_sha": "98ce22c549e2fdcfd00fa15dddf690075ec6b0fe"
+    },
+    {
+      "name": "20261118072000_custom_quote_storage_budget.sql",
+      "git_blob_sha": "ab35cf4f7181e3a98f2d09765ee87e63282fb90e"
+    },
+    {
+      "name": "20261118082000_custom_quote_configurable_materials.sql",
+      "git_blob_sha": "f63a7f0999bd03551b8250c108b8ac8a233a4f63"
+    },
+    {
+      "name": "20261118083000_custom_quote_options_validator_grants.sql",
+      "git_blob_sha": "902479b1e4500de89befad2a828ddcba898f4e5c"
+    }
+  ],
+  "excluded": [
+    "20261118034000_checkout_cancellation_cron.sql",
+    "20261118061500_custom_quote_storage_read.sql",
+    "20261118064000_custom_quote_email_cron.sql",
+    "20261118120000_admin_mfa_stepup.sql",
+    "20261118130000_storefront_public_storage.sql"
+  ],
+  "purpose": "draft_only_no_execution"
+}

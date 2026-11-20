@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Presupuesto a medida | Acero y Escamas</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="stylesheet" href="assets/css/quote.css">
+<script defer src="assets/js/config.js"></script>
+<script defer src="assets/js/quote-choices.js"></script>
+<script defer src="assets/js/turnstile-forms.js"></script>
+<script defer src="assets/js/quote.js"></script>
+</head>
+<body>
+<header class="quote-header"><a href="index.html" class="quote-brand"><img src="assets/img/email-pangolin-708c76-sharp.png" alt="" width="54" height="54"><span>ACERO Y ESCAMAS<small>Herrería y muebles a medida</small></span></a><a href="index.html" class="quote-back">← Volver a la tienda</a></header>
+<main class="quote-page">
+  <div class="quote-intro"><p class="eyebrow">TU IDEA, NUESTRO TRABAJO</p><h1>Diseñemos algo <em>único.</em></h1><p>¿Tenés una idea, foto o plano? Contanos qué necesitás fabricar y te ayudamos a definirlo. <strong>Pedir presupuesto es gratis y no implica comprar.</strong></p></div>
+  <div class="quote-layout">
+   <div class="quote-panel">
+    <ol class="quote-steps" aria-label="Pasos del presupuesto">
+     <li class="current" data-step-label="1"><span>01</span> Tu proyecto</li>
+     <li data-step-label="2"><span>02</span> Referencias</li>
+     <li data-step-label="3"><span>03</span> Tus datos</li>
+    </ol>
+    <form id="quoteForm">
+     <fieldset class="quote-step" data-step="1">
+      <legend><span class="step-kicker">PASO 01</span> ¿Qué te gustaría fabricar?</legend>
+      <p class="step-description">No necesitás tener todo definido. Podés describir la idea y después vemos los detalles.</p>
+      <div class="quote-type-grid" role="group" aria-label="Tipo de proyecto">
+       <label class="type-option"><input type="radio" name="project_type" value="mueble" required checked><span>🪑 <b>Mueble</b><small>Mesas, estantes, escritorios</small></span></label>
+       <label class="type-option"><input type="radio" name="project_type" value="estructura"><span>🏗️ <b>Estructura</b><small>Soportes, racks, parrillas y bastidores</small></span></label>
+       <label class="type-option"><input type="radio" name="project_type" value="accesorio"><span>🧰 <b>Accesorio</b><small>Soportes, organizadores y accesorios</small></span></label>
+       <label class="type-option"><input type="radio" name="project_type" value="otro"><span>✏️ <b>Otro</b><small>Contanos tu proyecto</small></span></label>
+      </div>
+      <label for="quoteDescription">Contanos tu idea <span class="required">*</span></label>
+      <textarea id="quoteDescription" name="description" rows="5" minlength="20" maxlength="2000" required placeholder="Ej.: Quiero una mesa industrial de 160 cm para seis personas, con estructura negra y madera natural. La usaría en un comedor..."></textarea>
+      <p class="field-tip">Incluí para qué la vas a usar, qué estilo imaginás y cualquier requisito especial.</p>
+      <div class="quote-two">
+       <div><label for="quoteMeasurements">Medidas aproximadas</label><input id="quoteMeasurements" name="measurements" maxlength="250" placeholder="Ej.: 160 × 80 × 75 cm"><p class="field-tip">Ancho × profundidad × alto, si los sabés.</p></div>
+       <div><label for="quoteQuantity">Cantidad <span class="required">*</span></label><input id="quoteQuantity" name="quantity" type="number" min="1" max="100" step="1" value="1" required></div>
+       </div>
+      <section class="quote-preferences" aria-labelledby="quoteMaterialsTitle">
+        <div class="quote-pref-heading"><h2 id="quoteMaterialsTitle">Materiales preferidos</h2><p>Podés elegir varios materiales o escribir uno que no esté en la lista. Si no sabés, dejalos sin seleccionar.</p></div>
+        <div class="quote-pref-grid">
+          <div class="quote-pref-card">
+            <h3>Metal y estructura</h3>
+            <p class="field-tip">Ej.: estructural 20×20, 50×50, chapa o malla.</p>
+            <details class="quote-material-dropdown" data-material-dropdown="metal_materials">
+              <summary><span id="quoteMetalSummary">Sin preferencia</span><span class="quote-dropdown-chevron" aria-hidden="true"></span></summary>
+              <div class="quote-dropdown-panel">
+                <button type="button" class="quote-clear-choice is-active" data-clear-materials="metal_materials" aria-pressed="true">Sin preferencia</button>
+                <div id="quoteMetalMaterials" class="quote-multi-options" role="group" aria-label="Elegí uno o varios materiales metálicos"></div>
+                <label class="quote-other-check"><input id="quoteOtherMetalToggle" type="checkbox" data-other-toggle="metal_materials"> Otro (escribir)</label>
+                <input id="quoteOtherMetal" data-other-value="metal_materials" type="text" maxlength="70" placeholder="Ej.: caño redondo 1 pulgada" aria-label="Otro material metálico" hidden>
+                <p class="quote-dropdown-hint">Podés elegir varios materiales.</p>
+              </div>
+            </details>
+          </div>
+          <div class="quote-pref-card">
+            <h3>Madera</h3>
+            <p class="field-tip">Ej.: pino 30 mm o eucalipto 20 mm.</p>
+            <details class="quote-material-dropdown" data-material-dropdown="wood_materials">
+              <summary><span id="quoteWoodSummary">Sin preferencia</span><span class="quote-dropdown-chevron" aria-hidden="true"></span></summary>
+              <div class="quote-dropdown-panel">
+                <button type="button" class="quote-clear-choice is-active" data-clear-materials="wood_materials" aria-pressed="true">Sin preferencia</button>
+                <div id="quoteWoodMaterials" class="quote-multi-options" role="group" aria-label="Elegí uno o varios tipos de madera"></div>
+                <label class="quote-other-check"><input id="quoteOtherWoodToggle" type="checkbox" data-other-toggle="wood_materials"> Otro (escribir)</label>
+                <input id="quoteOtherWood" data-other-value="wood_materials" type="text" maxlength="70" placeholder="Ej.: guatambú 25 mm" aria-label="Otra madera o espesor" hidden>
+                <p class="quote-dropdown-hint">Podés elegir varios tipos y espesores.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+      <section class="quote-preferences" aria-labelledby="quoteFinishesTitle">
+        <div class="quote-pref-heading"><h2 id="quoteFinishesTitle">Colores y terminaciones</h2><p>El color es independiente del acabado. Podés combinar, por ejemplo, metal rojo con acabado satinado y madera tono nogal con acabado mate.</p></div>
+        <div class="quote-pref-grid">
+          <div id="quoteMetalFinishing" class="quote-pref-card">
+            <h3>Terminación del metal</h3>
+            <label for="quoteMetalColor">Color del metal</label>
+            <select id="quoteMetalColor" data-choice-select="metal_color"><option value="">Sin preferencia</option></select>
+            <input id="quoteCustomMetalColor" data-choice-custom="metal_color" type="text" maxlength="70" placeholder="Escribí el color" hidden>
+            <label for="quoteMetalFinish">Acabado del metal</label>
+            <select id="quoteMetalFinish" data-choice-select="metal_finish"><option value="">Sin preferencia</option></select>
+            <input id="quoteCustomMetalFinish" data-choice-custom="metal_finish" type="text" maxlength="70" placeholder="Escribí el acabado" hidden>
+          </div>
+          <div id="quoteWoodFinishing" class="quote-pref-card">
+            <h3>Terminación de la madera</h3>
+            <label for="quoteWoodTone">Tono de madera</label>
+            <select id="quoteWoodTone" data-choice-select="wood_tone"><option value="">Sin preferencia</option></select>
+            <input id="quoteCustomWoodTone" data-choice-custom="wood_tone" type="text" maxlength="70" placeholder="Escribí el tono" hidden>
+            <label for="quoteWoodFinish">Acabado de la madera</label>
+            <select id="quoteWoodFinish" data-choice-select="wood_finish"><option value="">Sin preferencia</option></select>
+            <input id="quoteCustomWoodFinish" data-choice-custom="wood_finish" type="text" maxlength="70" placeholder="Escribí el acabado" hidden>
+          </div>
+        </div>
+        <p class="field-tip">Podés elegir colores, tonos y acabados aunque no tengas preferencia por un material.</p>
+      </section>
+     </fieldset>
+     <fieldset class="quote-step" data-step="2" hidden>
+      <legend><span class="step-kicker">PASO 02</span> Mostranos tus referencias</legend>
+      <p class="step-description">Adjuntá fotos, dibujos o un plano para entender mejor lo que necesitás. Es <b>opcional</b>.</p>
+      <label for="quoteFiles" class="quote-dropzone"><span class="drop-icon">↥</span><strong>Elegir fotos o planos</strong><span>JPG, PNG, WebP y PDF · hasta 5 archivos</span><span>Máximo 5 MB por archivo y 25 MB en total</span></label>
+      <input id="quoteFiles" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" multiple>
+      <ul id="quoteFileList" class="quote-file-list" aria-live="polite"></ul>
+      <p class="quote-security">🔒 Los archivos se guardan de forma privada. Los PDF se descargan como archivo: no se abren automáticamente. <strong>No realizamos un escaneo antivirus</strong>; nunca adjuntes documentos confidenciales innecesarios.</p>
+      <div class="quote-two">
+       <div><label for="quoteBudget">¿Tenés un presupuesto máximo en mente? (opcional)</label><input id="quoteBudget" name="budget_ars" type="number" min="0" max="999999999" step="1000" placeholder="Ej.: 150000"><p class="field-tip">Nos sirve para ofrecerte alternativas, pero no determina el precio final. Podés dejarlo vacío.</p></div>
+       <div><label for="quoteDate">¿Para qué fecha lo necesitás?</label><input id="quoteDate" name="desired_date" type="date"></div>
+      </div>
+     </fieldset>
+     <fieldset class="quote-step" data-step="3" hidden>
+      <legend><span class="step-kicker">PASO 03</span> ¿Cómo te contactamos?</legend>
+      <p class="step-description">Te responderemos para terminar de definir la propuesta y preparar un precio. No se genera ningún pago.</p>
+      <div class="quote-two">
+       <div><label for="quoteName">Nombre y apellido <span class="required">*</span></label><input id="quoteName" name="full_name" autocomplete="name" minlength="2" maxlength="120" required placeholder="Tu nombre"></div>
+       <div><label for="quoteEmail">Correo electrónico <span class="required">*</span></label><input id="quoteEmail" name="email" autocomplete="email" type="email" maxlength="254" required placeholder="tu@email.com"></div>
+       <div><label for="quotePhone">Teléfono de contacto <span class="required">*</span></label><input id="quotePhone" name="phone" autocomplete="tel" type="tel" minlength="7" maxlength="30" required placeholder="Ej.: 11 5555 5555"></div>
+       <div><label for="quoteCity">Localidad <span class="required">*</span></label><input id="quoteCity" name="city" autocomplete="address-level2" minlength="2" maxlength="100" required placeholder="Ej.: General Rodríguez"></div>
+      </div>
+      <label for="quoteDelivery">¿Cómo lo recibirías? <span class="required">*</span></label>
+      <select id="quoteDelivery" name="delivery" required><option value="a_coordinar">Todavía no sé / a coordinar</option><option value="retiro">Retiro en taller</option><option value="envio">Envío a domicilio</option><option value="instalacion" disabled>Envío con instalación (no disponible por el momento)</option></select>
+      <label class="quote-check"><input id="quotePrivacy" type="checkbox" required><span>Acepto que se usen estos datos para responder a mi solicitud. <a href="privacidad.html" target="_blank" rel="noopener noreferrer">Ver política de privacidad</a>.</span></label>
+      <p class="field-tip">En este entorno de pruebas los emails automáticos al cliente se limitan a direcciones autorizadas.</p>
+     </fieldset>
+     <div id="quoteTurnstile" hidden aria-label="Verificación antibots"></div>
+     <div class="quote-controls">
+      <button id="quotePrev" type="button" class="quote-ghost" hidden>← Volver</button>
+      <button id="quoteNext" type="button" class="quote-primary">Continuar →</button>
+      <button id="quoteSubmit" type="submit" class="quote-primary" hidden>Enviar solicitud de presupuesto →</button>
+     </div>
+     <p id="quoteStatus" role="status" aria-live="polite" class="quote-status"></p>
+    </form>
+    <section id="quoteSuccess" hidden class="quote-success" aria-live="polite">
+     <span class="success-icon">✓</span><h2>¡Recibimos tu idea!</h2>
+     <p>Tu solicitud de presupuesto se registró correctamente. Anotá este código:</p>
+     <strong id="quoteSuccessCode" class="quote-code"></strong>
+     <p>El taller revisará los datos y te contactará. Esto <b>no es una compra</b>.</p>
+     <a id="quotePrivateLink" href="#" class="quote-link">Consultar estado de mi presupuesto</a>
+    </section>
+    <section id="quoteLookup" hidden class="quote-success" aria-live="polite">
+     <h2>Estado del presupuesto</h2><p id="quoteLookupStatus" role="status"></p><p id="quoteLookupDate"></p>
+    </section>
+   </div>
+   <aside class="quote-aside">
+    <p class="aside-kicker">HECHO A TU MEDIDA</p><h2>Del boceto al taller.</h2>
+    <p>Un plano ayuda, pero no es obligatorio. Lo importante es entender qué querés lograr.</p>
+    <div class="aside-rule"></div>
+    <div class="aside-item"><b>01</b><span>Contanos qué necesitás y las medidas aproximadas.</span></div>
+    <div class="aside-item"><b>02</b><span>Enviá referencias, si tenés. Las guardaremos de forma privada.</span></div>
+    <div class="aside-item"><b>03</b><span>Revisamos tu propuesta y te contactamos para cotizarla.</span></div>
+    <p class="aside-foot">Una consulta no reserva stock ni confirma plazos de entrega.</p>
+   </aside>
+  </div>
+</main>
+<footer class="quote-footer"><span>ACERO Y ESCAMAS · Hecho con carácter</span><nav><a href="index.html">Tienda</a><a href="privacidad.html">Privacidad</a><a href="arrepentimiento.html">Arrepentimiento</a></nav></footer>
+</body></html>

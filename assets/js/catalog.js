@@ -39,6 +39,7 @@
     ];
 
     let allProducts = [];
+    let checkoutConfig = null;
     let catalogUnavailable = false;
     let activeCat = null;
     let activeSub = null;
@@ -182,7 +183,15 @@
 
     function createProductCard(prod, showPromoBadge = false) {
       const meta = parseProductMeta(prod);
-      const precio = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
+      const precioBase = prod.precio_base !== undefined ? prod.precio_base : prod.precioBase;
+      let pricing = null;
+      let oldPrice = 0;
+      try {
+        if (checkoutConfig) {
+          pricing = Store.priceBreakdown(precioBase, Store.defaultWoodDelta(prod), 0, checkoutConfig.commissionPercent);
+          if (meta.precioAnterior > precioBase) oldPrice = Store.priceBreakdown(meta.precioAnterior, Store.defaultWoodDelta(prod), 0, checkoutConfig.commissionPercent).total;
+        }
+      } catch { /* No mostrar un importe incompleto. */ }
       const fotosArr = Array.isArray(prod.fotos) ? prod.fotos.filter(Boolean) : [];
       const miniThumbs = fotosArr.slice(0, 3);
 
@@ -215,13 +224,13 @@
           <span class="product-sku">REF: ${h(prod.sku)}</span>
           <h2 class="product-title">${h(prod.nombre)}</h2>
           <p class="product-desc">${h(prod.resumen || '')}</p>
-          <div class="price-caption">Desde · ARS</div><div class="product-price">
-          ${(meta.enPromo && meta.precioAnterior > precio)
-            ? `<span class="price-old">$${formatoPeso.format(meta.precioAnterior)}</span>`
+          <div class="price-caption">${pricing ? 'Precio final desde · ARS' : 'Precio final no disponible'}</div><div class="product-price">
+          ${(pricing && meta.enPromo && oldPrice > pricing.total)
+            ? `<span class="price-old">$${formatoPeso.format(oldPrice)}</span>`
             : ''}
-          <span class="price-currency">$</span>${formatoPeso.format(precio)}
-          ${(meta.enPromo && meta.precioAnterior > precio)
-            ? `<span class="price-off-badge">-${Math.round((1 - precio / meta.precioAnterior) * 100)}% OFF</span>`
+          ${pricing ? `<span class="price-currency">$</span>${formatoPeso.format(pricing.total)}` : '<span>Consultar</span>'}
+          ${(pricing && meta.enPromo && oldPrice > pricing.total)
+            ? `<span class="price-off-badge">-${Math.round((1 - pricing.total / oldPrice) * 100)}% OFF</span>`
             : ''}
         </div>
         </div>
@@ -312,11 +321,15 @@
       promoSection.style.display = 'none';
       Store.showStatus(grid, 'Cargando las piezas del taller…');
       try {
-        allProducts = await Store.activeProducts(Store.createClient());
+        const client = Store.createClient();
+        [allProducts, checkoutConfig] = await Promise.all([
+          Store.activeProducts(client), Store.checkoutSettings(client).catch(() => null)
+        ]);
       } catch {
         catalogUnavailable = true;
       }
       renderCatalogAndPromos();
+      window.dispatchEvent(new CustomEvent('storefront:products', { detail: { products: allProducts, checkoutConfig } }));
     }
 
     buildCategoriesBar();

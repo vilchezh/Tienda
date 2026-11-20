@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tienda-checkout-sandbox",
+  "compatibility_date": "2026-11-12",
+  "assets": {
+    "directory": "./dist-preview",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "previews": {}
+}

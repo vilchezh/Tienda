@@ -1,5 +1,153 @@
 const {test,expect}=require('@playwright/test');
 const {setup,product}=require('./helpers.cjs');
+const sandboxProduct={...require('../supabase/test/productos-preview.json')[0],activo:true,checkout_habilitado:true,precio_base:100000};
+const sandboxOrder={
+ id:'11111111-1111-4111-8111-111111111111',product_id:'pieza-sandbox-001',
+ product_snapshot:{nombre:'Mesa Sandbox',sku:'AYE-SBX-001'},
+ selection_snapshot:{wood_type:'Eucalipto',wood_stain:'Natural',metal_color:'Negro',finish:'Mate',extras:['Ruedas']},
+ total_amount:108000,currency:'ARS',status:'processed',payment_status:'processed',mp_order_id:'ORD-SANDBOX-1',
+ manufacturing_status:'not_started',internal_notes:'',created_at:'2026-11-14T15:00:00Z',updated_at:'2026-11-14T15:05:00Z',
+ checkout_order_customers:{full_name:'Cliente Sandbox',email:'buyer@example.invalid',phone:'+54 11 5555 0000',delivery_method:'delivery',address_line:'Calle 123',city:'CABA',province:'Buenos Aires',postal_code:'1000',delivery_notes:'Timbre 2'},
+ checkout_email_outbox:[{notification_type:'customer_payment_confirmed',status:'sent',sent_at:'2026-11-14T15:06:00Z'}]
+};
+function generatedOrder(index) {
+ const created=new Date(Date.UTC(2026,10,14,23)-index*6*60*60*1000).toISOString();
+ const paid=index%2===0;
+ return {...structuredClone(sandboxOrder),
+  id:`00000000-0000-4000-8000-${String(index).padStart(12,'0')}`,
+  mp_order_id:`ORD-${String(index).padStart(4,'0')}`,created_at:created,status:paid?'processed':'created',
+  payment_status:paid?'processed':'created',
+  checkout_order_customers:{...sandboxOrder.checkout_order_customers,full_name:`Cliente ${index}`,email:`cliente${index}@example.invalid`}
+ };
+}
+test('admin previews final selling price and breakdown while payment switch is off',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
+ await page.goto('/admin.html');
+ await expect(page.locator('#outPrecioFinal')).toHaveText('$108.000');
+ await expect(page.locator('#adminPriceBreakdown')).toContainText('Base $100.000');
+ await expect(page.locator('#adminPriceBreakdown')).toContainText('Comisión $7.500 · Redondeo $500');
+ await page.locator('#inpPrecio').fill('101000');
+ await expect(page.locator('#outPrecioFinal')).toHaveText('$109.000');
+ await expect(page.locator('#chkCheckoutEnabled')).not.toBeChecked();
+ expect(state.checkoutRequests).toHaveLength(0);
+});
+test('orders view shows private purchase details and updates only manufacturing fields',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody')).toContainText('Mesa Sandbox');
+ await expect(page.locator('#ordersTableBody')).toContainText('$108.000');
+ await expect(page.locator('#orderDetail')).toContainText('Eucalipto');
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ await expect(page.locator('#orderDetail')).toContainText('Acreditado');
+ await page.locator('#orderManufacturingStatus').selectOption('in_production');
+ await page.locator('#orderInternalNotes').fill('Corte iniciado.');
+ await page.locator('#btnSaveOrder').click();
+ await expect.poll(()=>state.orderWrites.length).toBe(1);
+ expect(state.orderWrites[0].data).toEqual({manufacturing_status:'in_production',internal_notes:'Corte iniciado.'});
+ expect(state.orderWrites[0].data.payment_status).toBeUndefined();
+ await expect(page.locator('#ordersTableBody')).toContainText('En fabricación');
+ expect(state.errors).toEqual([]);
+});
+test('orders view fails closed when the session is not an authorized administrator',async({page})=>{
+ await setup(page,{authenticated:true,rows:[sandboxProduct],ordersFailure:true});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersStatus')).toContainText('autorizada como administradora');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+});
+test('a failed reload clears previously displayed private customer details',async({page})=>{
+ const options={authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]};
+ const state=await setup(page,options);
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ options.ordersFailure=true; // The next RPC is rejected as if the session lost access.
+ await page.locator('#btnRefreshOrders').click();
+ await expect(page.locator('#ordersStatus')).toContainText('autorizada como administradora');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+ await expect(page.locator('#orderDetail')).not.toContainText('buyer@example.invalid');
+ await expect(page.locator('#ordersPageStatus')).toHaveText('Sin resultados');
+ expect(state.orderWrites).toHaveLength(0);
+ expect(state.errors).toEqual([]);
+});
+test('an invalid date range clears old private order details',async({page})=>{
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#orderDetail')).toContainText('buyer@example.invalid');
+ await page.locator('#orderDateFrom').fill('2026-11-30');
+ await page.locator('#orderDateTo').fill('2026-11-01');
+ await page.locator('#orderDateTo').dispatchEvent('change');
+ await expect(page.locator('#ordersStatus')).toContainText('rango de fechas no es válido');
+ await expect(page.locator('#orderDetail')).not.toContainText('buyer@example.invalid');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(0);
+});
+test('orders use server pagination and combinable Buenos Aires date/payment filters beyond 250 rows',async({page})=>{
+ const orders=Array.from({length:275},(_,index)=>generatedOrder(index));
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+ await expect(page.locator('#ordersStatus')).toContainText('275 resultados');
+ expect(state.orderQueries[0]).toMatchObject({p_limit:50,p_offset:0,p_sort:'desc',p_payment_group:'all'});
+ await page.locator('#btnNextOrders').click();
+ await expect.poll(()=>state.orderQueries.at(-1).p_offset).toBe(50);
+ await expect(page.locator('#ordersPageStatus')).toContainText('Página 2');
+ await page.locator('#orderPaymentGroup').selectOption('unpaid');
+ await expect(page.locator('#ordersStatus')).toContainText('137 resultados');
+ expect(state.orderQueries.at(-1).p_payment_group).toBe('unpaid');
+ await page.locator('#orderMonthFilter').fill('2026-11');
+ await page.locator('#orderMonthFilter').evaluate(input=>input.dispatchEvent(new Event('change',{bubbles:true})));
+ await expect.poll(()=>state.orderQueries.at(-1).p_date_from).toBe('2026-11-01T03:00:00.000Z');
+ expect(state.orderQueries.at(-1).p_date_to).toBe('2026-12-01T03:00:00.000Z');
+ await page.locator('#btnResetOrderFilters').click();
+ await expect(page.locator('#ordersStatus')).toContainText('275 resultados');
+ await page.locator('#orderSort').selectOption('asc');
+ await expect.poll(()=>state.orderQueries.at(-1).p_sort).toBe('asc');
+ await page.locator('#orderSearch').fill('Cliente 274');
+ await expect(page.locator('#ordersStatus')).toContainText('1 resultados');
+ expect(state.orderQueries.at(-1).p_search).toBe('Cliente 274');
+ expect(state.errors).toEqual([]);
+});
+test('an empty last page returns to the first page when the result set shrinks',async({page})=>{
+ const orders=Array.from({length:51},(_,index)=>generatedOrder(index));
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],orders});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+ state.orders.pop();
+ await page.locator('#btnNextOrders').click();
+ await expect.poll(()=>state.orderQueries.at(-1).p_offset).toBe(0);
+ await expect(page.locator('#ordersPageStatus')).toHaveText('Página 1 de 1');
+ await expect(page.locator('#ordersTableBody tr')).toHaveCount(50);
+});
+test('unpaid attempts are not presented as sales and customer/email content is escaped',async({page})=>{
+ const payload='"><img src=x onerror="window.ORDER_XSS=1">';
+ const attempt={...structuredClone(sandboxOrder),status:'created',payment_status:'created',mp_order_id:'ORD-UNPAID',
+  checkout_order_customers:{...sandboxOrder.checkout_order_customers,full_name:payload,email:'safe@example.invalid'},
+  checkout_email_outbox:[{notification_type:'seller_payment_received',status:'rejected',last_error:'provider_forbidden'}]};
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[attempt]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('#ordersTableBody')).toContainText(payload);
+ await expect(page.locator('#ordersTableBody')).toContainText('safe@example.invalid');
+ await expect(page.locator('#ordersTableBody')).toContainText('Orden creada · sin pago');
+ await expect(page.locator('#orderDetail')).toContainText('no cuenta como venta acreditada');
+ await expect(page.locator('#orderDetail')).toContainText('Rechazado permanentemente');
+ await expect(page.locator('#orderDetail')).toContainText('dominio verificado');
+ expect(await page.locator('[onerror]').count()).toBe(0);
+ expect(await page.evaluate(()=>window.ORDER_XSS)).toBeUndefined();
+});
+test('order customer summary remains readable without page overflow on mobile',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ await setup(page,{authenticated:true,rows:[sandboxProduct],orders:[sandboxOrder]});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewOrders').click();
+ await expect(page.locator('.order-customer-name')).toHaveText('Cliente Sandbox');
+ await expect(page.locator('.order-customer-email')).toHaveText('buyer@example.invalid');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
 test('login failure, successful login and sign out use existing Supabase Auth',async({page})=>{
  const state=await setup(page);
  await page.goto('/admin.html');
@@ -94,4 +242,50 @@ test('upload control uses existing Storage flow and stores the returned public U
  await expect.poll(()=>state.writes.length).toBe(1);
  expect(state.writes[0].data[0].imagen).toContain('/storage/v1/object/public/tienda/portadas/');
  expect(state.errors).toEqual([]);
+});
+test('admin keeps commission editable, test-only checkout global switch and per-product authorization',async({page})=>{
+ const state=await setup(page,{authenticated:true,checkoutSettings:{id:'default',commission_percent:7.5,payments_enabled:false}});
+ await page.goto('/admin.html');
+ await expect(page.locator('#inpCheckoutCommission')).toHaveValue('7.5');
+ await expect(page.locator('#chkCheckoutEnabled')).not.toBeChecked();
+ await page.locator('#inpCheckoutCommission').fill('8.25');
+ await page.locator('#chkCheckoutEnabled').check();
+ await page.locator('#chkProductCheckout').check();
+ await page.locator('#btnSaveSupabase').click();
+ await expect.poll(()=>state.settingsWrites.length).toBe(1);
+ expect(state.settingsWrites[0].data).toMatchObject({commission_percent:8.25,payments_enabled:true});
+ expect(state.writes[0].data[0].checkout_habilitado).toBe(true);
+ expect(state.errors).toEqual([]);
+});
+
+test('authenticated but unauthorized users cannot open the admin dashboard',async({page})=>{
+ const state=await setup(page,{authenticated:true,adminAuthorized:false,rows:[sandboxProduct]});
+ await page.goto('/admin.html');
+ await expect(page.locator('#loginError')).toContainText('no está autorizada');
+ await expect(page.locator('#mainAdmin')).not.toBeVisible();
+ expect(state.writes).toHaveLength(0);
+});
+test('admin saves homepage copy and section order through narrow API',async({page})=>{
+ const home={id:'home',hero_eyebrow:'DEL TALLER',hero_title:'Piezas con carácter',hero_description:'Original',hero_image:'assets/img/email-pangolin-708c76-sharp.png',section_order:['hero','featured','catalog','custom'],sections_visible:{hero:true,featured:true,catalog:true,custom:true},featured_product_ids:[]};
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],homeContent:home});
+ page.on('dialog',dialog=>dialog.accept());
+ await page.goto('/admin.html');
+ await page.locator('#btnViewHome').click();
+ await expect(page.locator('#homeTitle')).toHaveValue('Piezas con carácter');
+ await page.locator('#homeTitle').fill('Nuevo título de prueba');
+ await page.getByRole('button',{name:'Subir Colección'}).click();
+ await page.locator('#btnSaveHome').click();
+ await expect.poll(()=>state.homeWrites.length).toBe(1);
+ expect(state.homeWrites[0].data.hero_title).toBe('Nuevo título de prueba');
+ expect(state.homeWrites[0].data.section_order).toEqual(['hero','catalog','featured','custom']);
+ expect(state.homeWrites[0].data.payments_enabled).toBeUndefined();
+ expect(state.errors).toEqual([]);
+});
+test('home editor does not allow publishing without the schema or authorization',async({page})=>{
+ const state=await setup(page,{authenticated:true,rows:[sandboxProduct],homeFailure:true});
+ await page.goto('/admin.html');
+ await page.locator('#btnViewHome').click();
+ await expect(page.locator('#btnSaveHome')).toBeDisabled();
+ await expect(page.locator('#homeEditorStatus')).toContainText('no está disponible');
+ expect(state.homeWrites).toHaveLength(0);
 });

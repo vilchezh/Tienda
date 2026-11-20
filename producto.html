@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLCKSCLE // Acero y Escamas — Herrería</title>
+  <title>Personalizá tu pieza | Acero y Escamas</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
   <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/pricing.js"></script>
   <script defer src="assets/js/store.js"></script>
   
   <link rel="stylesheet" href="assets/css/product.css">
@@ -17,9 +18,9 @@
   <a class="skip-link" href="#productConfig">Saltar a la configuración</a>
   <header>
     <a href="index.html" class="brand-wrap">
-      <img src="assets/img/logo.jpg/Code_Generated_Image.png" alt="Acero y Escamas" class="brand-logo">
+      <img src="assets/img/email-pangolin-708c76-sharp.png" alt="" class="brand-logo" width="42" height="42">
       <div class="brand-titles">
-        <span class="brand-sub">BLCKSCLE // HERRERÍA</span>
+        <span class="brand-sub">DISEÑO INDUSTRIAL · HERRERÍA</span>
         <span class="brand-main">Acero y Escamas</span>
       </div>
     </a>
@@ -71,18 +72,19 @@
     <div class="config-panel" id="productConfig">
       
       <div class="item-header">
-        <div class="item-sku" id="prodSku">BLCKSCLE // REF</div>
+        <div class="item-sku" id="prodSku">Cargando referencia…</div>
         <h1 id="prodTitle">Cargando...</h1>
         <p id="prodDesc" style="color: var(--text-muted); font-size: 13px;"></p>
       </div>
 
       <div class="pricing-box">
         <div>
-          <div class="price-label">Precio estimado · ARS</div>
+          <div class="price-label">Precio final de venta · ARS</div>
           <div style="font-size: 11px; color: var(--sage-main); font-family: var(--font-mono);">Fabricación a medida</div>
         </div>
         <div class="price-value">$<span id="priceDisplay">0</span></div>
       </div>
+      <p class="price-included">Precio final para la configuración elegida · incluye los cargos del pedido. El envío, si corresponde, se coordina antes de pagar.</p>
 
       <!-- 1. TIPOS DE MADERA -->
       <div id="blockWoods">
@@ -129,9 +131,55 @@
         </div>
       </div>
 
+      <form id="checkoutCustomerForm" class="checkout-customer" novalidate>
+        <div class="section-title">
+          <span>5. Contacto y entrega</span>
+          <span class="section-val">Antes del pago</span>
+        </div>
+        <p class="action-note">Usamos estos datos para identificar tu compra, coordinar la entrega y enviarte la confirmación cuando Mercado Pago acredite el pago.</p>
+        <div class="checkout-customer-grid">
+          <label>Nombre y apellido
+            <input type="text" id="checkoutFullName" name="full_name" autocomplete="name" minlength="2" maxlength="120" required>
+          </label>
+          <label>Correo electrónico
+            <input type="email" id="checkoutEmail" name="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <label>Teléfono <span class="optional-label">opcional</span>
+            <input type="tel" id="checkoutPhone" name="phone" autocomplete="tel" minlength="7" maxlength="30">
+          </label>
+          <label>Forma de entrega
+            <select id="checkoutDeliveryMethod" name="delivery_method" required>
+              <option value="pickup">Retiro a coordinar</option>
+              <option value="delivery">Envío a domicilio</option>
+            </select>
+          </label>
+        </div>
+        <div id="checkoutDeliveryFields" class="checkout-customer-grid" hidden>
+          <label class="full-field">Domicilio
+            <input type="text" id="checkoutAddress" name="address_line" autocomplete="street-address" maxlength="180">
+          </label>
+          <label>Localidad
+            <input type="text" id="checkoutCity" name="city" autocomplete="address-level2" maxlength="100">
+          </label>
+          <label>Provincia
+            <input type="text" id="checkoutProvince" name="province" autocomplete="address-level1" maxlength="100">
+          </label>
+          <label>Código postal
+            <input type="text" id="checkoutPostalCode" name="postal_code" autocomplete="postal-code" maxlength="20">
+          </label>
+          <label class="full-field">Indicaciones de entrega <span class="optional-label">opcional</span>
+            <textarea id="checkoutDeliveryNotes" name="delivery_notes" maxlength="500" rows="2"></textarea>
+          </label>
+        </div>
+        <label class="privacy-consent">
+          <input type="checkbox" id="checkoutPrivacy" name="privacy_accepted" required>
+          <span>Acepto el uso de mis datos para procesar esta compra según el <a href="privacidad.html" target="_blank" rel="noopener noreferrer">aviso de privacidad</a>.</span>
+        </label>
+      </form>
+
       <section class="purchase-actions" aria-label="Compra y consultas">
         <button type="button" id="btnComprar" class="button button-primary" disabled aria-describedby="checkoutStatus">Comprar ahora <span class="arrow-icon" aria-hidden="true"></span></button>
-        <p id="checkoutStatus" class="action-note">La compra online estará disponible próximamente.</p>
+        <p id="checkoutStatus" class="action-note" role="status">Consultando disponibilidad de compra…</p>
         <a id="btnWhatsapp" target="_blank" rel="noopener noreferrer" class="button button-outline" role="link" aria-disabled="true">Consultar por WhatsApp <span class="arrow-icon" aria-hidden="true"></span></a>
         <p class="action-note">Para personalizaciones y medidas especiales, consultanos antes de encargar.</p>
         <p id="contactStatus" class="action-note" role="status">WhatsApp aún no está disponible.</p>
@@ -139,7 +187,7 @@
 
     </div>
   </main>
-  <footer class="site-footer"><a href="index.html">ACERO Y ESCAMAS</a><span>Acero firme. Madera viva.</span></footer>
+  <footer class="site-footer"><a href="index.html">ACERO Y ESCAMAS</a><span>Acero firme. Madera viva.</span><nav aria-label="Información legal"><a href="terminos.html">Términos</a><a href="privacidad.html">Privacidad</a><a href="arrepentimiento.html">BOTÓN DE ARREPENTIMIENTO</a></nav></footer>
 
   <script defer src="assets/js/product.js"></script>
 </body>

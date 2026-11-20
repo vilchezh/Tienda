@@ -1,0 +1,32 @@
+name: Auditoría · Edge Functions producción · pruebas negativas
+
+on:
+  push:
+    branches:
+      - feat/checkout-pro-orders-test
+    paths:
+      - .github/workflows/production-edge-smoke.yml
+      - scripts/prod-edge-smoke.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  negative-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Obtener el código auditado
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probar rechazos seguros y endpoints existentes (sin secretos)
+        run: node scripts/prod-edge-smoke.mjs
+
+# Validación ampliada: consultas con tokens ficticios de presupuestos y arrepentimientos.
+
+# Se añadieron pruebas de rechazo del diagnóstico Resend: anónimo y origen ajeno.

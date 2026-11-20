@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="color-scheme" content="dark">
+ <title>Botón de arrepentimiento | Acero y Escamas</title>
+ <link rel="stylesheet" href="assets/css/theme.css">
+ <style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#171c1a;color:#f6f3eb;font-family:'Space Grotesk',system-ui,sans-serif}
+  .head{display:flex;gap:14px;align-items:center;padding:18px 5%;background:#0f3d2e;border-bottom:1px solid #708c76}
+  .head img{width:44px;height:44px;object-fit:contain}.head a{color:#f6f3eb;text-decoration:none;font-weight:700}
+  main{width:min(760px,92%);margin:32px auto 64px;padding:clamp(20px,4vw,40px);background:#202824;border:1px solid #53685b;border-top:4px solid #708c76;border-radius:4px}
+  h1{font-size:clamp(27px,5vw,39px);margin-top:0}h2{font-size:23px}
+  p,li{line-height:1.7;color:#d3ddd3}a{color:#d8e7d5}
+  label{display:block;margin:18px 0 5px;font-weight:600}
+  input,textarea{width:100%;max-width:100%;padding:12px 14px;min-height:46px;background:#111a17;color:#f6f3eb;border:1px solid #829a89;border-radius:3px;font:inherit}
+  textarea{min-height:90px;resize:vertical}input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #e9bd85;outline-offset:3px}
+  button,.contact{display:inline-block;margin:18px 0 5px;padding:14px 18px;background:#dce9de;color:#123c2b;border:0;border-radius:3px;font:700 14px 'Space Grotesk',system-ui,sans-serif;cursor:pointer}
+  button:disabled{opacity:.65;cursor:wait}.small{font-size:13px;color:#b8c4b9}
+  .notice{padding:14px 16px;border-left:4px solid #b9cda8;background:#26382d;margin:16px 0}
+  .receipt{padding:20px;border:1px solid #7d9b85;background:#172c21;border-radius:4px;margin-top:18px}
+  .receipt strong{font-size:clamp(21px,4vw,29px);color:#e0f0df;word-break:break-word}
+  .status{min-height:22px;font-weight:600}.status.error{color:#ffb8ad}.status.ok{color:#caefcc}
+  .foot{margin:26px 5%;display:flex;gap:20px;flex-wrap:wrap}
+  [hidden]{display:none!important}
+ </style>
+ <script defer src="assets/js/config.js"></script>
+ <script defer src="assets/js/turnstile-forms.js"></script>
+ <script defer src="assets/js/cancellation.js"></script>
+</head>
+<body>
+ <header class="head"><img src="assets/img/email-pangolin-708c76-sharp.png" alt="" width="44" height="44"><a href="index.html">ACERO Y ESCAMAS · Volver a la tienda</a></header>
+ <main>
+  <h1>BOTÓN DE ARREPENTIMIENTO</h1>
+  <p>Podés registrar una solicitud sobre una compra realizada por internet. No necesitás crear una cuenta ni iniciar sesión.</p>
+  <p class="notice">Entorno de pruebas: acá se registra la solicitud, pero no se cancela una compra ni se devuelve dinero automáticamente.</p>
+  <form id="cancellationForm">
+   <label for="cancellationEmail">Correo electrónico para recibir novedades</label>
+   <input id="cancellationEmail" name="email" type="email" maxlength="254" autocomplete="email" required placeholder="tu@email.com">
+   <label for="cancellationOrder">Código de pedido (opcional)</label>
+   <input id="cancellationOrder" name="order_reference" maxlength="120" autocomplete="off" placeholder="Si lo tenés, escribilo aquí">
+   <label for="cancellationMessage">Mensaje adicional (opcional)</label>
+   <textarea id="cancellationMessage" name="message" maxlength="500" placeholder="Si querés, agregá información para identificar tu compra"></textarea>
+   <p class="small">No incluyas contraseñas, números completos de tarjetas ni documentos. Los datos se usan para tramitar la solicitud. <a href="privacidad.html">Ver privacidad</a>.</p>
+   <div id="cancellationTurnstile" hidden aria-label="Verificación antibots"></div>
+   <button id="cancellationSubmit" type="submit">Registrar solicitud</button>
+   <p id="cancellationStatus" class="status" role="status" aria-live="polite"></p>
+  </form>
+  <section id="cancellationReceipt" class="receipt" aria-live="polite" hidden>
+   <h2>Solicitud registrada</h2>
+   <p>Guardá este número de trámite:</p>
+   <strong id="cancellationCode"></strong>
+   <p>La solicitud queda en revisión. Este comprobante no significa que haya un reembolso aprobado.</p>
+   <p><a id="cancellationPrivateLink" href="#">Guardar enlace privado para consultar el estado</a></p>
+   <p class="small">El enlace contiene una clave privada: no lo compartas con desconocidos. En sandbox los correos sólo se envían a destinatarios de prueba autorizados.</p>
+  </section>
+  <section id="cancellationLookup" class="receipt" hidden>
+   <h2>Estado de tu solicitud</h2>
+   <p id="cancellationLookupStatus" class="status" role="status"></p>
+   <p id="cancellationLookupDate" class="small"></p>
+  </section>
+  <p class="small">Si el formulario no funciona, podés contactarnos por <a href="mailto:acero.y.escamas@gmail.com?subject=Solicitud%20de%20arrepentimiento">correo electrónico</a>. No se requiere explicar el motivo para registrar la solicitud.</p>
+ </main>
+ <footer class="foot"><a href="index.html">Tienda</a><a href="privacidad.html">Privacidad</a><a href="terminos.html">Términos</a><a href="arrepentimiento.html">BOTÓN DE ARREPENTIMIENTO</a></footer>
+</body>
+</html>

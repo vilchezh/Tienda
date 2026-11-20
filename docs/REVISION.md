@@ -26,8 +26,8 @@ Se conservan Auth, esquema, políticas RLS, Storage, funciones de subida/reparac
 
 URLs indicadas por el propietario:
 
-- https://tienda.thiagovilchez03.workers.dev/
-- https://tienda.thiagovilchez03.workers.dev/admin
+- https://tienda.acero-y-escamas.workers.dev/
+- https://tienda.acero-y-escamas.workers.dev/admin
 
 **Se confirmó la conexión automática de Cloudflare Workers Builds con GitHub al publicar la rama.** El primer build de la rama falló porque no existía un bloque `previews` en Wrangler. La corrección agrega `wrangler.jsonc` con el nombre `tienda`, Static Assets desde `dist/`, rutas HTML sin extensión y `previews: {}`. Wrangler queda fijado en 4.160.1, una versión compatible con Worker Previews. La integración de Vercel también sigue activa y genera previews del PR.
 

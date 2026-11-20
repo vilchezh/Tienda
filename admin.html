@@ -7,6 +7,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
   <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/pricing.js"></script>
   <script defer src="assets/js/store.js"></script>
   <link rel="stylesheet" href="assets/css/admin.css">
   <link rel="stylesheet" href="assets/css/theme.css">
@@ -20,6 +21,14 @@
       <input type="password" id="loginPassword" aria-label="Contraseña" autocomplete="current-password" placeholder="Contraseña">
       <button class="btn btn-primary" id="btnLogin" style="width:100%; justify-content:center;">ENTRAR A SUPABASE</button>
       <p id="loginError" style="color:var(--danger); font-family:var(--font-mono); font-size:11px; margin-top:10px; display:none;"></p>
+      <section id="adminMfaLoginPanel" hidden class="admin-mfa-step" aria-labelledby="adminMfaLoginTitle">
+        <h2 id="adminMfaLoginTitle">Verificación en dos pasos</h2>
+        <p>Ingresá el código de 6 dígitos de tu aplicación autenticadora. Se requiere para proteger pedidos y datos de clientes.</p>
+        <label for="adminMfaLoginCode">Código de seguridad</label>
+        <input id="adminMfaLoginCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+        <button type="button" id="adminMfaLoginVerify" class="btn btn-primary">Verificar y entrar</button>
+        <p id="adminMfaLoginStatus" role="status"></p>
+      </section>
     </div>
   </div>
 
@@ -29,13 +38,31 @@
       <span class="brand-main">Acero y Escamas · Admin</span>
     </div>
     <div class="top-actions">
-      <button type="button" class="btn" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
-      <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn">👁️ Ver en Tienda</a>
-      <button type="button" class="btn btn-primary" id="btnSaveSupabase">💾 Publicar Cambios en Vivo</button>
+      <button type="button" class="btn btn-primary" id="btnViewCatalog" aria-pressed="true">Catálogo</button>
+      <button type="button" class="btn" id="btnViewOrders" aria-pressed="false">Pedidos</button>
+       <button type="button" class="btn" id="btnViewCancellations" aria-pressed="false">Arrepentimientos</button>
+      <button type="button" class="btn" id="btnViewHome" aria-pressed="false">Inicio</button>
+      <button type="button" class="btn catalog-action" id="btnImportJson" title="Revisar e importar solo IDs nuevos, siempre ocultos">📥 Revisar respaldo JSON</button>
+      <a id="btnPreviewProduct" href="#" target="_blank" rel="noopener noreferrer" class="btn catalog-action">👁️ Ver en Tienda</a>
+      <button type="button" class="btn btn-primary catalog-action" id="btnSaveSupabase">💾 Publicar Cambios en Vivo</button>
+      <button type="button" class="btn" id="btnMfaManage">Seguridad 2FA</button>
       <button type="button" class="btn btn-danger" id="btnLogout">SALIR</button>
     </div>
   </header>
   <div class="hazard-divider"></div>
+  <section id="adminMfaEnrollPanel" class="admin-mfa-enroll" hidden aria-labelledby="adminMfaEnrollTitle">
+    <h2 id="adminMfaEnrollTitle">Proteger la cuenta con una aplicación autenticadora</h2>
+    <p>Escaneá el QR con Google Authenticator, Microsoft Authenticator o una aplicación TOTP compatible. Guardá el método de recuperación de tu cuenta antes de continuar.</p>
+    <img id="adminMfaQr" alt="Código QR para configurar la autenticación" width="190" height="190" hidden>
+    <p id="adminMfaManualSecret" class="admin-mfa-secret" hidden></p>
+    <label for="adminMfaEnrollCode">Código de 6 dígitos de la aplicación</label>
+    <input id="adminMfaEnrollCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+    <div class="admin-mfa-actions">
+      <button type="button" class="btn btn-primary" id="adminMfaEnrollVerify">Activar doble factor</button>
+      <button type="button" class="btn" id="adminMfaEnrollCancel">Cerrar</button>
+    </div>
+    <p id="adminMfaEnrollStatus" role="status"></p>
+  </section>
 
   <div class="admin-layout" id="mainAdmin" style="visibility: hidden;">
     <aside class="sidebar">
@@ -54,6 +81,30 @@
     </aside>
 
     <main class="editor-area">
+      <section class="editor-card" aria-labelledby="checkoutConfigTitle">
+        <div class="card-header">
+          <span class="card-title" id="checkoutConfigTitle">Checkout Pro · entorno de prueba</span>
+          <span class="global-badge">ORDERS API</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="inpCheckoutCommission">Comisión sobre el subtotal (%)</label>
+            <input type="number" id="inpCheckoutCommission" min="0" max="50" step="0.01" disabled>
+          </div>
+          <div class="form-group">
+            <label for="outCheckoutRounding">Regla de redondeo</label>
+            <output id="outCheckoutRounding" class="mono-input">Hacia arriba a múltiplos de $1.000</output>
+          </div>
+          <div class="promo-config-box">
+            <label style="display:flex; align-items:center; gap:10px; color:var(--cream-light); font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="chkCheckoutEnabled" style="width:18px; height:18px; accent-color:var(--sage-main);" disabled>
+              <span><b>Habilitar Checkout Pro de prueba</b> para productos autorizados</span>
+            </label>
+            <span id="checkoutAdminStatus" class="action-note" role="status">La migración de checkout todavía no fue verificada.</span>
+          </div>
+        </div>
+      </section>
+
       <section class="editor-card">
         <div class="card-header">
           <span class="card-title">1. Datos Principales, Precio, Categoría y Promoción</span>
@@ -80,6 +131,11 @@
             <label>Precio Base ($ ARS)</label>
             <input type="number" id="inpPrecio" step="500">
           </div>
+          <div class="form-group">
+            <label for="outPrecioFinal">Precio final de venta ($ ARS)</label>
+            <output id="outPrecioFinal" class="mono-input" aria-live="polite">—</output>
+          </div>
+          <p id="adminPriceBreakdown" class="price-breakdown form-group full" role="status"></p>
           <div class="form-group">
             <label>Categoría Principal</label>
             <select id="selCategoria">
@@ -122,8 +178,15 @@
             <textarea id="inpResumen" rows="2"></textarea>
           </div>
           <div class="form-group full">
-            <label>Link de Pago Mercado Pago (Opcional)</label>
+            <label>Link de Pago histórico (compatibilidad; no inicia Checkout Pro)</label>
             <input type="text" id="inpMpLink" class="mono-input">
+          </div>
+          <div class="promo-config-box">
+            <label style="display:flex; align-items:center; gap:10px; color:var(--cream-light); font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="chkProductCheckout" style="width:18px; height:18px; accent-color:var(--sage-main);">
+              <span><b>Permitir compra directa</b> de esta pieza mediante Checkout Pro de prueba</span>
+            </label>
+            <span class="action-note">Las configuraciones con notas a medida seguirán por WhatsApp.</span>
           </div>
         </div>
       </section>
@@ -206,8 +269,231 @@
     </main>
   </div>
 
+
+  <section id="homeAdmin" class="home-admin" aria-labelledby="homeAdminTitle" hidden>
+    <div class="card-header"><h2 id="homeAdminTitle">Editar página de inicio</h2><a class="btn" href="index.html" target="_blank" rel="noopener noreferrer">Abrir inicio</a></div>
+    <p id="homeEditorStatus" role="status">Accedé como administrador para editar el inicio.</p>
+    <div class="home-form-grid">
+      <label>Subtítulo corto<input id="homeEyebrow" type="text" maxlength="80"></label>
+      <label>Título principal<input id="homeTitle" type="text" maxlength="100"></label>
+      <label class="home-full">Descripción<textarea id="homeDescription" rows="4" maxlength="420"></textarea></label>
+      <label class="home-full">Imagen principal (assets/img/ o HTTPS)<input id="homeImage" type="text" maxlength="500"></label>
+      <label class="home-full">O subir una imagen del equipo (PNG, JPG o WebP, máximo 4 MB)
+        <input id="homeHeroUpload" type="file" accept="image/png,image/jpeg,image/webp">
+      </label>
+    </div>
+    <h3>Orden y visibilidad de secciones</h3>
+    <p>Podés moverlas sin borrar contenido. Los productos ocultos no aparecerán en Destacados.</p>
+    <div id="homeSectionOrder" class="home-section-order"></div>
+    <h3>Elegir productos destacados (máximo 12)</h3>
+    <div id="homeFeaturedProducts" class="home-featured-products"></div>
+    <button type="button" id="btnSaveHome" class="btn btn-primary" disabled>Guardar inicio</button>
+  </section>
+
+  <section id="ordersAdmin" class="orders-admin" aria-labelledby="ordersTitle" hidden>
+    <nav class="quote-admin-tabs" aria-label="Tipos de pedidos">
+      <button type="button" id="btnOrdersShowPurchases" class="btn btn-primary" aria-pressed="true">Compras</button>
+      <button type="button" id="btnOrdersShowQuotes" class="btn" aria-pressed="false">Presupuestos a medida</button>
+    </nav>
+    <details class="quote-options-editor" id="resendDiagnosticPanel">
+      <summary>✉️ Comprobar correos de Resend (solo pruebas)</summary>
+      <p class="action-note">Envía un único mensaje técnico al correo del taller configurado en Supabase. No manda mensajes a clientes, no modifica solicitudes y está limitado a uno cada 15 minutos.</p>
+      <button type="button" id="btnResendDiagnostic" class="btn">Enviar correo de prueba al taller</button>
+      <p role="status" aria-live="polite" id="resendDiagnosticStatus"></p>
+    </details>
+    <div class="orders-toolbar">
+      <div>
+        <span class="brand-sub">OPERACIÓN DEL TALLER</span>
+        <h1 id="ordersTitle">Pedidos</h1>
+      </div>
+      <div class="orders-filters" aria-label="Filtros de pedidos">
+        <label>Buscar
+          <input type="search" id="orderSearch" placeholder="Pedido, producto, cliente o email">
+        </label>
+        <label>Vista comercial
+          <select id="orderPaymentGroup">
+            <option value="all">Todos</option>
+            <option value="accredited">Acreditados</option>
+            <option value="unpaid">Intentos sin pago</option>
+            <option value="processing">En proceso</option>
+            <option value="refunded">Reembolsados</option>
+          </select>
+        </label>
+        <label>Estado de pago
+          <select id="orderPaymentFilter">
+            <option value="">Todos los estados</option>
+            <option value="processed">Acreditado</option>
+            <option value="created">Orden creada · sin pago</option>
+            <option value="processing">En proceso</option>
+            <option value="action_required">Requiere acción</option>
+            <option value="manual_review">Revisión manual</option>
+            <option value="refunded">Reembolsado</option>
+            <option value="partially_refunded">Reembolso parcial</option>
+            <option value="charged_back">Contracargo</option>
+            <option value="canceled">Cancelado</option>
+            <option value="failed">Fallido</option>
+          </select>
+        </label>
+        <label>Fabricación
+          <select id="orderManufacturingFilter">
+            <option value="">Todos</option>
+            <option value="not_started">Sin iniciar</option>
+            <option value="confirmed">Confirmado</option>
+            <option value="in_production">En fabricación</option>
+            <option value="ready">Listo</option>
+            <option value="delivered">Entregado</option>
+            <option value="canceled">Cancelado</option>
+          </select>
+        </label>
+        <label>Orden
+          <select id="orderSort">
+            <option value="desc">Más recientes primero</option>
+            <option value="asc">Más antiguos primero</option>
+          </select>
+        </label>
+        <label>Mes y año
+          <input type="month" id="orderMonthFilter">
+        </label>
+        <label>Desde
+          <input type="date" id="orderDateFrom">
+        </label>
+        <label>Hasta
+          <input type="date" id="orderDateTo">
+        </label>
+        <button type="button" class="btn" id="btnRefreshOrders">Actualizar</button>
+        <button type="button" class="btn" id="btnResetOrderFilters">Restablecer</button>
+      </div>
+    </div>
+    <p id="ordersStatus" class="orders-status" role="status">Cargando pedidos…</p>
+    <div class="orders-pagination" aria-label="Paginación de pedidos">
+      <button type="button" class="btn" id="btnPreviousOrders">← Anteriores</button>
+      <span id="ordersPageStatus">Página 1</span>
+      <button type="button" class="btn" id="btnNextOrders">Siguientes →</button>
+    </div>
+    <div class="orders-workspace">
+      <div class="orders-table-wrap">
+        <table class="orders-table">
+          <thead><tr><th>Fecha</th><th>Pedido y cliente</th><th>Producto</th><th>Importe</th><th>Pago</th><th>Fabricación</th></tr></thead>
+          <tbody id="ordersTableBody"></tbody>
+        </table>
+      </div>
+      <aside id="orderDetail" class="order-detail" aria-live="polite">
+        <p>Seleccioná un pedido para ver sus datos y gestionar la fabricación.</p>
+      </aside>
+    </div>
+    <div id="customQuotesAdmin" class="custom-quotes-admin" hidden>
+      <div class="quote-admin-heading">
+        <div><span class="brand-sub">DISEÑOS Y ESTRUCTURAS A PEDIDO</span><h2>Solicitudes de presupuesto</h2><p>Consultas y presupuestos: no se cuentan como ventas ni activan Mercado Pago.</p></div>
+        <button id="btnRefreshCustomQuotes" type="button" class="btn">Actualizar</button>
+      </div>
+      <details id="customQuoteOptionsPanel" class="quote-options-editor">
+        <summary>⚙️ Configurar materiales, colores y acabados del formulario</summary>
+        <p class="quote-options-help">Podés agregar, editar o quitar opciones. Escribí una opción por línea, sin precios. Siempre aparecerá «Otro (escribir)» para el cliente. Los cambios se reflejan en nuevas solicitudes, no en las ya recibidas.</p>
+        <div class="quote-options-grid">
+          <label for="optionMetalMaterials">Materiales metálicos (caños, perfiles, chapas)
+            <textarea id="optionMetalMaterials" data-option-key="metal_materials" rows="7" spellcheck="false" placeholder="Caño estructural 20×20 mm&#10;Caño estructural 50×50 mm"></textarea>
+          </label>
+          <label for="optionWoodMaterials">Tipos de madera y espesores
+            <textarea id="optionWoodMaterials" data-option-key="wood_materials" rows="7" spellcheck="false" placeholder="Pino 30 mm&#10;Eucalipto 20 mm"></textarea>
+          </label>
+          <label for="optionMetalColors">Colores de metal
+            <textarea id="optionMetalColors" data-option-key="metal_colors" rows="5" spellcheck="false" placeholder="Negro&#10;Rojo"></textarea>
+          </label>
+          <label for="optionMetalFinishes">Acabados de metal
+            <textarea id="optionMetalFinishes" data-option-key="metal_finishes" rows="5" spellcheck="false" placeholder="Mate&#10;Satinado&#10;Brillante"></textarea>
+          </label>
+          <label for="optionWoodTones">Tonos de madera
+            <textarea id="optionWoodTones" data-option-key="wood_tones" rows="5" spellcheck="false" placeholder="Nogal&#10;Wengué&#10;Roble oscuro"></textarea>
+          </label>
+          <label for="optionWoodFinishes">Acabados de madera
+            <textarea id="optionWoodFinishes" data-option-key="wood_finishes" rows="5" spellcheck="false" placeholder="Mate&#10;Satinado&#10;Brillante"></textarea>
+          </label>
+        </div>
+        <div class="quote-options-actions">
+          <button id="btnSaveQuoteOptions" type="button" class="btn btn-primary">Guardar opciones del formulario</button>
+          <button id="btnReloadQuoteOptions" type="button" class="btn">Descartar cambios y recargar</button>
+        </div>
+        <p id="quoteOptionsStatus" role="status" aria-live="polite"></p>
+      </details>
+      <div class="quote-admin-filters">
+        <label>Buscar por cliente, correo o código
+          <input type="search" id="customQuoteSearch" placeholder="COT-2026-000001 o nombre">
+        </label>
+        <label>Estado
+          <select id="customQuoteStatusFilter">
+            <option value="all">Todos</option><option value="new">Nuevas</option><option value="reviewing">En revisión</option>
+            <option value="need_info">Falta información</option><option value="quoted">Presupuestadas</option>
+            <option value="accepted">Aceptadas</option><option value="declined">Cerradas</option>
+          </select>
+        </label>
+      </div>
+      <p role="status" id="customQuotesListStatus">Elegí la pestaña de presupuestos para consultar solicitudes.</p>
+      <div class="quote-admin-workspace">
+        <div class="quote-admin-table-wrap">
+          <table class="orders-table"><thead><tr><th>Fecha</th><th>Solicitud</th><th>Cliente</th><th>Estado</th></tr></thead><tbody id="customQuotesRows"></tbody></table>
+        </div>
+        <aside id="customQuoteDetail" class="quote-admin-detail" hidden>
+          <h3 id="customQuoteDetailCode"></h3>
+          <div id="customQuoteDetailInfo" class="quote-admin-facts"></div>
+          <section><h4>Referencias y planos privados</h4><p class="quote-admin-warning">Los PDF no se escanean. Descargalos solo si confiás en el archivo; no se abrirán automáticamente.</p>
+            <ul id="customQuoteFiles" class="quote-admin-files"></ul>
+          </section>
+          <label for="customQuoteState">Estado de la solicitud</label>
+          <select id="customQuoteState">
+            <option value="new">Nueva</option><option value="reviewing">En revisión</option>
+            <option value="need_info">Falta información</option><option value="quoted">Presupuestado</option>
+            <option value="accepted">Aceptado</option><option value="declined">Descartado</option>
+          </select>
+          <label for="customQuotePrice">Importe presupuestado (ARS, opcional)</label>
+          <input id="customQuotePrice" type="number" min="0" max="999999999" step="1000" placeholder="Ej.: 150000">
+          <label for="customQuoteNote">Notas internas</label>
+          <textarea id="customQuoteNote" maxlength="2000" rows="5" placeholder="Cálculos, materiales y próximos pasos. Solo los administradores pueden ver estas notas."></textarea>
+          <button id="btnSaveCustomQuote" type="button" class="btn btn-primary">Guardar presupuesto</button>
+          <p role="status" id="customQuoteSaveStatus"></p>
+          <p class="action-note">Guardar un presupuesto no lo envía al cliente ni cobra dinero. Coordiná el envío final antes de tomar pagos.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section id="cancellationsAdmin" class="cancellations-admin" aria-labelledby="cancellationsAdminTitle" hidden>
+    <div class="card-header"><div><span class="brand-sub">ATENCIÓN AL CLIENTE</span><h1 id="cancellationsAdminTitle">Solicitudes de arrepentimiento</h1></div><button type="button" class="btn" id="btnRefreshCancellations">Actualizar</button></div>
+    <p role="status" id="cancellationsAdminStatus">Ingresá como administrador para consultar las solicitudes.</p>
+    <p class="cancellation-warning">Revisá cada caso antes de decidir. Cambiar el estado aquí NO realiza devoluciones de dinero ni modifica Mercado Pago.</p>
+    <div class="cancellation-workspace">
+      <div class="cancellation-table-wrap"><table class="orders-table" aria-label="Solicitudes recibidas">
+        <thead><tr><th>Fecha</th><th>Trámite</th><th>Correo indicado</th><th>Estado</th></tr></thead>
+        <tbody id="cancellationsTableBody"></tbody>
+      </table></div>
+      <aside class="cancellation-detail" id="cancellationAdminDetail" hidden>
+        <h2 id="cancellationSelectedCode"></h2>
+        <p id="cancellationSelectedInfo"></p>
+        <p id="cancellationSelectedMessage"></p>
+        <p id="cancellationEmailInfo" class="small"></p>
+        <label for="cancellationAdminState">Estado del trámite</label>
+        <select id="cancellationAdminState">
+          <option value="received">Recibida</option>
+          <option value="reviewing">En revisión</option>
+          <option value="approved">Aprobada (sin reembolso automático)</option>
+          <option value="denied">Respuesta desfavorable</option>
+          <option value="closed">Cerrada</option>
+        </select>
+        <label for="cancellationAdminNote">Nota interna</label>
+        <textarea id="cancellationAdminNote" maxlength="1000" rows="5" placeholder="Información para el seguimiento interno"></textarea>
+        <button id="btnSaveCancellation" type="button" class="btn btn-primary">Guardar revisión</button>
+        <p role="status" id="cancellationSaveStatus"></p>
+      </aside>
+    </div>
+  </section>
+
   <div class="status-banner" id="statusBanner" role="status"></div>
 
+  <script defer src="assets/js/admin-mfa.js"></script>
   <script defer src="assets/js/admin.js"></script>
+  <script defer src="assets/js/home-admin.js"></script>
+  <script defer src="assets/js/cancellations-admin.js"></script>
+  <script defer src="assets/js/quote-options-admin.js"></script>
+  <script defer src="assets/js/quotes-admin.js"></script>
+  <script defer src="assets/js/resend-diagnostic-admin.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 function store(phone = '') {
   const context = { window: { STORE_CONFIG: { whatsappNumber: phone } }, URL, AbortSignal, location: { href: 'https://tienda.example/producto.html', origin: 'https://tienda.example' } };
+  vm.runInNewContext(fs.readFileSync('assets/js/pricing.js', 'utf8'), context);
   vm.runInNewContext(fs.readFileSync('assets/js/store.js', 'utf8'), context);
   return context.window.Store;
 }
@@ -27,4 +28,17 @@ test('activeProducts fails closed on server errors, empty and hidden rows', asyn
   assert.equal(products.length, 1); assert.equal(products[0].id, 'visible');
   assert.deepEqual(eqCalls, [['activo',true],['id','visible']]);
   await assert.rejects(store().activeProducts({from:()=>({select:()=>({eq:()=>({abortSignal:()=>Promise.resolve({data:null,error:{message:'offline'}})})})})}));
+});
+test('Checkout Pro totals preserve commission and round upward to $1,000', () => {
+  const price = store().priceBreakdown(100000, 0, 0, 7.5);
+  assert.deepEqual([price.base, price.extras, price.commission, price.rounding, price.total], [100000, 0, 7500, 500, 108000]);
+  assert.equal(store().checkoutTotal(239000, 7.5), 257000);
+  assert.equal(store().checkoutTotal(200000, 0), 200000);
+  assert.equal(store().checkoutTotal(1, 0), 1000);
+  assert.equal(store().checkoutTotal(100000, 99), 0);
+});
+test('Checkout redirects accept Mercado Pago HTTPS only', () => {
+  assert.match(store().checkoutURL('https://www.mercadopago.com.ar/checkout/v1/redirect?id=test'), /^https:/);
+  assert.equal(store().checkoutURL('https://mercadopago.com.ar.evil.test/checkout'), '');
+  assert.equal(store().checkoutURL('javascript:alert(1)'), '');
 });

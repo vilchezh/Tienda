@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "environment": "production-preparation-only",
+  "rule": "No se ejecuta ningún SQL productivo sin inventario, respaldo verificado y autorización nueva.",
+  "sql_inventory": "supabase/production/01_READ_ONLY_PREMIGRATION_INVENTORY.sql",
+  "migrations": [
+    {
+      "file": "20261114040000_checkout_pro_orders.sql",
+      "classification": "reconcile",
+      "reason": "Depende de public.productos y tienda_security.is_admin(); crea tablas y políticas no idempotentes; payments_enabled debe quedar false."
+    },
+    {
+      "file": "20261114204035_order_management.sql",
+      "classification": "reconcile",
+      "reason": "Depende de checkout; agrega datos de comprador, auditoría y funciones privilegiadas; verificar funciones y RLS preexistentes."
+    },
+    {
+      "file": "20261115174702_improve_order_attempts_admin.sql",
+      "classification": "reconcile",
+      "reason": "Modifica función de paginación e índices; comprobar firma y tipos de columnas en producción."
+    },
+    {
+      "file": "20261117210000_harden_checkout_privileges.sql",
+      "classification": "reconcile",
+      "reason": "Revoca permisos estructurales innecesarios; primero comprobar grants vigentes y actualización de fabricación."
+    },
+    {
+      "file": "20261117235800_storefront_home_editor.sql",
+      "classification": "reconcile",
+      "reason": "Crea la fila home y políticas; preservar personalización publicada y datos existentes."
+    },
+    {
+      "file": "20261118022000_checkout_cancellation_requests.sql",
+      "classification": "reconcile",
+      "reason": "Crea historial de arrepentimientos y funciones; verificar que no existe esquema parcial."
+    },
+    {
+      "file": "20261118034000_checkout_cancellation_cron.sql",
+      "classification": "replace_for_production",
+      "reason": "Contiene URL de Supabase sandbox y job checkout-sandbox-*; Cron productivo debe ser independiente."
+    },
+    {
+      "file": "20261118060000_custom_quote_requests.sql",
+      "classification": "split_and_reconcile",
+      "reason": "Contiene esquema útil y un INSERT de bucket quote-reference-sandbox; separar el bucket y conciliar tablas/RPC."
+    },
+    {
+      "file": "20261118061500_custom_quote_storage_read.sql",
+      "classification": "replace_for_production",
+      "reason": "Política apunta al bucket privado del sandbox; usar bucket privado productivo confirmado."
+    },
+    {
+      "file": "20261118064000_custom_quote_email_cron.sql",
+      "classification": "replace_for_production",
+      "reason": "Contiene URL y nombre de trabajo sandbox. Configurar Cron/Vault productivos aparte."
+    },
+    {
+      "file": "20261118070000_custom_quote_global_quota.sql",
+      "classification": "review_limits",
+      "reason": "Fija 10 solicitudes diarias globales de pruebas; definir cuota productiva con el responsable antes de instalar."
+    },
+    {
+      "file": "20261118072000_custom_quote_storage_budget.sql",
+      "classification": "review_limits",
+      "reason": "Fija 200MB como tope global de pruebas; establecer cuota de almacenamiento productiva y limpieza."
+    },
+    {
+      "file": "20261118082000_custom_quote_configurable_materials.sql",
+      "classification": "reconcile_and_review_limits",
+      "reason": "Añade opciones de materiales y RPC v2; también redefine RPC con cuota de pruebas: ajustar para producción."
+    },
+    {
+      "file": "20261118083000_custom_quote_options_validator_grants.sql",
+      "classification": "reconcile",
+      "reason": "Verificar existencia/firma del validador y privilegios exactos."
+    },
+    {
+      "file": "20261118120000_admin_mfa_stepup.sql",
+      "classification": "defer_activation",
+      "reason": "Exige AAL2 si el admin inscribe TOTP; acordar recuperación de cuenta y pruebas de acceso."
+    },
+    {
+      "file": "20261118130000_storefront_public_storage.sql",
+      "classification": "reconcile_storage",
+      "reason": "Crear/reutilizar bucket tienda con uploads de admin; la CREATE POLICY no se puede repetir si ya existe."
+    }
+  ]
+}

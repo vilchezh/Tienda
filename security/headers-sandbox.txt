@@ -1,0 +1,16 @@
+# Cloudflare Workers static assets security headers — SANDBOX ONLY.
+# CSP is report-only until external model-viewer and payment navigation are checked.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy-Report-Only: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://cdn.jsdelivr.net https://ajax.googleapis.com https://challenges.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://pacyytbscnlklyrhsshp.supabase.co https://*.supabase.co; img-src 'self' https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; media-src 'self' blob: https:; frame-src 'self' https://challenges.cloudflare.com; form-action 'self'
+/admin.html
+  Cache-Control: no-store
+/pago.html
+  Cache-Control: no-store
+/presupuesto.html
+  Cache-Control: no-store
+/arrepentimiento.html
+  Cache-Control: no-store
