@@ -52,6 +52,12 @@ for(const slug of ['process-order-notifications','process-cancellation-notificat
  await check(slug+' unauthorized',slug,'POST',{body:{},expectedStatus:401,expectedError:'not_authorized'});
 }
 await check('maintenance unauthorized','process-order-maintenance','POST',{body:{},expectedStatus:401,expectedError:'not_authorized'});
+await check('resend diagnostic preflight','resend-diagnostic','OPTIONS',{expectedStatus:204,cors:true});
+await check('resend diagnostic anonymous blocked','resend-diagnostic','POST',{
+ body:{to:'attacker@example.invalid'},expectedStatus:401,expectedError:'not_authorized',cors:true});
+await check('resend diagnostic origin blocked','resend-diagnostic','POST',{
+ headers:{Origin:'https://example.invalid'},body:{},expectedStatus:403,expectedError:'origin_not_allowed'});
+
 const failed=results.filter(result=>!result.passed);
 console.log('TOTAL '+results.length+' | PASSED '+(results.length-failed.length)+' | FAILED '+failed.length);
 if(failed.length)process.exitCode=1;
