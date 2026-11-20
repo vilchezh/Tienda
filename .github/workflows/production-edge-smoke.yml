@@ -6,6 +6,7 @@ on:
       - feat/checkout-pro-orders-test
     paths:
       - .github/workflows/production-edge-smoke.yml
+      - scripts/prod-edge-smoke.mjs
 
 permissions:
   contents: read
