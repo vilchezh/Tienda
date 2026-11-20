@@ -1,11 +1,11 @@
 name: Publicación controlada · Worker tienda (producción)
 
-# El push que incorpora este archivo SOLO verifica el build. NO publica.
-# La publicación requiere el label específico en el PR original o
-# un workflow_dispatch explícito desde la rama auditada.
+# En main, push solo verifica; NUNCA publica automáticamente.
+# La publicación desde main exige workflow_dispatch con PUBLICAR-TIENDA.
+# Se mantiene la compatibilidad temporal con el PR #2 mientras esté abierto.
 on:
   push:
-    branches: [feat/checkout-pro-orders-test]
+    branches: [feat/checkout-pro-orders-test, main]
     paths:
       - .github/workflows/deploy-production-controlled.yml
   pull_request:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Escribí PUBLICAR-TIENDA para permitir despliegue desde la rama PR #2'
+        description: 'Escribí PUBLICAR-TIENDA para publicar desde main (o la rama del PR #2)'
         required: true
         type: string
 
@@ -28,7 +28,7 @@ jobs:
   verify-and-deploy:
     if: >-
       github.repository == 'vilchezh/Tienda' && (
-      (github.event_name == 'push' && github.ref == 'refs/heads/feat/checkout-pro-orders-test') ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/checkout-pro-orders-test')) ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'labeled' &&
        github.event.label.name == 'deploy-tienda-production' &&
@@ -36,7 +36,7 @@ jobs:
        github.event.pull_request.head.ref == 'feat/checkout-pro-orders-test' &&
        github.event.pull_request.base.ref == 'main') ||
       (github.event_name == 'workflow_dispatch' &&
-       github.ref == 'refs/heads/feat/checkout-pro-orders-test' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/checkout-pro-orders-test') &&
        inputs.confirm == 'PUBLICAR-TIENDA'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
