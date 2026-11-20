@@ -34,7 +34,8 @@ export function resendDiagnosticHandler(env,fetchFn=fetch) {
   }catch{return json({error:'authorization_unavailable'},503,cors);}
   if(permission!==true)return json({error:'not_authorized'},403,cors);
 
-  if(!env.RESEND_API_KEY||!env.ORDER_EMAIL_FROM||!validEmail(env.ORDER_NOTIFICATION_TO)){
+  const sellerAddress=String(env.ORDER_NOTIFICATION_TO||'').trim().toLowerCase();
+  if(!env.RESEND_API_KEY||!env.ORDER_EMAIL_FROM||!validEmail(sellerAddress)){
    return json({error:'email_configuration_incomplete'},503,cors);
   }
 
@@ -55,7 +56,7 @@ export function resendDiagnosticHandler(env,fetchFn=fetch) {
     method:'POST',
     headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json',
      'Idempotency-Key':'store-diagnostic-'+cfg.ref+'-'+Math.floor(Date.now()/900000)},
-    body:JSON.stringify({from:env.ORDER_EMAIL_FROM,to:[env.ORDER_NOTIFICATION_TO],
+    body:JSON.stringify({from:env.ORDER_EMAIL_FROM,to:[sellerAddress],
      subject:title,text:title+'\n\n'+note,html})
    });
    body=await provider.json().catch(()=>({}));
