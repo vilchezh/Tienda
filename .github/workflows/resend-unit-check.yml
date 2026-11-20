@@ -1,0 +1,32 @@
+name: Resend · pruebas de seguridad y configuración
+on:
+  push:
+    branches: [feat/checkout-pro-orders-test]
+    paths:
+      - .github/workflows/resend-unit-check.yml
+      - supabase/functions/_shared/resend-diagnostic.mjs
+      - supabase/functions/_shared/deployment-config.mjs
+      - supabase/functions/_shared/custom-quote-emails.mjs
+      - supabase/functions/_shared/cancellation-emails.mjs
+      - supabase/functions/_shared/email-notifications.mjs
+      - tests/resend-diagnostic.test.mjs
+      - tests/deployment-config.test.mjs
+      - tests/custom-quote.test.mjs
+      - tests/cancellation.test.mjs
+      - tests/checkout.test.mjs
+      - package.json
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safety-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
