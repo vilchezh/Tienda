@@ -142,3 +142,20 @@ test('cancellation rate limiting ignores forged x-forwarded-for and uses Cloudfl
  assert.equal(ipHashes.length,2);
  assert.equal(ipHashes[0],ipHashes[1], 'Forged forwarding header must not bypass shared IP quota');
 });
+
+
+test('production cannot claim customer cancellation notifications with unverified Resend sender',async()=>{
+ const prod={...env, SUPABASE_URL:'https://ivyagavbhsyzvikzhmhe.supabase.co',
+  STORE_BASE_URL:'https://tienda.acero-y-escamas.workers.dev',STORE_DEPLOYMENT_MODE:'production',
+  STORE_EXPECTED_SUPABASE_REF:'ivyagavbhsyzvikzhmhe',QUOTE_STORAGE_BUCKET:'quote-reference',
+  RESEND_API_KEY:'fake-api-key',ORDER_EMAIL_FROM:'Acero <onboarding@resend.dev>',
+  ORDER_NOTIFICATION_TO:'owner@example.invalid',STORE_CUSTOMER_EMAILS_ENABLED:'true'};
+ const urls=[];
+ const result=await dispatchCancellationEmails(prod,async url=>{
+  urls.push(String(url));
+  if(String(url).endsWith('/rpc/checkout_claim_cancellation_seller_emails'))return reply([]);
+  throw Error('No DB rows or Resend sends expected in isolated test');
+ });
+ assert.deepEqual(urls,[prod.SUPABASE_URL+'/rest/v1/rpc/checkout_claim_cancellation_seller_emails']);
+ assert.equal(result.processed,0);
+});
