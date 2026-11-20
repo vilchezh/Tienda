@@ -295,6 +295,12 @@
       <button type="button" id="btnOrdersShowPurchases" class="btn btn-primary" aria-pressed="true">Compras</button>
       <button type="button" id="btnOrdersShowQuotes" class="btn" aria-pressed="false">Presupuestos a medida</button>
     </nav>
+    <details class="quote-options-editor" id="resendDiagnosticPanel">
+      <summary>✉️ Comprobar correos de Resend (solo pruebas)</summary>
+      <p class="action-note">Envía un único mensaje técnico al correo del taller configurado en Supabase. No manda mensajes a clientes, no modifica solicitudes y está limitado a uno cada 15 minutos.</p>
+      <button type="button" id="btnResendDiagnostic" class="btn">Enviar correo de prueba al taller</button>
+      <p role="status" aria-live="polite" id="resendDiagnosticStatus"></p>
+    </details>
     <div class="orders-toolbar">
       <div>
         <span class="brand-sub">OPERACIÓN DEL TALLER</span>
@@ -488,5 +494,6 @@
   <script defer src="assets/js/cancellations-admin.js"></script>
   <script defer src="assets/js/quote-options-admin.js"></script>
   <script defer src="assets/js/quotes-admin.js"></script>
+  <script defer src="assets/js/resend-diagnostic-admin.js"></script>
 </body>
 </html>
