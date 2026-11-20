@@ -41,3 +41,18 @@ Fuentes: https://resend.com/docs/knowledge-base/what-does-this-error-mean y http
 - No se procesó ninguna cola, no se envió correo alguno y no se activó programación automática. La única prueba positiva de correo todavía requiere un clic administrativo en la tienda y revisar la recepción.
 
 **Precaución:** `resend-diagnostic` responde `accepted_by_resend` cuando el proveedor acepta el envío, pero eso no garantiza entregabilidad. La recepción debe confirmarse en la casilla indicada como `ORDER_NOTIFICATION_TO`. Si la respuesta es `sender_or_recipient_not_verified`, revisar que corresponda a la casilla de la cuenta Resend y que siga configurado `onboarding@resend.dev`.
+
+
+## Automatización interna activada — solo avisos al taller
+
+Tras la prueba Resend con ID de proveedor `01a1f6ea-d20c-7abf-9ee2-3fc54d7d1126`, el propietario confirmó que el correo fue recibido efectivamente en su Gmail de taller.
+
+- Se normalizó a minúsculas el destinatario vendedor en `custom-quote-emails.mjs` y `cancellation-emails.mjs` para igualar la entrega positiva del diagnóstico.
+- Nueva función `process-seller-notifications` desplegada en Supabase original y sandbox. **Rechaza sandbox**, rechaza faltantes y claves inválidas, comprueba con `storefront_validate_seller_dispatch` (RPC solo `service_role`) una clave aleatoria de 32 bytes generada y almacenada exclusivamente en Supabase Vault del proyecto original. No hay tokens privados en código ni en el comando Cron.
+- Incluso si más adelante se habilitan correos a clientes, la función fuerza `STORE_CUSTOMER_EMAILS_ENABLED` vacío y reclama únicamente por las RPC `custom_quote_claim_seller_emails` y `checkout_claim_cancellation_seller_emails`.
+- Se activaron `pg_cron` y `pg_net` exclusivamente en Supabase original (no se modificó el calendario de sandbox). Cron `acero-y-escamas-seller-emails-10m`, job ID **1**, cron `*/10 * * * *`, activo. Consulta el token dentro de `vault.decrypted_secrets` al ejecutar y llama mediante `net.http_post` al endpoint nuevo. Máximo **un aviso de presupuesto y uno de arrepentimiento por ejecución**, cada 10 minutos.
+- [Pruebas unitarias del programador](https://github.com/vilchezh/Tienda/actions/runs/44666191351): **success**. [Pruebas HTTP negativas en Supabase productivo](https://github.com/vilchezh/Tienda/actions/runs/44666390899): **success**. No se envió ningún correo durante estas pruebas negativas.
+- Se disparó una ejecución de prueba desde SQL, sin exponer el token: respuesta `net._http_response.id=1` con **HTTP 200** `ok:true,seller_only:true`; `quotes: processed 1, sent 1`; `cancellations: processed 1, sent 1`. **Resend aceptó esos dos mensajes**, pero su recepción Gmail posterior aún no fue comprobada por el propietario.
+- Comprobación SQL posterior: 1 aviso de presupuesto al taller enviado, 1 aviso de arrepentimiento al taller enviado, 1 aviso de arrepentimiento al taller pendiente para el próximo Cron. **Los 3 emails de clientes permanecen pending** (1 presupuesto, 2 arrepentimientos); `payments_enabled=false`, 0 productos con checkout y 0 pedidos. `main` no se fusionó.
+- Para detener la automatización: `SELECT cron.alter_job(job_id := (SELECT jobid FROM cron.job WHERE jobname='acero-y-escamas-seller-emails-10m'), active := false);`. Para inspección: `SELECT jobid,jobname,schedule,active FROM cron.job WHERE jobname='acero-y-escamas-seller-emails-10m';`
+- No se configuraron correos comerciales a clientes ni pago de Resend. El envío general a clientes requiere dominio verificado, comprobar entregabilidad y autorización expresa.
