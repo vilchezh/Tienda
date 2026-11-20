@@ -41,9 +41,20 @@ export function emailVisuals(env) {
  return {tag,siteUrl:cfg.siteUrl,
   logoUrl:cfg.siteUrl+'/assets/img/email-pangolin-708c76-sharp.png'};
 }
+// Los correos a clientes reales requieren una autorización distinta al modo producción.
+// El remitente onboarding@resend.dev es SOLO de pruebas y no permite entrega general.
+export function customerEmailsEnabled(env){
+ const cfg=deploymentConfig(env);
+ if(cfg.mode!=='production')return false;
+ const sender=String(env.ORDER_EMAIL_FROM||'').trim().toLowerCase();
+ const address=(sender.match(/<([^<>]+)>/)?.[1]||sender).trim();
+ return String(env.STORE_CUSTOMER_EMAILS_ENABLED||'')==='true' &&
+   /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address) &&
+   address!=='onboarding@resend.dev' && !address.endsWith('@resend.dev');
+}
 export function allowCustomerEmail(env,email,kind){
  const cfg=deploymentConfig(env);
- if(cfg.mode==='production')return true;
+ if(cfg.mode==='production')return customerEmailsEnabled(env);
  const allowed=kind==='quote'?
    String(env.CUSTOM_QUOTE_SANDBOX_CUSTOMER_EMAIL||env.CANCELLATION_SANDBOX_CUSTOMER_EMAIL||env.ORDER_NOTIFICATION_TO||''):
    String(env.CANCELLATION_SANDBOX_CUSTOMER_EMAIL||env.ORDER_NOTIFICATION_TO||'');
