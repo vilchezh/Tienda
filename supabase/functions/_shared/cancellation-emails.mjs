@@ -29,7 +29,7 @@ export async function dispatchCancellationEmails(env,fetchFn=fetch,limit=10){
    await changeStatus(env,fetchFn,item,{status:'rejected',last_error:'sandbox_customer_not_allowlisted',lease_until:null});
    rejected++;continue;
   }
-  const to=item.kind==='seller'?env.ORDER_NOTIFICATION_TO:row.customer_email;
+  const to=item.kind==='seller'?String(env.ORDER_NOTIFICATION_TO||'').trim().toLowerCase():row.customer_email;
   const isSeller=item.kind==='seller';
   const subject=isSeller?'Nueva solicitud de arrepentimiento'+visuals.tag+' · '+row.code:
     'Acero y Escamas · Solicitud registrada '+row.code+visuals.tag;
