@@ -43,3 +43,17 @@ test('production rollout requires manual review of sandbox-only database jobs an
  assert.equal(byName['20261118072000_custom_quote_storage_budget.sql'],'review_limits');
  assert.equal(byName['20261118120000_admin_mfa_stepup.sql'],'defer_activation');
 });
+
+test('merging PR2 into main cannot automatically publish to Cloudflare',()=>{
+ const prod=fs.readFileSync(path.join(root,'.github/workflows/deploy-production-controlled.yml'),'utf8');
+ const sandbox=fs.readFileSync(path.join(root,'.github/workflows/deploy-checkout-sandbox.yml'),'utf8');
+ assert.match(prod,/branches: \[feat\/checkout-pro-orders-test, main\]/);
+ assert.match(prod,/github\.ref == 'refs\/heads\/main'/);
+ assert.match(prod,/github\.event_name == 'workflow_dispatch'/);
+ assert.match(prod,/inputs\.confirm == 'PUBLICAR-TIENDA'/);
+ assert.equal((prod.match(/if: github\.event_name != 'push'/g)||[]).length,3);
+ assert.match(sandbox,/github\.event_name == 'workflow_dispatch'/);
+ assert.match(sandbox,/github\.ref == 'refs\/heads\/main'/);
+ assert.match(sandbox,/wrangler deploy --config wrangler\.checkout-preview\.jsonc/);
+ assert.match(sandbox,/STORE_PREVIEW_SUPABASE_URL: https:\/\/pacyytbscnlklyrhsshp\.supabase\.co/);
+});
