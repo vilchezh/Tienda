@@ -50,6 +50,8 @@ a { color: inherit; }
 .hero-copy { padding: clamp(28px, 4.3vw, 64px); }
 .hero h1 { font-size: clamp(52px, 5.8vw, 82px); line-height: 1.03; letter-spacing: -.055em; margin: 24px 0; font-weight: 500; }
 .hero h1 em { font-family: Georgia, serif; font-weight: 400; color: #ddc1a0; }
+/* Evita mostrar el título o logo estáticos antes de hidratar la portada desde Supabase. */
+body.home-hydrating #heroTitle, body.home-hydrating #heroImage { visibility: hidden; }
 .hero-description { max-width: 370px; font-size: 15px; line-height: 1.8; color: #d5ddd5; margin-bottom: 28px; }
 .hero-notes { display: flex; flex-wrap: wrap; gap: 20px; font: 10px/1.5 var(--font-mono); color: #bdcdbf; margin-top: 44px; }
 .hero-materials { background: linear-gradient(110deg, #151d1880, #1e251a26), url('../texturas/eucalipto.jpg') center/cover; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; padding: 24px 32px; overflow: hidden; }
