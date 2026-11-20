@@ -65,7 +65,7 @@ export async function dispatchQuoteEmails(env,fetchFn=fetch,limit=10){
   if(job.kind==='customer'&&!allowCustomerEmail(env,row.email,'quote')){
    await patch(env,fetchFn,job.email_id,{status:'rejected',last_error:'sandbox_customer_not_allowlisted',lease_until:null});skipped++;continue;
   }
-  const to=job.kind==='seller'?env.ORDER_NOTIFICATION_TO:row.email;
+  const to=job.kind==='seller'?String(env.ORDER_NOTIFICATION_TO||'').trim().toLowerCase():row.email;
   const mail=quoteEmailTemplate(row,job.kind,fileCount,env);
   let res,body;
   try {
