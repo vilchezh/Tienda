@@ -184,3 +184,20 @@ test('quote server stores metal and wood finishes with no selected material',asy
  assert.match(calls[0].payload.p_finish,/Color metal: Rojo/);
  assert.match(calls[0].payload.p_finish,/Acabado madera: Mate/);
 });
+
+
+test('production with Resend trial sender only claims seller emails and leaves customer queue untouched',async()=>{
+ const prod={...env, SUPABASE_URL:'https://ivyagavbhsyzvikzhmhe.supabase.co',
+   STORE_BASE_URL:'https://tienda.acero-y-escamas.workers.dev', STORE_DEPLOYMENT_MODE:'production',
+   STORE_EXPECTED_SUPABASE_REF:'ivyagavbhsyzvikzhmhe', QUOTE_STORAGE_BUCKET:'quote-reference',
+   RESEND_API_KEY:'fake-api-key', ORDER_EMAIL_FROM:'Acero <onboarding@resend.dev>',
+   ORDER_NOTIFICATION_TO:'owner@example.invalid', STORE_CUSTOMER_EMAILS_ENABLED:'true'};
+ const urls=[];
+ const result=await dispatchQuoteEmails(prod,async url=>{
+  urls.push(String(url));
+  if(String(url).endsWith('/rpc/custom_quote_claim_seller_emails'))return reply([]);
+  throw Error('No DB rows or Resend sends expected in isolated test');
+ });
+ assert.deepEqual(urls,[prod.SUPABASE_URL+'/rest/v1/rpc/custom_quote_claim_seller_emails']);
+ assert.equal(result.processed,0);
+});
