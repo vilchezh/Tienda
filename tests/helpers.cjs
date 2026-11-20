@@ -52,6 +52,7 @@ async function setup(page, options = {}) {
       }
       if (url.pathname.includes('/rest/v1/storefront_content')) {
         if(req.method()==='GET'){
+          if(options.homeDelayMs)await new Promise(resolve=>setTimeout(resolve,options.homeDelayMs));
           if(options.homeFailure)return route.fulfill({status:403,json:{message:'not authorized'}});
           const data=options.homeContent||null;
           const one=(req.headers().accept||'').includes('application/vnd.pgrst.object');
