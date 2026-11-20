@@ -49,7 +49,7 @@ export function customerEmailsEnabled(env){
  const sender=String(env.ORDER_EMAIL_FROM||'').trim().toLowerCase();
  const address=(sender.match(/<([^<>]+)>/)?.[1]||sender).trim();
  return String(env.STORE_CUSTOMER_EMAILS_ENABLED||'')==='true' &&
-   /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address) &&
+   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) &&
    address!=='onboarding@resend.dev' && !address.endsWith('@resend.dev');
 }
 export function allowCustomerEmail(env,email,kind){
