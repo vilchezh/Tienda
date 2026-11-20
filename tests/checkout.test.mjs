@@ -765,3 +765,19 @@ test('admin order query is RLS-invoker paginated and permanent email failures ar
   assert.match(sql, /revoke all on function public\.checkout_admin_list_orders[\s\S]*from public, anon/i);
   assert.doesNotMatch(sql, /security definer/i);
 });
+
+
+test('production payment mail cannot dispatch while customer emails are disabled', async()=>{
+ const prod={...env,SUPABASE_URL:'https://ivyagavbhsyzvikzhmhe.supabase.co',
+  STORE_BASE_URL:'https://tienda.acero-y-escamas.workers.dev',STORE_DEPLOYMENT_MODE:'production',
+  STORE_EXPECTED_SUPABASE_REF:'ivyagavbhsyzvikzhmhe',QUOTE_STORAGE_BUCKET:'quote-reference',
+  RESEND_API_KEY:'fake-api-key',ORDER_EMAIL_FROM:'Acero <onboarding@resend.dev>',
+  ORDER_NOTIFICATION_TO:'owner@example.invalid',STORE_CUSTOMER_EMAILS_ENABLED:'true'};
+ let networkCalls=0;
+ const fetchMock=async()=>{networkCalls++;throw Error('No network allowed');};
+ const single=await dispatchOrderNotifications(prod,fetchMock,localOrderId);
+ const scheduled=await dispatchDueOrderNotifications(prod,fetchMock);
+ assert.equal(single.blocked,'customer_notifications_not_enabled');
+ assert.equal(scheduled.blocked,'customer_notifications_not_enabled');
+ assert.equal(networkCalls,0);
+});
