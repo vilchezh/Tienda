@@ -26,10 +26,33 @@
     }
     sections.featured.hidden=!track.childElementCount||settings.sections_visible?.featured===false;
   }
+  function setHeroTitle(value){
+    const title=String(value||'').trim().replace(/\s+/g,' ');
+    if(!title||title===defaults.hero_title)return;
+    const heading=document.getElementById('heroTitle');
+    const split=title.lastIndexOf(' ');
+    if(split<0){heading.textContent=title;return;}
+    const emphasis=document.createElement('em');
+    emphasis.textContent=title.slice(split+1);
+    heading.replaceChildren(document.createTextNode(title.slice(0,split+1)),emphasis);
+  }
+  async function revealHero(){
+    const image=document.getElementById('heroImage');
+    if(image&&!image.complete){
+      await Promise.race([
+        new Promise(resolve=>{
+          image.addEventListener('load',resolve,{once:true});
+          image.addEventListener('error',resolve,{once:true});
+        }),
+        new Promise(resolve=>setTimeout(resolve,3000))
+      ]);
+    }
+    document.body.classList.remove('home-hydrating');
+  }
   function updateHome(row){
     if(!row||typeof row!=='object')return;
     settings={...defaults,...row};
-    if(typeof row.hero_title==='string'&&row.hero_title.trim())document.getElementById('heroTitle').textContent=row.hero_title;
+    if(typeof row.hero_title==='string'&&row.hero_title.trim())setHeroTitle(row.hero_title);
     if(typeof row.hero_eyebrow==='string'&&row.hero_eyebrow.trim())document.getElementById('heroEyebrow').textContent=row.hero_eyebrow;
     if(typeof row.hero_description==='string'&&row.hero_description.trim())document.getElementById('heroDescription').textContent=row.hero_description;
     const image=safeImage(row.hero_image);
@@ -43,8 +66,13 @@
   for(const [id,direction] of [['featuredPrevious',-1],['featuredNext',1]]){
     document.getElementById(id).addEventListener('click',()=>track.scrollBy({left:direction*Math.max(270,Math.round(track.clientWidth*.8)),behavior:'smooth'}));
   }
-  (async()=>{try{
-    const {data,error}=await Store.createClient().from('storefront_content').select('*').eq('id','home').maybeSingle();
-    if(!error&&data)updateHome(data);
-  }catch{/* Fallback: static home stays visible when schema/connection is unavailable. */}})();
+  (async()=>{
+    try{
+      let query=Store.createClient().from('storefront_content').select('*').eq('id','home');
+      if(typeof AbortSignal?.timeout==='function')query=query.abortSignal(AbortSignal.timeout(5000));
+      const {data,error}=await query.maybeSingle();
+      if(!error&&data)updateHome(data);
+    }catch{/* Fallback: show the static home when the schema/connection is unavailable. */}
+    finally{await revealHero();}
+  })();
 })();
