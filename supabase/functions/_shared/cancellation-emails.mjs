@@ -1,6 +1,6 @@
 import { firstRow, supabaseRequest, encodeFilter } from './supabase-rest.mjs';
 import { constantTimeEqual } from './internal-auth.mjs';
-import { deploymentConfig,allowCustomerEmail,emailVisuals } from './deployment-config.mjs';
+import { deploymentConfig,allowCustomerEmail,customerEmailsEnabled,emailVisuals } from './deployment-config.mjs';
 
 const json=(body,status)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 const htmlEscape=value=>String(value??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,7 +16,7 @@ export async function dispatchCancellationEmails(env,fetchFn=fetch,limit=10){
  const sandbox=visuals.tag!=='';
  if(!env.RESEND_API_KEY||!env.ORDER_EMAIL_FROM||!env.ORDER_NOTIFICATION_TO)
   return {configured:false,processed:0};
- const claimed=await supabaseRequest(env,fetchFn,'rpc/checkout_claim_cancellation_emails',{
+ const claimed=await supabaseRequest(env,fetchFn,(deploymentConfig(env).mode==='production'&&!customerEmailsEnabled(env)?'rpc/checkout_claim_cancellation_seller_emails':'rpc/checkout_claim_cancellation_emails'),{
   method:'POST',body:JSON.stringify({p_limit:Math.min(Math.max(Number(limit)||10,1),20)})
  });
  let sent=0,rejected=0,pending=0;
