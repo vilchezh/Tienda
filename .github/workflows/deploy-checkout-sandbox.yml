@@ -15,7 +15,7 @@ concurrency:
 jobs:
   deploy-sandbox:
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/checkout-pro-orders-test') ||
+      (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/checkout-pro-orders-test')) ||
       (github.event_name == 'pull_request' && github.event.label.name == 'deploy-checkout-sandbox' &&
        github.event.pull_request.head.ref == 'feat/checkout-pro-orders-test' &&
        github.event.pull_request.head.repo.full_name == 'vilchezh/Tienda' &&
