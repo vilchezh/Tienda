@@ -12,5 +12,6 @@ const env = Object.fromEntries([
   'STORE_DEPLOYMENT_MODE',
   'QUOTE_STORAGE_BUCKET',
   'STORE_EXPECTED_SUPABASE_REF',
+  'STORE_CUSTOMER_EMAILS_ENABLED',
 ].map(key => [key, Deno.env.get(key) || '']));
 Deno.serve(processNotificationsHandler(env));
