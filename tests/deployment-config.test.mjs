@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { deploymentConfig,emailVisuals,allowCustomerEmail,mercadoPagoSecrets } from '../supabase/functions/_shared/deployment-config.mjs';
+import { deploymentConfig,emailVisuals,allowCustomerEmail,customerEmailsEnabled,mercadoPagoSecrets } from '../supabase/functions/_shared/deployment-config.mjs';
 import { verifyTurnstile } from '../supabase/functions/_shared/turnstile-check.mjs';
 const sandbox={
  SUPABASE_URL:'https://pacyytbscnlklyrhsshp.supabase.co',
@@ -44,7 +44,11 @@ test('production only operates on explicit paired project, private bucket and HT
  assert.deepEqual([prod.mode,prod.ref,prod.bucket],['production','ivyagavbhsyzvikzhmhe','quote-reference']);
  assert.match(emailVisuals(production).logoUrl,/^https:\/\/tienda\.acero-y-escamas\.workers\.dev\/assets\/img\//);
  assert.ok(!emailVisuals(production).tag);
- assert.equal(allowCustomerEmail(production,'buyer@example.invalid','quote'),true);
+ assert.equal(allowCustomerEmail(production,'buyer@example.invalid','quote'),false);
+ assert.equal(customerEmailsEnabled({...production,ORDER_EMAIL_FROM:'Acero <onboarding@resend.dev>',STORE_CUSTOMER_EMAILS_ENABLED:'true'}),false);
+ assert.equal(customerEmailsEnabled({...production,ORDER_EMAIL_FROM:'Acero <ventas@example.org>',STORE_CUSTOMER_EMAILS_ENABLED:''}),false);
+ assert.equal(customerEmailsEnabled({...production,ORDER_EMAIL_FROM:'Acero <ventas@example.org>',STORE_CUSTOMER_EMAILS_ENABLED:'true'}),true);
+ assert.equal(allowCustomerEmail({...production,ORDER_EMAIL_FROM:'ventas@example.org',STORE_CUSTOMER_EMAILS_ENABLED:'true'},'buyer@example.invalid','quote'),true);
  assert.equal(allowCustomerEmail(sandbox,'buyer@example.invalid','quote'),false);
 });
 test('Mercado Pago secret selectors never fall back across test and live',()=>{
