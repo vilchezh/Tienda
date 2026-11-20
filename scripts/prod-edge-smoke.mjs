@@ -52,6 +52,10 @@ for(const slug of ['process-order-notifications','process-cancellation-notificat
  await check(slug+' unauthorized',slug,'POST',{body:{},expectedStatus:401,expectedError:'not_authorized'});
 }
 await check('maintenance unauthorized','process-order-maintenance','POST',{body:{},expectedStatus:401,expectedError:'not_authorized'});
+await check('seller scheduler anonymous blocked','process-seller-notifications','POST',{
+ body:{},expectedStatus:401,expectedError:'unauthorized'});
+await check('seller scheduler forged token blocked','process-seller-notifications','POST',{
+ body:{},headers:{'x-seller-dispatch-token':'a'.repeat(64)},expectedStatus:401,expectedError:'unauthorized'});
 await check('resend diagnostic preflight','resend-diagnostic','OPTIONS',{expectedStatus:204,cors:true});
 await check('resend diagnostic anonymous blocked','resend-diagnostic','POST',{
  body:{to:'attacker@example.invalid'},expectedStatus:401,expectedError:'not_authorized',cors:true});
