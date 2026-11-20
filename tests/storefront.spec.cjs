@@ -391,7 +391,7 @@ test('home waits for selected logo and preserves huella typography after delayed
   await expect(page.locator('body')).not.toHaveClass(/home-hydrating/,{timeout:6500});
   await expect(page.locator('#heroTitle em')).toHaveText('huella.');
   await expect(page.locator('#heroTitle em')).toHaveCSS('color','rgb(221, 193, 160)');
-  await expect(page.locator('#heroImage')).toHaveAttribute('src','assets/img/email-pangolin-303a39.png');
+  await expect(page.locator('#heroImage')).toHaveAttribute('src',/\/assets\/img\/email-pangolin-303a39\.png$/);
   await expect(page.locator('#heroImage')).toBeVisible();
   expect(state.errors).toEqual([]);
 });
