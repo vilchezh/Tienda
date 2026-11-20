@@ -27,3 +27,5 @@ jobs:
         run: node scripts/prod-edge-smoke.mjs
 
 # Validación ampliada: consultas con tokens ficticios de presupuestos y arrepentimientos.
+
+# Se añadieron pruebas de rechazo del diagnóstico Resend: anónimo y origen ajeno.
