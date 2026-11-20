@@ -30,3 +30,14 @@ Si aparece un error `403`, confirmar en el panel de Resend que `ORDER_NOTIFICATI
 Después de una prueba exitosa se puede planificar un programador seguro solo de avisos al taller, con secreto Vault y sin enviar a compradores. **No activar Cron todavía.**
 
 Fuentes: https://resend.com/docs/knowledge-base/what-does-this-error-mean y https://resend.com/changelog/sending-test-emails
+
+## Estado de publicación y comprobaciones posteriores
+
+- El frontend con el botón de diagnóstico fue publicado mediante [GitHub Actions 44645326930](https://github.com/vilchezh/Tienda/actions/runs/44645326930), con resultado **success** y verificación HTTP postdeploy completada.
+- Cloudflare Worker `tienda`: versión `f31e34e2-c676-4411-b292-61bd5501ad1d`.
+- La publicación sandbox del frontend fue omitida expresamente; **sí** se actualizaron las Edge Functions internas del Supabase sandbox con versiones seguras equivalentes.
+- Se detectó que el webhook `mp-order-webhook` también importa el envío inmediato de pedidos. Se añadió `STORE_CUSTOMER_EMAILS_ENABLED` a su entorno, se empacó con `email-notifications.mjs` protegido y se publicó **sandbox v21 y producción v2**. No se habilitaron cobros.
+- SQL posterior (producción): `payments_enabled=false`, cero productos con checkout, cero pedidos, 2 correos de presupuestos y 4 de arrepentimientos pendientes, cero intentos de diagnóstico. En sandbox: pagos también apagados; pedidos y productos de pruebas existentes permanecen.
+- No se procesó ninguna cola, no se envió correo alguno y no se activó programación automática. La única prueba positiva de correo todavía requiere un clic administrativo en la tienda y revisar la recepción.
+
+**Precaución:** `resend-diagnostic` responde `accepted_by_resend` cuando el proveedor acepta el envío, pero eso no garantiza entregabilidad. La recepción debe confirmarse en la casilla indicada como `ORDER_NOTIFICATION_TO`. Si la respuesta es `sender_or_recipient_not_verified`, revisar que corresponda a la casilla de la cuenta Resend y que siga configurado `onboarding@resend.dev`.
