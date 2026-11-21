@@ -1,7 +1,7 @@
 // Configuración pública: nunca agregar service_role, access tokens ni secretos aquí.
 window.STORE_CONFIG = Object.freeze({
   // URL pública principal. Cambiar solo este valor al migrar a un dominio propio.
-  siteUrl: 'https://tienda.acero-y-escamas.workers.dev',
+  siteUrl: 'https://aceroyescamas.com.ar',
   // Número internacional, solo dígitos. Vacío mantiene las consultas deshabilitadas.
   whatsappNumber: '5491164598478',
   quoteStorageBucket: 'quote-reference', // Solo identificador público, el acceso sigue protegido por RLS.
