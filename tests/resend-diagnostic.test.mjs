@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {resendDiagnosticHandler} from '../supabase/functions/_shared/resend-diagnostic.mjs';
 
 const site='https://tienda.acero-y-escamas.workers.dev';
+import { readFileSync } from 'node:fs';
+test('Resend diagnostic entrypoint forwards configured allowed origins',()=>{
+ const source=readFileSync(new URL('../supabase/functions/resend-diagnostic/index.ts',import.meta.url),'utf8');
+ assert.match(source,/['\"]STORE_ALLOWED_ORIGINS['\"]/);
+});
 const env={
  SUPABASE_URL:'https://ivyagavbhsyzvikzhmhe.supabase.co',
  SUPABASE_ANON_KEY:'public-anon-test-key',
@@ -39,6 +44,15 @@ test('Resend diagnostic refuses unknown origins and anonymous users before netwo
  assert.equal((await handler(req('https://evil.example.invalid'))).status,403);
  assert.equal((await handler(req(site,''))).status,401);
  assert.equal(b.requests.length,0);
+});
+test('Resend diagnostic permits the new domain only when listed and preserves strict CORS',async()=>{
+ const allowed={...env,STORE_ALLOWED_ORIGINS:'https://aceroyescamas.com.ar'};
+ const b=testBackend();
+ const response=await resendDiagnosticHandler(allowed,b.fn)(req('https://aceroyescamas.com.ar'));
+ assert.equal(response.status,200);
+ assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://aceroyescamas.com.ar');
+ assert.equal((await resendDiagnosticHandler(env,b.fn)(req('https://aceroyescamas.com.ar'))).status,403);
+ assert.equal((await resendDiagnosticHandler(allowed,b.fn)(req('https://evil.example.invalid'))).status,403);
 });
 test('Resend diagnostic requires actual admin authorization via Supabase JWT context',async()=>{
  const b=testBackend({authorized:false});

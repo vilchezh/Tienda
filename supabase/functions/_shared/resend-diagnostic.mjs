@@ -1,5 +1,6 @@
 import { deploymentConfig,emailVisuals } from './deployment-config.mjs';
 import { supabaseRequest } from './supabase-rest.mjs';
+import { allowedOrigins } from './cors.mjs';
 
 const json=(data,status,headers={})=>new Response(JSON.stringify(data),{
  status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
@@ -12,8 +13,8 @@ export function resendDiagnosticHandler(env,fetchFn=fetch) {
   let cfg;
   try{cfg=deploymentConfig(env);}catch{return json({error:'configuration_unavailable'},503);}
   const origin=request.headers.get('origin');
-  if(origin!==cfg.siteUrl)return json({error:'origin_not_allowed'},403);
-  const cors={'Access-Control-Allow-Origin':cfg.siteUrl,'Vary':'Origin',
+  if(!origin||!allowedOrigins(env).has(origin))return json({error:'origin_not_allowed'},403);
+  const cors={'Access-Control-Allow-Origin':origin,'Vary':'Origin',
    'Access-Control-Allow-Methods':'POST, OPTIONS',
    'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info'};
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors});

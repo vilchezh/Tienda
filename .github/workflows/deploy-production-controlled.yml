@@ -43,7 +43,7 @@ jobs:
     env:
       STORE_PROD_SUPABASE_URL: https://ivyagavbhsyzvikzhmhe.supabase.co
       STORE_PROD_SUPABASE_REF: ivyagavbhsyzvikzhmhe
-      STORE_PROD_SITE_URL: https://tienda.acero-y-escamas.workers.dev
+      STORE_PROD_SITE_URL: https://aceroyescamas.com.ar
       STORE_PROD_TURNSTILE_SITE_KEY: 0x4AAAAAAGJONVP8yIMQn-Tg
       STORE_PROD_WHATSAPP_NUMBER: '5491164598478'
     steps:
@@ -107,7 +107,7 @@ jobs:
         if: github.event_name != 'push'
         run: |
           node <<'NODE'
-          const url='https://tienda.acero-y-escamas.workers.dev/assets/js/config.js';
+          const url='https://aceroyescamas.com.ar/assets/js/config.js';
           const response=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(15000)});
           if(!response.ok)throw Error('La tienda publicada no respondió con el archivo de configuración');
           const code=await response.text();
@@ -115,5 +115,6 @@ jobs:
             if(!code.includes(marker))throw Error('Falta una configuración pública esperada tras el despliegue');
           }
           if(code.includes('pacyytbscnlklyrhsshp'))throw Error('El frontend contiene referencias a Supabase sandbox');
+          if(!code.includes('siteUrl')||!code.includes('https://aceroyescamas.com.ar'))throw Error('La URL publica no coincide con el dominio oficial');
           console.log('POSTDEPLOY OK: configuración publicada, Turnstile público y Worker original verificados.');
           NODE

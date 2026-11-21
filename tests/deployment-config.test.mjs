@@ -67,6 +67,21 @@ test('Turnstile checks productively configured hostname and fails when productio
  const noSecret=await verifyTurnstile({...production,TURNSTILE_SECRET:''},req,token,async()=>{throw Error('unexpected network');});
  assert.equal(noSecret.ok,false);
 });
+test('Turnstile allows the transitional hostname only when it matches the verified request origin',async()=>{
+ const env={...production,STORE_ALLOWED_ORIGINS:'https://aceroyescamas.com.ar'};
+ const token='a-test-token-long-enough-for-turnstile';
+ const requestFor=origin=>new Request('https://example.invalid/submit',{headers:{origin}});
+ const verify=(origin,hostname)=>verifyTurnstile(env,requestFor(origin),token,
+   async()=>Response.json({success:true,hostname}));
+ assert.equal((await verify('https://aceroyescamas.com.ar','aceroyescamas.com.ar')).ok,true);
+ assert.equal((await verify(production.STORE_BASE_URL,'tienda.acero-y-escamas.workers.dev')).ok,true);
+ assert.equal((await verify('https://aceroyescamas.com.ar','tienda.acero-y-escamas.workers.dev')).ok,false);
+ assert.equal((await verify(production.STORE_BASE_URL,'aceroyescamas.com.ar')).ok,false);
+ let network=false;
+ assert.equal((await verifyTurnstile(env,requestFor('https://evil.example.invalid'),token,
+   async()=>{network=true;throw Error('unexpected');})).ok,false);
+ assert.equal(network,false);
+});
 test('release build refuses missing or sandbox credentials and accepts properly scoped public config',()=>{
  const run=env=>spawnSync(process.execPath,['scripts/build.cjs','--release'],{
   cwd:process.cwd(),encoding:'utf8',env:{...process.env,
