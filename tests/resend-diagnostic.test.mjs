@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {resendDiagnosticHandler} from '../supabase/functions/_shared/resend-diagnostic.mjs';
 
 const site='https://tienda.acero-y-escamas.workers.dev';
+import { readFileSync } from 'node:fs';
+test('Resend diagnostic entrypoint forwards configured allowed origins',()=>{
+ const source=readFileSync(new URL('../supabase/functions/resend-diagnostic/index.ts',import.meta.url),'utf8');
+ assert.match(source,/['\"]STORE_ALLOWED_ORIGINS['\"]/);
+});
 const env={
  SUPABASE_URL:'https://ivyagavbhsyzvikzhmhe.supabase.co',
  SUPABASE_ANON_KEY:'public-anon-test-key',
