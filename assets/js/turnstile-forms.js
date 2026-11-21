@@ -21,7 +21,7 @@ window.StoreTurnstile = (() => {
   notice(message,true);
  }
  function errorMessage(){
-  return issue||(!ready?'La verificación de Cloudflare todavía se esta cargando. Volvé a intentar.':
+  return issue||(!ready?'La verificación de Cloudflare todavía se está cargando. Volvé a intentar.':
     'Completá la verificación de seguridad antes de enviar.');
  }
  function response(){
@@ -32,7 +32,7 @@ window.StoreTurnstile = (() => {
  function reset(){
   if(ready&&widget!==null&&typeof window.turnstile?.reset==='function'){
    try{window.turnstile.reset(widget);issue='';notice('Verificando nuevamente con Cloudflare...');}
-   catch{fail('No se pudo reiniciar Cloudflare. Actualizá la pagina y reintenta.');}
+   catch{fail('No se pudo reiniciar Cloudflare. Actualizá la página y reintentá.');}
   }
  }
 
@@ -46,7 +46,7 @@ window.StoreTurnstile = (() => {
   target.insertAdjacentElement('afterend',status);
 
   if(!key){
-   fail('No se cargo la configuración de seguridad de Cloudflare. Actualizá la pagina con Ctrl+F5.');
+   fail('No se cargó la configuración de seguridad de Cloudflare. Actualizá la página con Ctrl+F5.');
   }else{
    notice('Cargando la verificación de Cloudflare...');
    const script=document.createElement('script');
@@ -55,7 +55,7 @@ window.StoreTurnstile = (() => {
    script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
    script.onload=()=>{
     if(typeof window.turnstile?.render!=='function'){
-     fail('No se pudo iniciar Cloudflare. Actualizá la pagina o probá sin bloqueadores.');
+     fail('No se pudo iniciar Cloudflare. Actualizá la página o probá sin bloqueadores.');
      return;
     }
     try{
@@ -68,7 +68,7 @@ window.StoreTurnstile = (() => {
        notice('Verificación de Cloudflare completada.');
       },
       'expired-callback':()=>{
-       fail('La verificación de Cloudflare vencio. Completá el desafío nuevamente.');
+       fail('La verificación de Cloudflare venció. Completá el desafío nuevamente.');
       },
       'error-callback':code=>{
        const value=String(code||'').replace(/[^0-9]/g,'').slice(0,8);
@@ -83,12 +83,12 @@ window.StoreTurnstile = (() => {
       }
      });
      if(widget===null||widget===undefined){
-      fail('Cloudflare no pudo mostrar el desafío de seguridad. Actualizá la pagina.');
+      fail('Cloudflare no pudo mostrar el desafío de seguridad. Actualizá la página.');
       return;
      }
      ready=true;
     }catch{
-     fail('No se pudo mostrar la verificación de Cloudflare. Actualizá la pagina o probá otro navegador.');
+     fail('No se pudo mostrar la verificación de Cloudflare. Actualizá la página o probá otro navegador.');
     }
    };
    script.onerror=()=>{
