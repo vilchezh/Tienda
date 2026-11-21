@@ -86,7 +86,7 @@
   submit.disabled=true;setMessage('Registrando tu solicitud…');
   try{
    const proof=window.StoreTurnstile?.response()||'';
-   if(window.StoreTurnstile?.enabled()&&!proof)throw Error('Completá la verificación de seguridad antes de enviar.');
+   if(window.StoreTurnstile?.enabled()&&!proof)throw Error(window.StoreTurnstile?.errorMessage?.()||'Completá la verificación de seguridad antes de enviar.');
    const result=await api({action:'submit',submission_id:pending.submission_id,status_token:pending.status_token,
     email,order_reference:reference,message:note,turnstile_token:proof});
    if(!result.ok||!CODE_RE.test(result.code||''))throw Error('No se recibió el comprobante.');
