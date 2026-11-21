@@ -2,7 +2,7 @@
 
 Tienda estática en HTML, CSS y JavaScript, con Supabase para catálogo, autenticación y archivos, y model-viewer 3.5.0 para el visor existente. Sin framework; el build solo reúne los archivos públicos en `dist/` para Cloudflare Workers.
 
-Sitio principal: `https://tienda.acero-y-escamas.workers.dev/`. Administrador: `/admin`.
+Sitio principal: `https://aceroyescamas.com.ar/`. Administrador: `/admin`. El hostname Workers original queda como acceso de transición.
 
 ## Estructura
 
