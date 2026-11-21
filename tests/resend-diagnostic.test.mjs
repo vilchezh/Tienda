@@ -40,6 +40,15 @@ test('Resend diagnostic refuses unknown origins and anonymous users before netwo
  assert.equal((await handler(req(site,''))).status,401);
  assert.equal(b.requests.length,0);
 });
+test('Resend diagnostic permits the new domain only when listed and preserves strict CORS',async()=>{
+ const allowed={...env,STORE_ALLOWED_ORIGINS:'https://aceroyescamas.com.ar'};
+ const b=testBackend();
+ const response=await resendDiagnosticHandler(allowed,b.fn)(req('https://aceroyescamas.com.ar'));
+ assert.equal(response.status,200);
+ assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://aceroyescamas.com.ar');
+ assert.equal((await resendDiagnosticHandler(env,b.fn)(req('https://aceroyescamas.com.ar'))).status,403);
+ assert.equal((await resendDiagnosticHandler(allowed,b.fn)(req('https://evil.example.invalid'))).status,403);
+});
 test('Resend diagnostic requires actual admin authorization via Supabase JWT context',async()=>{
  const b=testBackend({authorized:false});
  assert.equal((await resendDiagnosticHandler(env,b.fn)(req())).status,403);
