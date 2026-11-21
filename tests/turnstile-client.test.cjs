@@ -4,14 +4,14 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const turnstileSource=fs.readFileSync('assets/js/turnstile-forms.js','utf8');
 
-function start(config){
+function start(config,hostname='aceroyescamas.com.ar'){
  const target={hidden:true,insertAdjacentElement(_,node){this.notice=node;}};
  const doc={
   getElementById:id=>id==='quoteTurnstile'?target:null,
   createElement:tag=>({tag,style:{},setAttribute(name,value){this[name]=value;}}),
   head:{appendChild(element){this.script=element;}}
  };
- const window={STORE_CONFIG:config};
+ const window={STORE_CONFIG:config,location:{hostname}};
  vm.runInNewContext(turnstileSource,{window,document:doc},{timeout:1000});
  return {target,doc,window};
 }
@@ -33,6 +33,12 @@ test('sandbox sin sitekey conserva su comportamiento actual',()=>{
   supabaseUrl:'https://pacyytbscnlklyrhsshp.supabase.co',
   siteUrl:'https://tienda-checkout-sandbox.acero-y-escamas.workers.dev'
  });
+ assert.equal(window.StoreTurnstile.enabled(),false);
+ assert.equal(target.hidden,true);
+});
+
+test('el servidor de pruebas local no bloquea formularios sin sitekey',()=>{
+ const {window,target}=start(production,'127.0.0.1');
  assert.equal(window.StoreTurnstile.enabled(),false);
  assert.equal(target.hidden,true);
 });
