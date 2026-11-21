@@ -2,7 +2,7 @@
 window.StoreTurnstile = (() => {
  'use strict';
  const config=window.STORE_CONFIG||{};
- const key=String(config.turnstileSiteKey||'').trim();
+ const key=String(window.STORE_CONFIG?.turnstileSiteKey||'').trim();
  // En la tienda real la verificación es obligatoria, aunque un JS antiguo
  // o una configuración incompleta no haya cargado la clave pública.
  const production=config.supabaseUrl==='https://ivyagavbhsyzvikzhmhe.supabase.co';
