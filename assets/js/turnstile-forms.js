@@ -5,7 +5,10 @@ window.StoreTurnstile = (() => {
  const key=String(window.STORE_CONFIG?.turnstileSiteKey||'').trim();
  // En la tienda real la verificación es obligatoria, aunque un JS antiguo
  // o una configuración incompleta no haya cargado la clave pública.
- const production=config.supabaseUrl==='https://ivyagavbhsyzvikzhmhe.supabase.co';
+ const hostname=String(window.location?.hostname||'').toLowerCase();
+ const production=config.supabaseUrl==='https://ivyagavbhsyzvikzhmhe.supabase.co'&&
+  ['aceroyescamas.com.ar','www.aceroyescamas.com.ar',
+   'tienda.acero-y-escamas.workers.dev'].includes(hostname);
  const target=document.getElementById('quoteTurnstile')||
    document.getElementById('cancellationTurnstile');
  const enabled=()=>Boolean(key||production);
