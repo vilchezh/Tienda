@@ -14,3 +14,7 @@
   Cache-Control: no-store
 /arrepentimiento.html
   Cache-Control: no-store
+/assets/js/config.js
+  Cache-Control: no-store
+/assets/js/turnstile-forms.js
+  Cache-Control: no-cache, must-revalidate
