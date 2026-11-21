@@ -1,10 +1,10 @@
-// Turnstile protege ambos formularios. La sitekey es publica; el secreto queda en Supabase.
+// Turnstile protege ambos formularios. La sitekey es pública; el secreto queda en Supabase.
 window.StoreTurnstile = (() => {
  'use strict';
  const config=window.STORE_CONFIG||{};
  const key=String(config.turnstileSiteKey||'').trim();
- // En la tienda real la verificacion es obligatoria, aunque un JS antiguo
- // o una configuracion incompleta no haya cargado la clave publica.
+ // En la tienda real la verificación es obligatoria, aunque un JS antiguo
+ // o una configuración incompleta no haya cargado la clave pública.
  const production=config.supabaseUrl==='https://ivyagavbhsyzvikzhmhe.supabase.co';
  const target=document.getElementById('quoteTurnstile')||
    document.getElementById('cancellationTurnstile');
@@ -21,8 +21,8 @@ window.StoreTurnstile = (() => {
   notice(message,true);
  }
  function errorMessage(){
-  return issue||(!ready?'La verificacion de Cloudflare todavia se esta cargando. Volve a intentar.':
-    'Completa la verificacion de seguridad antes de enviar.');
+  return issue||(!ready?'La verificación de Cloudflare todavía se esta cargando. Volvé a intentar.':
+    'Completá la verificación de seguridad antes de enviar.');
  }
  function response(){
   if(!key||!ready||widget===null||typeof window.turnstile?.getResponse!=='function')return '';
@@ -32,7 +32,7 @@ window.StoreTurnstile = (() => {
  function reset(){
   if(ready&&widget!==null&&typeof window.turnstile?.reset==='function'){
    try{window.turnstile.reset(widget);issue='';notice('Verificando nuevamente con Cloudflare...');}
-   catch{fail('No se pudo reiniciar Cloudflare. Actualiza la pagina y reintenta.');}
+   catch{fail('No se pudo reiniciar Cloudflare. Actualizá la pagina y reintenta.');}
   }
  }
 
@@ -46,16 +46,16 @@ window.StoreTurnstile = (() => {
   target.insertAdjacentElement('afterend',status);
 
   if(!key){
-   fail('No se cargo la configuracion de seguridad de Cloudflare. Actualiza la pagina con Ctrl+F5.');
+   fail('No se cargo la configuración de seguridad de Cloudflare. Actualizá la pagina con Ctrl+F5.');
   }else{
-   notice('Cargando la verificacion de Cloudflare...');
+   notice('Cargando la verificación de Cloudflare...');
    const script=document.createElement('script');
    script.async=true;
    script.defer=true;
    script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
    script.onload=()=>{
     if(typeof window.turnstile?.render!=='function'){
-     fail('No se pudo iniciar Cloudflare. Actualiza la pagina o proba sin bloqueadores.');
+     fail('No se pudo iniciar Cloudflare. Actualizá la pagina o probá sin bloqueadores.');
      return;
     }
     try{
@@ -65,34 +65,34 @@ window.StoreTurnstile = (() => {
       appearance:'always',
       callback:()=>{
        issue='';
-       notice('Verificacion de Cloudflare completada.');
+       notice('Verificación de Cloudflare completada.');
       },
       'expired-callback':()=>{
-       fail('La verificacion de Cloudflare vencio. Completa el desafio nuevamente.');
+       fail('La verificación de Cloudflare vencio. Completá el desafío nuevamente.');
       },
       'error-callback':code=>{
        const value=String(code||'').replace(/[^0-9]/g,'').slice(0,8);
        if(value==='110200'){
         fail('Cloudflare no autoriza este dominio. Hay que agregarlo a los hostnames del widget.');
        }else{
-        fail('Cloudflare no pudo completar la verificacion'+(value?' (codigo '+value+')':'')+'. Reintenta o proba sin bloqueadores.');
+        fail('Cloudflare no pudo completar la verificación'+(value?' (código '+value+')':'')+'. Reintentá o probá sin bloqueadores.');
        }
       },
       'timeout-callback':()=>{
-       fail('La verificacion de Cloudflare tardo demasiado. Reintenta.');
+       fail('La verificación de Cloudflare tardó demasiado. Reintentá.');
       }
      });
      if(widget===null||widget===undefined){
-      fail('Cloudflare no pudo mostrar el desafio de seguridad. Actualiza la pagina.');
+      fail('Cloudflare no pudo mostrar el desafío de seguridad. Actualizá la pagina.');
       return;
      }
      ready=true;
     }catch{
-     fail('No se pudo mostrar la verificacion de Cloudflare. Actualiza la pagina o proba otro navegador.');
+     fail('No se pudo mostrar la verificación de Cloudflare. Actualizá la pagina o probá otro navegador.');
     }
    };
    script.onerror=()=>{
-    fail('No se pudo cargar Cloudflare. Comprueba tu conexion o desactiva bloqueadores para este sitio.');
+    fail('No se pudo cargar Cloudflare. Comprobá tu conexión o desactivá bloqueadores para este sitio.');
    };
    document.head.appendChild(script);
   }
